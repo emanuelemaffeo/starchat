@@ -926,7 +926,7 @@ paths:
             type: string
         - in: query
           name: refresh
-          description: when set to 1 StarChat force an index refresh
+          description: when set to 1 StarChat force an index refresh (default is 1)
           required: false
           schema:
             type: number
@@ -2207,7 +2207,7 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/QADocumentUpdate'
-        description: QA entry to create
+        description: QA entry with new fields
   '/<index_name>/<qa_route>/search':
     post:
       tags:
@@ -2293,6 +2293,46 @@ paths:
             schema:
               $ref: '#/components/schemas/DocsIds'
         description: The list of conversation IDs
+    put:
+      tags:
+        - customer
+      summary: update by query documents in the QA table
+      operationId: put_qa_byquery_route
+      description: update by query documents in the QA table. The index must exists and the customer has write permissions on it.
+      parameters:
+        - in: path
+          name: index_name
+          description: name of the index
+          required: true
+          schema:
+            type: string
+        - in: path
+          name: qa_route
+          description: question anser route
+          required: true
+          schema:
+            type: string
+            enum:
+              - conversation_logs
+              - knowledgebase
+              - prior_data
+      responses:
+        '200':
+          description: item updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateDocumentsResult'
+        '400':
+          description: 'invalid input, object invalid, bad request'
+        '401':
+          description: authorization denied or authentication failed
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateQAByQueryReq'
+        description: QA entry with new fields, the id field must be an empty list
   '/<index_name>/updateTerms/<qa_route>':
     put:
       tags:
@@ -4878,6 +4918,16 @@ components:
           format: long
           description: record insertion timestamp
           example: 1549283768918
+    UpdateQAByQueryReq:
+      type: object
+      required:
+        - documentSearch
+        - document
+      properties:
+        documentSearch:
+          $ref: '#/components/schemas/QADocumentSearch'
+        document:
+          $ref: '#/components/schemas/QADocumentUpdate'
     SearchQADocument:
       type: object
       required:

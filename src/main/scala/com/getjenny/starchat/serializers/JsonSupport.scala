@@ -338,4 +338,5 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val countersCacheSizeFormat = jsonFormat3(CountersCacheSize)
   implicit val conversationFormat = jsonFormat2(Conversation)
   implicit val conversationsFormat = jsonFormat2(Conversations)
+  implicit val updateQAByQueryReq = jsonFormat2(UpdateQAByQueryReq)
 }

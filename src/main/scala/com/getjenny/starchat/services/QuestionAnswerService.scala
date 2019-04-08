@@ -18,7 +18,7 @@ import org.elasticsearch.action.search.{SearchRequest, SearchResponse, SearchScr
 import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
 import org.elasticsearch.common.unit.TimeValue
-import org.elasticsearch.common.xcontent.XContentBuilder
+import org.elasticsearch.common.xcontent.{ToXContent, XContentBuilder}
 import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.index.query.functionscore._
 import org.elasticsearch.index.query.{BoolQueryBuilder, InnerHitBuilder, QueryBuilder, QueryBuilders}
@@ -40,6 +40,9 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
 import scala.concurrent.Future
+import org.elasticsearch.index.query.QueryBuilders
+import org.elasticsearch.index.reindex.UpdateByQueryAction
+import org.elasticsearch.index.reindex.UpdateByQueryRequest
 
 case class QuestionAnswerServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -510,28 +513,8 @@ trait QuestionAnswerService extends AbstractDataService {
     )
   }
 
-  def search(indexName: String, documentSearch: QADocumentSearch): Option[SearchQADocumentsResults] = {
-    val client: RestHighLevelClient = elasticClient.httpClient
-
-    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
-      .from(documentSearch.from.getOrElse(0))
-      .size(documentSearch.size.getOrElse(10))
-      .minScore(documentSearch.minScore.getOrElse(Option{elasticClient.queryMinThreshold}.getOrElse(0.0f)))
-
-    documentSearch.sortByConvIdIdx match {
-      case Some(true) =>
-        sourceReq.sort(new FieldSortBuilder("conversation").order(SortOrder.DESC))
-          .sort(new FieldSortBuilder("index_in_conversation").order(SortOrder.DESC))
-          .sort(new FieldSortBuilder("timestamp").order(SortOrder.DESC))
-      case _ => sourceReq.sort(new ScoreSortBuilder().order(SortOrder.DESC))
-    }
-
-    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
-      .source(sourceReq)
-      .types("_doc")
-      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
-
-    val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
+  private[this] def queryBuilder(documentSearch: QADocumentSearch): BoolQueryBuilder = {
+        val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
 
     documentSearch.conversation match {
       case Some(convIds) =>
@@ -734,6 +717,32 @@ trait QuestionAnswerService extends AbstractDataService {
       case _ => ;
     }
     // end annotations
+
+    boolQueryBuilder
+  }
+
+  def search(indexName: String, documentSearch: QADocumentSearch): Option[SearchQADocumentsResults] = {
+    val client: RestHighLevelClient = elasticClient.httpClient
+
+    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
+      .from(documentSearch.from.getOrElse(0))
+      .size(documentSearch.size.getOrElse(10))
+      .minScore(documentSearch.minScore.getOrElse(Option{elasticClient.queryMinThreshold}.getOrElse(0.0f)))
+
+    documentSearch.sortByConvIdIdx match {
+      case Some(true) =>
+        sourceReq.sort(new FieldSortBuilder("conversation").order(SortOrder.DESC))
+          .sort(new FieldSortBuilder("index_in_conversation").order(SortOrder.DESC))
+          .sort(new FieldSortBuilder("timestamp").order(SortOrder.DESC))
+      case _ => sourceReq.sort(new ScoreSortBuilder().order(SortOrder.DESC))
+    }
+
+    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
+      .source(sourceReq)
+      .types("_doc")
+      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
+
+    val boolQueryBuilder : BoolQueryBuilder = queryBuilder(documentSearch)
 
     sourceReq.query(boolQueryBuilder)
 
@@ -1560,7 +1569,7 @@ trait QuestionAnswerService extends AbstractDataService {
     Option {doc_result}
   }
 
-  def update(indexName: String, document: QADocumentUpdate, refresh: Int): UpdateDocumentsResult = {
+  private[this] def updateBuilder(document: QADocumentUpdate): XContentBuilder = {
     val builder : XContentBuilder = jsonBuilder().startObject()
 
     document.conversation match {
@@ -1654,11 +1663,31 @@ trait QuestionAnswerService extends AbstractDataService {
             builder.field("state", t)
           case _ => ;
         }
-        builder.field("agent", annotations.agent.toString)
-        builder.field("escalated", annotations.escalated.toString)
-        builder.field("answered", annotations.answered.toString)
-        builder.field("triggered", annotations.triggered.toString)
-        builder.field("followup", annotations.followup.toString)
+        annotations.agent match {
+          case Some(t) =>
+            builder.field("agent", t.toString)
+          case _ => ;
+        }
+        annotations.escalated match {
+          case Some(t) =>
+            builder.field("escalated", t.toString)
+          case _ => ;
+        }
+        annotations.answered match {
+          case Some(t) =>
+            builder.field("answered", t.toString)
+          case _ => ;
+        }
+        annotations.triggered match {
+          case Some(t) =>
+            builder.field("triggered", t.toString)
+          case _ => ;
+        }
+        annotations.followup match {
+          case Some(t) =>
+            builder.field("followup", t.toString)
+          case _ => ;
+        }
         annotations.feedbackConv match {
           case Some(t) => builder.field("feedbackConv", t)
           case _ => ;
@@ -1688,6 +1717,11 @@ trait QuestionAnswerService extends AbstractDataService {
     // end annotations
 
     builder.endObject()
+    builder
+  }
+
+  def update(indexName: String, document: QADocumentUpdate, refresh: Int): UpdateDocumentsResult = {
+    val builder = updateBuilder(document)
 
     val client: RestHighLevelClient = elasticClient.httpClient
 
@@ -1719,6 +1753,18 @@ trait QuestionAnswerService extends AbstractDataService {
     }).toList
 
     UpdateDocumentsResult(data = listOfDocRes)
+  }
+
+  def updateByQuery(indexName: String, updateReq: UpdateQAByQueryReq, refresh: Int): UpdateDocumentsResult = {
+    val searchRes: Option[SearchQADocumentsResults] =
+      search(indexName = indexName, documentSearch = updateReq.documentSearch)
+    searchRes match {
+      case Some(r) =>
+        val id = r.hits.map(_.document.id)
+        val updateDoc = updateReq.document.copy(id = id)
+        update(indexName = indexName, document = updateDoc, refresh = refresh)
+      case _ => UpdateDocumentsResult(data = List.empty[UpdateDocumentResult])
+    }
   }
 
   def read(indexName: String, ids: List[String]): Option[SearchQADocumentsResults] = {
