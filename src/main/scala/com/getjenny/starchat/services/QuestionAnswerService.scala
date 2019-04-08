@@ -18,7 +18,7 @@ import org.elasticsearch.action.search.{SearchRequest, SearchResponse, SearchScr
 import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
 import org.elasticsearch.common.unit.TimeValue
-import org.elasticsearch.common.xcontent.{ToXContent, XContentBuilder}
+import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.index.query.functionscore._
 import org.elasticsearch.index.query.{BoolQueryBuilder, InnerHitBuilder, QueryBuilder, QueryBuilders}
@@ -40,9 +40,6 @@ import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
 import scala.concurrent.Future
-import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.index.reindex.UpdateByQueryAction
-import org.elasticsearch.index.reindex.UpdateByQueryRequest
 
 case class QuestionAnswerServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
