@@ -324,7 +324,7 @@ class QAResource(questionAnswerService: QuestionAnswerService, routeName: String
                         ") method=(" + request.method.name + ") : " + e.getMessage)
                       completeResponse(StatusCodes.BadRequest,
                         Option {
-                          ReturnMessageData(code = 110, message = e.getMessage)
+                          ReturnMessageData(code = 111, message = e.getMessage)
                         })
                   }
                 }
