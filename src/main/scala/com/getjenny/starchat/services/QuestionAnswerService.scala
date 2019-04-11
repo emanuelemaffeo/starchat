@@ -4,7 +4,8 @@ package com.getjenny.starchat.services
   * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
   */
 
-import scalaz.NonEmptyList
+import java.time.{ZoneId, ZoneOffset}
+
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.util.{RandomNumbers, Time}
 import com.getjenny.starchat.SCActorSystem
@@ -29,16 +30,11 @@ import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.bucket.filter.ParsedFilter
 import org.elasticsearch.search.aggregations.bucket.histogram.{DateHistogramInterval, Histogram, ParsedDateHistogram}
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms
-import org.elasticsearch.search.aggregations.metrics.Avg
-import org.elasticsearch.search.aggregations.metrics.Cardinality
-import org.elasticsearch.search.aggregations.metrics.Sum
+import org.elasticsearch.search.aggregations.metrics.{Avg, Cardinality, Sum}
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.{FieldSortBuilder, ScoreSortBuilder, SortOrder}
-import org.joda.time.DateTime
-import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
-
 import scalaz.Scalaz._
-
+import java.time.ZonedDateTime
 import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
@@ -66,8 +62,8 @@ trait QuestionAnswerService extends AbstractDataService {
     val questionAgg = AggregationBuilders.cardinality("question_term_count").field("question.base")
     val answerAgg = AggregationBuilders.cardinality("answer_term_count").field("answer.base")
 
-    val scriptBody = "def qnList = new ArrayList(doc[\"question.base\"].getValues()) ; " +
-      "List anList = doc[\"answer.base\"].getValues() ; qnList.addAll(anList) ; return qnList ;"
+    val scriptBody = "def qnList = new ArrayList(doc[\"question.base\"]) ; " +
+      "List anList = doc[\"answer.base\"] ; qnList.addAll(anList) ; return qnList ;"
     val script: Script = new Script(scriptBody)
     val totalAgg = AggregationBuilders.cardinality("total_term_count").script(script)
 
@@ -511,7 +507,7 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   private[this] def queryBuilder(documentSearch: QADocumentSearch): BoolQueryBuilder = {
-        val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
+    val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
 
     documentSearch.conversation match {
       case Some(convIds) =>
@@ -562,23 +558,24 @@ trait QuestionAnswerService extends AbstractDataService {
     // begin core data
     coreDataIn.question match {
       case Some(questionQuery) =>
-        boolQueryBuilder.must(QueryBuilders.boolQuery()
+
+        val questionPositiveQuery: QueryBuilder = QueryBuilders.boolQuery()
           .must(QueryBuilders.matchQuery("question.stem", questionQuery))
           .should(QueryBuilders.matchPhraseQuery("question.raw", questionQuery)
             .boost(elasticClient.questionExactMatchBoost))
-        )
 
         val questionNegativeNestedQuery: QueryBuilder = QueryBuilders.nestedQuery(
           "question_negative",
           QueryBuilders.matchQuery("question_negative.query.base", questionQuery)
-            .minimumShouldMatch(elasticClient.questionNegativeMinimumMatch)
-            .boost(elasticClient.questionNegativeBoost),
+            .minimumShouldMatch(elasticClient.questionNegativeMinimumMatch),
           ScoreMode.Total
         ).ignoreUnmapped(true)
           .innerHit(new InnerHitBuilder().setSize(100))
 
         boolQueryBuilder.should(
-          questionNegativeNestedQuery
+          QueryBuilders.boostingQuery(questionPositiveQuery,
+            questionNegativeNestedQuery
+          ).negativeBoost(elasticClient.questionNegativeBoost)
         )
       case _ => ;
     }
@@ -1147,7 +1144,7 @@ trait QuestionAnswerService extends AbstractDataService {
           Some {
             h.getBuckets.asScala.map { bucket =>
               CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount
               )
@@ -1160,7 +1157,7 @@ trait QuestionAnswerService extends AbstractDataService {
           Some {
             h.getBuckets.asScala.map { bucket =>
               CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount
               )
@@ -1173,7 +1170,7 @@ trait QuestionAnswerService extends AbstractDataService {
           Some {
             h.getBuckets.asScala.map { bucket =>
               CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount
               )
@@ -1186,7 +1183,7 @@ trait QuestionAnswerService extends AbstractDataService {
           Some {
             h.getBuckets.asScala.map { bucket =>
               CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount
               )
@@ -1199,7 +1196,7 @@ trait QuestionAnswerService extends AbstractDataService {
           Some {
             h.getBuckets.asScala.map { bucket =>
               CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount
               )
@@ -1212,7 +1209,7 @@ trait QuestionAnswerService extends AbstractDataService {
           Some {
             h.getBuckets.asScala.map { bucket =>
               CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount
               )
@@ -1238,7 +1235,7 @@ trait QuestionAnswerService extends AbstractDataService {
             h.getBuckets.asScala.map { bucket =>
               val avg: Avg = bucket.getAggregations.get("avgScore")
               AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount,
                 avgScore = avg.getValue
@@ -1253,7 +1250,7 @@ trait QuestionAnswerService extends AbstractDataService {
             h.getBuckets.asScala.map { bucket =>
               val avg: Avg = bucket.getAggregations.get("avgScore")
               AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount,
                 avgScore = avg.getValue
@@ -1268,7 +1265,7 @@ trait QuestionAnswerService extends AbstractDataService {
             h.getBuckets.asScala.map { bucket =>
               val avg: Avg = bucket.getAggregations.get("avgScore")
               AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount,
                 avgScore = avg.getValue
@@ -1283,7 +1280,7 @@ trait QuestionAnswerService extends AbstractDataService {
             h.getBuckets.asScala.map { bucket =>
               val avg: Avg = bucket.getAggregations.get("avgScore")
               AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount,
                 avgScore = avg.getValue
@@ -1297,7 +1294,7 @@ trait QuestionAnswerService extends AbstractDataService {
             h.getBuckets.asScala.map { bucket =>
               val avg: Avg = bucket.getAggregations.get("avgScore")
               AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount,
                 avgScore = avg.getValue
@@ -1311,7 +1308,7 @@ trait QuestionAnswerService extends AbstractDataService {
             h.getBuckets.asScala.map { bucket =>
               val avg: Avg = bucket.getAggregations.get("avgScore")
               AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount,
                 avgScore = avg.getValue
@@ -1325,7 +1322,7 @@ trait QuestionAnswerService extends AbstractDataService {
             h.getBuckets.asScala.map { bucket =>
               val avg: Avg = bucket.getAggregations.get("avgScore")
               AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount,
                 avgScore = avg.getValue
@@ -1339,7 +1336,7 @@ trait QuestionAnswerService extends AbstractDataService {
             h.getBuckets.asScala.map { bucket =>
               val avg: Avg = bucket.getAggregations.get("avgScore")
               AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[DateTime].getMillis,
+                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
                 keyAsString = bucket.getKeyAsString,
                 docCount = bucket.getDocCount,
                 avgScore = avg.getValue
