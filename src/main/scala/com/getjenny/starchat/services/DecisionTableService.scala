@@ -415,7 +415,6 @@ object DecisionTableService extends AbstractDataService {
 
     val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
       .source(sourceReq)
-      .types("_doc")
       .searchType(SearchType.DFS_QUERY_THEN_FETCH)
 
     val minScore = documentSearch.minScore.getOrElse(
@@ -549,7 +548,6 @@ object DecisionTableService extends AbstractDataService {
 
     val indexReq = new IndexRequest()
       .index(Index.indexName(indexName, elasticClient.indexSuffix))
-      .`type`("_doc")
       .id(document.state)
       .source(builder)
 
@@ -642,7 +640,6 @@ object DecisionTableService extends AbstractDataService {
 
     val updateReq = new UpdateRequest()
       .index(Index.indexName(indexName, elasticClient.indexSuffix))
-      .`type`("_doc")
       .doc(builder)
       .id(document.state)
 
@@ -674,7 +671,6 @@ object DecisionTableService extends AbstractDataService {
 
     val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
       .source(sourceReq)
-      .types("_doc")
       .scroll(new TimeValue(60000))
 
     var scrollResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
@@ -769,7 +765,7 @@ object DecisionTableService extends AbstractDataService {
     // a list of specific ids was requested
     ids.foreach{id =>
       multiGetReq.add(
-        new MultiGetRequest.Item(Index.indexName(indexName, elasticClient.indexSuffix), null, id)
+        new MultiGetRequest.Item(Index.indexName(indexName, elasticClient.indexSuffix), id)
       )
     }
 

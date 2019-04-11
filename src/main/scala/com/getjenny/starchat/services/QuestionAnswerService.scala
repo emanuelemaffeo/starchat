@@ -4,6 +4,7 @@ package com.getjenny.starchat.services
   * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
   */
 
+import scalaz.NonEmptyList
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.util.{RandomNumbers, Time}
 import com.getjenny.starchat.SCActorSystem
@@ -28,12 +29,14 @@ import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.bucket.filter.ParsedFilter
 import org.elasticsearch.search.aggregations.bucket.histogram.{DateHistogramInterval, Histogram, ParsedDateHistogram}
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms
-import org.elasticsearch.search.aggregations.metrics.avg.Avg
-import org.elasticsearch.search.aggregations.metrics.cardinality.Cardinality
-import org.elasticsearch.search.aggregations.metrics.sum.Sum
+import org.elasticsearch.search.aggregations.metrics.Avg
+import org.elasticsearch.search.aggregations.metrics.Cardinality
+import org.elasticsearch.search.aggregations.metrics.Sum
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.{FieldSortBuilder, ScoreSortBuilder, SortOrder}
-import org.joda.time.{DateTime, DateTimeZone}
+import org.joda.time.DateTime
+import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
+
 import scalaz.Scalaz._
 
 import scala.collection.JavaConverters._
@@ -77,13 +80,12 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
       .source(sourceReq)
-      .types("_doc")
       .searchType(SearchType.DFS_QUERY_THEN_FETCH)
       .requestCache(true)
 
     val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
 
-    val totalHits = searchResp.getHits.totalHits
+    val totalHits = searchResp.getHits.getTotalHits.value
 
     val questionAggRes: Cardinality = searchResp.getAggregations.get("question_term_count")
     val answerAggRes: Cardinality = searchResp.getAggregations.get("answer_term_count")
@@ -143,13 +145,12 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
       .source(sourceReq)
-      .types("_doc")
       .searchType(SearchType.DFS_QUERY_THEN_FETCH)
       .requestCache(true)
 
     val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
 
-    val totalHits = searchResp.getHits.totalHits
+    val totalHits = searchResp.getHits.getTotalHits.value
 
     val questionAggRes: Sum = searchResp.getAggregations.get("question_term_count")
     val answerAggRes: Sum = searchResp.getAggregations.get("answer_term_count")
@@ -215,13 +216,12 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
       .source(sourceReq)
-      .types("_doc")
       .searchType(SearchType.DFS_QUERY_THEN_FETCH)
       .requestCache(true)
 
     val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
 
-    val totalHits = searchResp.getHits.totalHits
+    val totalHits = searchResp.getHits.getTotalHits.value
 
     val aggRes: Sum = searchResp.getAggregations.get("countTerms")
 
@@ -736,7 +736,6 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
       .source(sourceReq)
-      .types("_doc")
       .searchType(SearchType.DFS_QUERY_THEN_FETCH)
 
     val boolQueryBuilder : BoolQueryBuilder = queryBuilder(documentSearch)
@@ -758,10 +757,11 @@ trait QuestionAnswerService extends AbstractDataService {
       }
     }
 
-    val filteredDoc : List[SearchQADocument] = documents.getOrElse(List[SearchQADocument]())
+    val filteredDoc : List[SearchQADocument] =
+      documents.getOrElse(List.empty[SearchQADocument])
 
     val maxScore : Float = searchResp.getHits.getMaxScore
-    val totalHits = searchResp.getHits.totalHits
+    val totalHits = searchResp.getHits.getTotalHits.value
     val total : Int = filteredDoc.length
     val searchResults : SearchQADocumentsResults = SearchQADocumentsResults(totalHits = totalHits,
       hitsCount = total, maxScore = maxScore, hits = filteredDoc)
@@ -800,7 +800,6 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
       .source(sourceReq)
-      .types("_doc")
       .searchType(SearchType.DFS_QUERY_THEN_FETCH)
       .requestCache(true)
 
@@ -838,8 +837,8 @@ trait QuestionAnswerService extends AbstractDataService {
       .field("conversation").precisionThreshold(4000))
 
     val dateHistTimezone = request.timezone match {
-      case Some(tz) => DateTimeZone.forID(tz)
-      case _ => DateTimeZone.forID("+00:00")
+      case Some(tz) => ZoneId.ofOffset("UTC", ZoneOffset.of(tz))
+      case _ => ZoneId.ofOffset("UTC", ZoneOffset.of("+00:00"))
     }
 
     request.aggregations match {
@@ -1544,7 +1543,6 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val indexReq = new IndexRequest()
       .index(Index.indexName(indexName, elasticClient.indexSuffix))
-      .`type`("_doc")
       .id(document.id)
       .source(builder)
 
@@ -1726,10 +1724,9 @@ trait QuestionAnswerService extends AbstractDataService {
     document.id.map { id =>
       val updateReq = new UpdateRequest()
         .index(Index.indexName(indexName, elasticClient.indexSuffix))
-        .`type`("_doc")
         .doc(builder)
         .id(id)
-      bulkRequest.add(updateReq, RequestOptions.DEFAULT)
+      bulkRequest.add(updateReq)
     }
 
     val bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT)
@@ -1758,8 +1755,12 @@ trait QuestionAnswerService extends AbstractDataService {
     searchRes match {
       case Some(r) =>
         val id = r.hits.map(_.document.id)
-        val updateDoc = updateReq.document.copy(id = id)
-        update(indexName = indexName, document = updateDoc, refresh = refresh)
+        if(id.nonEmpty) {
+          val updateDoc = updateReq.document.copy(id = id)
+          update(indexName = indexName, document = updateDoc, refresh = refresh)
+        } else {
+          UpdateDocumentsResult(data = List.empty[UpdateDocumentResult])
+        }
       case _ => UpdateDocumentsResult(data = List.empty[UpdateDocumentResult])
     }
   }
@@ -1771,7 +1772,7 @@ trait QuestionAnswerService extends AbstractDataService {
     ids.foreach{ id =>
       multigetReq.add(
         new MultiGetRequest.Item(Index
-          .indexName(indexName, elasticClient.indexSuffix), null, id)
+          .indexName(indexName, elasticClient.indexSuffix), id)
       )
     }
 
@@ -1820,7 +1821,6 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
       .source(sourceReq)
-      .types("_doc")
       .scroll(new TimeValue(keepAlive))
 
     var scrollResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)

@@ -44,7 +44,6 @@ object DtReloadService extends AbstractDataService {
 
     val updateReq = new UpdateRequest()
       .index(indexName)
-      .`type`("_doc")
       .doc(builder)
       .id(dtIndexName)
       .docAsUpsert(true)
@@ -69,7 +68,6 @@ object DtReloadService extends AbstractDataService {
     val dtReloadDocId: String = dtIndexName
 
     val getReq = new GetRequest()
-      .`type`("_doc")
       .index(indexName)
       .id(dtReloadDocId)
 
@@ -113,7 +111,6 @@ object DtReloadService extends AbstractDataService {
 
     val searchReq = new SearchRequest(indexName)
       .source(sourceReq)
-      .types("_doc")
       .scroll(new TimeValue(60000))
 
     val scrollResp : SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)

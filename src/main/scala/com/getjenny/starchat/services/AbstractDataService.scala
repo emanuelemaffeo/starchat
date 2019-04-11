@@ -56,7 +56,6 @@ trait AbstractDataService {
     ids.foreach( id => {
       val deleteReq = new DeleteRequest()
         .index(Index.indexName(indexName, elasticClient.indexSuffix))
-        .`type`("_doc")
         .id(id)
       bulkReq.add(deleteReq)
     })
