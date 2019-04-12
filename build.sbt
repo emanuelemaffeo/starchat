@@ -2,8 +2,8 @@ import NativePackagerHelper._
 import com.typesafe.sbt.packager.docker._
 
 name := "StarChat"
-
 organization := "com.getjenny"
+maintainer := "angelo@getjenny.com"
 
 crossScalaVersions := Seq("2.12.8")
 
@@ -22,14 +22,13 @@ libraryDependencies ++= {
   val BreezeVersion	= "0.13.2"
   val ESClientVersion	= "7.0.0"
   val LogbackVersion	= "1.2.3"
-  val ParboiledVersion	= "2.1.4"
   val RoundeightsHasherVersion	= "1.2.0"
   val ScalatestVersion	= "3.0.5"
   val ScalazVersion	= "7.2.24"
   val ScoptVersion	= "3.7.0"
   val TikaVersion	= "1.18"
   val ManausLibVersion = "1.0.1"
-  val StanfordCoreNLP = "3.9.1"
+  val StanfordCoreNLP = "3.9.2"
   val AnalyzerVersion = "1.0.10"
   Seq(
     "com.getjenny" %% "manaus-lib" % ManausLibVersion,
@@ -54,7 +53,6 @@ libraryDependencies ++= {
     "org.elasticsearch.client" % "elasticsearch-rest-client" % ESClientVersion,
     "org.elasticsearch.client" % "elasticsearch-rest-high-level-client" % ESClientVersion,
     "org.elasticsearch" % "elasticsearch" % ESClientVersion,
-    "org.parboiled" %% "parboiled" % ParboiledVersion,
     "org.scalanlp" %% "breeze" % BreezeVersion,
     "org.scalanlp" %% "breeze-natives" % BreezeVersion,
     "org.scalatest" %% "scalatest" % ScalatestVersion % Test,
