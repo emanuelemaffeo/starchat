@@ -62,7 +62,7 @@ trait DecisionTableResource extends StarChatResource {
           authenticateBasicAsync(realm = authRealm, authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, indexName, Permissions.write)) {
-              storeUploadedFile("csv", tempDestination) {
+              storeUploadedFile("csv", tempDestination(".csv")) {
                 case (_, file) =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker(callTimeout = 60.seconds)
                   onCompleteWithBreaker(breaker)(decisionTableService.indexCSVFileIntoDecisionTable(indexName, file, 0)) {

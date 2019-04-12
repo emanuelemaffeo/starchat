@@ -126,7 +126,7 @@ trait TermResource extends StarChatResource {
                   authenticator = authenticator.authenticator) { user =>
                   authorizeAsync(_ =>
                     authenticator.hasPermissions(user, indexName, Permissions.write)) {
-                    storeUploadedFile("csv", tempDestination) {
+                    storeUploadedFile("csv", tempDestination(".csv")) {
                       case (_, file) =>
                         val breaker: CircuitBreaker =
                           StarChatCircuitBreaker.getCircuitBreaker(maxFailure = 5,
