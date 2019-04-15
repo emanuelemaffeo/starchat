@@ -63,6 +63,11 @@ object IndexManagementService extends AbstractDataService {
       indexSuffix = elasticClient.termIndexSuffix)
   )
 
+  val accessoryFilePathTpl = "/index_management/json_index_spec/%1$s/%2$s"
+  private[this] val langSpecificDataFiles: List[String] = List[String](
+    "stopwords.json"
+  )
+
   def create(indexName: String,
              indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
     val client: RestHighLevelClient = elasticClient.httpClient

@@ -4569,47 +4569,29 @@ components:
           example: I remember my password
         questionScoredTerms:
           type: array
-          description: question's terms list with score
+          description: question's terms list with score (tuples)
           items:
-            type: object
-            properties:
-              term:
-                type: string
-                description: term
-              score:
-                type: number
-                format: double
-                description: term score
-            example: {"term": "password", "score": 0.2121}
+            type: array
+            example: ["password", 0.2121]
         answer:
           type: string
           description: usually what the operator of the chat says
           example: I can reset the password for you
         answerScoredTerms:
           type: array
-          description: answer's terms list with score
+          description: answer's terms list with score (tuples)
           items:
-            type: object
-            properties:
-              term:
-                type: string
-                description: term
-              score:
-                type: number
-                format: double
-                description: term score
-            example: {"term": "reset", "score": 0.2121}
+            type: array
+            example: ["reset", 0.2121]
         verified:
           type: boolean
           description: whether the conversation was verified by an operator or not
           default: false
           example: true
         topics:
-          type: array
+          type: string
           description: list of topics
-          items:
-            type: string
-          example: ['password', "reset"]
+          example: "password reset"
         done:
           type: boolean
           description: the conversation has marked as done, this field is expected to set for each item of the conversation
