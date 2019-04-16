@@ -63,12 +63,12 @@
     {
       "jenny_estonian_stopwords":
       {
-        "type":       "stop",
-        "stopwords": "_estonian_"
+        "type": "stop",
+        "stopwords": "_none_"
       },
       "estonian_stemmer": {
-        "type":       "stemmer",
-        "language":   "estonian"
+        "type": "stemmer_override",
+        "rules": []
       },
       "jenny_estonian_shingle_2":
       {

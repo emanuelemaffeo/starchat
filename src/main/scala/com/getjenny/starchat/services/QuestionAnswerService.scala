@@ -470,6 +470,11 @@ trait QuestionAnswerService extends AbstractDataService {
       case _ => None : Option[Double]
     }
 
+    val responseScore : Option[Double] = source.get("responseScore") match {
+      case Some(t) => Option { t.asInstanceOf[Double] }
+      case _ => None : Option[Double]
+    }
+
     val start : Option[Boolean] = source.get("start") match {
       case Some(t) => Some(t.asInstanceOf[Boolean])
       case _ => Some(false)
@@ -490,6 +495,7 @@ trait QuestionAnswerService extends AbstractDataService {
         algorithmConvScore = algorithmConvScore,
         feedbackAnswerScore = feedbackAnswerScore,
         algorithmAnswerScore = algorithmAnswerScore,
+        responseScore = responseScore,
         start = start
       )
     }
@@ -1526,6 +1532,10 @@ trait QuestionAnswerService extends AbstractDataService {
           case Some(t) => builder.field("algorithmAnswerScore", t)
           case _ => ;
         }
+        annotations.responseScore match {
+          case Some(t) => builder.field("responseScore", t)
+          case _ => ;
+        }
         annotations.start match {
           case Some(t) => builder.field("start", t)
           case _ => builder.field("start", false);
@@ -1698,6 +1708,10 @@ trait QuestionAnswerService extends AbstractDataService {
         }
         annotations.algorithmAnswerScore match {
           case Some(t) => builder.field("algorithmAnswerScore", t)
+          case _ => ;
+        }
+        annotations.responseScore match {
+          case Some(t) => builder.field("responseScore", t)
           case _ => ;
         }
         annotations.start match {

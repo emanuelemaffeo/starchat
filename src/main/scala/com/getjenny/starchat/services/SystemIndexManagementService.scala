@@ -59,7 +59,7 @@ object SystemIndexManagementService extends AbstractDataService {
   def create(indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
     val client: RestHighLevelClient = elasticClient.httpClient
 
-    val operationsMessage: List[String] = schemaFiles.filter(item => {
+    val operationsMessage: List[(String, Boolean)] = schemaFiles.filter(item => {
       indexSuffix match {
         case Some(t) => t === item.indexSuffix
         case _ => true
@@ -86,12 +86,12 @@ object SystemIndexManagementService extends AbstractDataService {
 
       val createIndexRes: CreateIndexResponse = client.indices.create(createIndexReq, RequestOptions.DEFAULT)
 
-      item.indexSuffix + "(" + fullIndexName + ", " + createIndexRes.isAcknowledged.toString + ")"
+      (item.indexSuffix + "(" + fullIndexName + ", " + createIndexRes.isAcknowledged.toString + ")",
+        createIndexRes.isAcknowledged)
     })
 
     val message = "IndexCreation: " + operationsMessage.mkString(" ")
-
-    IndexManagementResponse(message)
+    IndexManagementResponse(message = message, check = operationsMessage.forall{case(_, ck) => ck})
   }
 
   def remove(indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
@@ -102,7 +102,7 @@ object SystemIndexManagementService extends AbstractDataService {
       throw SystemIndexManagementServiceException(message)
     }
 
-    val operationsMessage: List[String] = schemaFiles.filter(item => {
+    val operationsMessage: List[(String, Boolean)] = schemaFiles.filter(item => {
       indexSuffix match {
         case Some(t) => t === item.indexSuffix
         case _ => true
@@ -114,19 +114,18 @@ object SystemIndexManagementService extends AbstractDataService {
 
       val deleteIndexRes: AcknowledgedResponse = client.indices.delete(deleteIndexReq, RequestOptions.DEFAULT)
 
-      item.indexSuffix + "(" + fullIndexName + ", " + deleteIndexRes.isAcknowledged.toString + ")"
-
+      (item.indexSuffix + "(" + fullIndexName + ", " + deleteIndexRes.isAcknowledged.toString + ")",
+        deleteIndexRes.isAcknowledged)
     })
 
     val message = "IndexDeletion: " + operationsMessage.mkString(" ")
-
-    IndexManagementResponse(message)
+    IndexManagementResponse(message = message, check = operationsMessage.forall{case(_, ck) => ck})
   }
 
   def check(indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
     val client: RestHighLevelClient = elasticClient.httpClient
 
-    val operationsMessage: List[String] = schemaFiles.filter(item => {
+    val operationsMessage: List[(String, Boolean)] = schemaFiles.filter(item => {
       indexSuffix match {
         case Some(t) => t === item.indexSuffix
         case _ => true
@@ -139,14 +138,12 @@ object SystemIndexManagementService extends AbstractDataService {
       val getMappingsRes: GetMappingsResponse = client.indices.getMapping(getMappingsReq, RequestOptions.DEFAULT)
 
       val check = getMappingsRes.mappings.containsKey(fullIndexName)
-      item.indexSuffix + "(" + fullIndexName + ", " + check + ")"
+      (item.indexSuffix + "(" + fullIndexName + ", " + check + ")", check)
     })
 
     val message = "IndexCheck: " + operationsMessage.mkString(" ")
-
-    IndexManagementResponse(message)
+    IndexManagementResponse(message = message, check = operationsMessage.forall{case(_, ck) => ck})
   }
-
 
   def update(indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
     val client: RestHighLevelClient = elasticClient.httpClient

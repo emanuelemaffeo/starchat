@@ -124,6 +124,7 @@ analysis tool (for future use) */
                                   feedbackAnswerScore: Option[Double] = None, /* description: a field to store the score provided by the user for the answer */
                                   algorithmAnswerScore: Option[Double] = None, /* a field to store the score calculated by an algorithm related to the answer i.e. a sentiment
 analysis tool (for future use) */
+                                  responseScore: Option[Double] = None, /* score of the response e.g. Starchat response score */
                                   start: Option[Boolean] = None /* event determined when a start state is loaded */
                                 )
 

@@ -4680,6 +4680,11 @@ components:
               0.0 must be chosen)
           example: 2.0
           default: 0.0
+        responseScore:
+          type: number
+          format: double
+          description: score of the response e.g. Starchat response score
+          example: 0.3
         start:
           type: boolean
           description: event determined when a start state is loaded
