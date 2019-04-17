@@ -29,7 +29,7 @@ libraryDependencies ++= {
   val TikaVersion	= "1.18"
   val ManausLibVersion = "1.0.1"
   val StanfordCoreNLP = "3.9.2"
-  val AnalyzerVersion = "1.0.10"
+  val AnalyzerVersion = "1.0.11"
   Seq(
     "com.getjenny" %% "manaus-lib" % ManausLibVersion,
     "com.getjenny" %% "analyzer" % AnalyzerVersion,
