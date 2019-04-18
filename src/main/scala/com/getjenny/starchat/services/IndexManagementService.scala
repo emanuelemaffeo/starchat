@@ -89,10 +89,10 @@ object IndexManagementService extends AbstractDataService {
     }.filter{ case(json, _) => json != ""}
 
     val fullIndexName: String = Index.indexName(indexName, indexSuffix)
-    if(openCloseIndices) openClose(indexName, Some(indexSuffix), "close")
     resourcesJson.foreach { case(resJson, resType) =>
       resType match {
         case LangResourceType.STOPWORD | LangResourceType.STEMMER_OVERRIDE =>
+          if(openCloseIndices) openClose(indexName, Some(indexSuffix), "close")
           val updateIndexSettingsReq = new UpdateSettingsRequest().indices(fullIndexName)
             .settings(Settings.builder().loadFromSource(resJson, XContentType.JSON))
           val updateIndexSettingsRes: AcknowledgedResponse = client.indices
@@ -101,12 +101,12 @@ object IndexManagementService extends AbstractDataService {
             val message = "Failed to apply index settings (" + resType + ") for index: " + fullIndexName
             throw LangResourceException(message)
           }
+          if(openCloseIndices) openClose(indexName, Some(indexSuffix), "open")
         case _ =>
           val message = "Bad ResourceType(" + resType + ") for index: " + fullIndexName
           throw LangResourceException(message)
       }
     }
-    if(openCloseIndices) openClose(indexName, Some(indexSuffix), "open")
   }
 
   def create(indexName: String,
@@ -352,7 +352,6 @@ object IndexManagementService extends AbstractDataService {
 
     RefreshIndexResults(results = operationsResults)
   }
-
 }
 
 
