@@ -4708,10 +4708,11 @@ components:
           description: search for documents associated to a state
           example: "check_policy_expiration"
         agent:
-          type: string
-          default: UNSPECIFIED
-          example: HUMAN_PICKED
-          $ref: '#/components/schemas/Agent'
+          type: array
+          descripton: values to match (search documents with at least one value)
+          items:
+            $ref: '#/components/schemas/Agent'
+          example: ["HUMAN_PICKED"]
         escalated:
           type: array
           description: values to match (search documents with at least one value)
@@ -4745,8 +4746,6 @@ components:
           format: double
           description: >-
             min score value, if not specified -> no lower bound (conversation).
-            Since the documents without a feedback will have a score equal to 0.0, so use
-            a value greater than 0.0 to filter only the documents with a feedback.
           example: 1.0
         feedbackScoreConvLte:
           type: number
@@ -4758,8 +4757,6 @@ components:
           format: double
           description: >-
             min score value, if not specified -> no lower bound (conversation)
-            Since the documents without a feedback will have a score equal to 0.0, so use
-            a value greater than 0.0 to filter only the documents with a feedback.
           example: 4.0
         algorithmScoreConvLte:
           type: number
@@ -4771,16 +4768,12 @@ components:
           format: double
           description: >-
             min score value, if not specified -> no lower bound (answer)
-            Since the documents without a feedback will have a score equal to 0.0, so use
-            a value greater than 0.0 to filter only the documents with a feedback.
           example: 1.0
         feedbackScoreAnswerLte:
           type: number
           format: double
           description: >-
             max score value, if not specified -> no upper bound (answer)
-            Since the documents without a feedback will have a score equal to 0.0, so use
-            a value greater than 0.0 to filter only the documents with a feedback.
           example: 5.0
         algorithmScoreAnswerGte:
           type: number
@@ -4792,9 +4785,18 @@ components:
           format: double
           description: >-
             max score value, if not specified -> no upper bound (answer)
-            Since the documents without a feedback will have a score equal to 0.0, so use
-            a value greater than 0.0 to filter only the documents with a feedback.
           example: 5.0
+        responseScoreGte:
+          type: number
+          format: double
+          description: min StarChat score value, if not specified -> no lower bound (answer)
+          example: 0.8
+        responseScoreLte:
+          type: number
+          format: double
+          description: >-
+            max StarChat score value, if not specified -> no upper bound (answer)
+          example: 0.9
         start:
           type: boolean
           description: event determined when a start state is loaded

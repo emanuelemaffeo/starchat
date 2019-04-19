@@ -559,7 +559,7 @@ trait QuestionAnswerService extends AbstractDataService {
     }
 
     val coreDataIn = documentSearch.coreData.getOrElse(QADocumentCore())
-    val annotationsIn = documentSearch.annotations.getOrElse(QADocumentAnnotations())
+    val annotationsIn = documentSearch.annotations.getOrElse(QADocumentAnnotationsSearch())
 
     // begin core data
     coreDataIn.question match {
@@ -649,7 +649,10 @@ trait QuestionAnswerService extends AbstractDataService {
     }
 
     annotationsIn.doctype match {
-      case Some(doctype) => boolQueryBuilder.filter(QueryBuilders.termQuery("doctype", doctype))
+      case Some(queryParam) =>
+        val orQuery = QueryBuilders.boolQuery()
+        queryParam.foreach(i => orQuery.should(QueryBuilders.termQuery("doctype", i.toString)))
+        boolQueryBuilder.filter(orQuery)
       case _ => ;
     }
 
@@ -659,27 +662,42 @@ trait QuestionAnswerService extends AbstractDataService {
     }
 
     annotationsIn.agent match {
-      case Some(agent) => boolQueryBuilder.filter(QueryBuilders.termQuery("agent", agent))
+      case Some(queryParam) =>
+        val orQuery = QueryBuilders.boolQuery()
+        queryParam.foreach(i => orQuery.should(QueryBuilders.termQuery("agent", i.toString)))
+        boolQueryBuilder.filter(orQuery)
       case _ => ;
     }
 
     annotationsIn.escalated match {
-      case Some(escalated) => boolQueryBuilder.filter(QueryBuilders.termQuery("escalated", escalated))
+      case Some(queryParam) =>
+        val orQuery = QueryBuilders.boolQuery()
+        queryParam.foreach(i => orQuery.should(QueryBuilders.termQuery("escalated", i.toString)))
+        boolQueryBuilder.filter(orQuery)
       case _ => ;
     }
 
     annotationsIn.answered match {
-      case Some(answered) => boolQueryBuilder.filter(QueryBuilders.termQuery("answered", answered))
+      case Some(queryParam) =>
+        val orQuery = QueryBuilders.boolQuery()
+        queryParam.foreach(i => orQuery.should(QueryBuilders.termQuery("answered", i.toString)))
+        boolQueryBuilder.filter(orQuery)
       case _ => ;
     }
 
     annotationsIn.triggered match {
-      case Some(triggered) => boolQueryBuilder.filter(QueryBuilders.termQuery("triggered", triggered))
+      case Some(queryParam) =>
+        val orQuery = QueryBuilders.boolQuery()
+        queryParam.foreach(i => orQuery.should(QueryBuilders.termQuery("triggered", i.toString)))
+        boolQueryBuilder.filter(orQuery)
       case _ => ;
     }
 
     annotationsIn.followup match {
-      case Some(followup) => boolQueryBuilder.filter(QueryBuilders.termQuery("followup", followup))
+      case Some(queryParam) =>
+        val orQuery = QueryBuilders.boolQuery()
+        queryParam.foreach(i => orQuery.should(QueryBuilders.termQuery("followup", i.toString)))
+        boolQueryBuilder.filter(orQuery)
       case _ => ;
     }
 
@@ -688,27 +706,83 @@ trait QuestionAnswerService extends AbstractDataService {
       case _ => ;
     }
 
-    annotationsIn.feedbackConvScore match {
-      case Some(feedbackConvScore) => boolQueryBuilder.filter(
-        QueryBuilders.termQuery("feedbackConvScore", feedbackConvScore))
+    annotationsIn.feedbackScoreConvGte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("feedbackConvScore")
+            .gte(ts))
       case _ => ;
     }
 
-    annotationsIn.algorithmConvScore match {
-      case Some(algorithmConvScore) => boolQueryBuilder.filter(
-        QueryBuilders.termQuery("algorithmConvScore", algorithmConvScore))
+    annotationsIn.feedbackScoreConvGte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("feedbackConvScore")
+            .lte(ts))
       case _ => ;
     }
 
-    annotationsIn.feedbackAnswerScore match {
-      case Some(feedbackAnswerScore) => boolQueryBuilder.filter(
-        QueryBuilders.termQuery("feedbackAnswerScore", feedbackAnswerScore))
+    annotationsIn.algorithmScoreConvGte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("algorithmConvScore")
+            .gte(ts))
       case _ => ;
     }
 
-    annotationsIn.algorithmAnswerScore match {
-      case Some(algorithmAnswerScore) => boolQueryBuilder.filter(
-        QueryBuilders.termQuery("algorithmAnswerScore", algorithmAnswerScore))
+    annotationsIn.algorithmScoreConvLte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("algorithmConvScore")
+            .lte(ts))
+      case _ => ;
+    }
+
+    annotationsIn.feedbackScoreAnswerGte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("feedbackAnswerScore")
+            .gte(ts))
+      case _ => ;
+    }
+
+    annotationsIn.feedbackScoreAnswerLte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("feedbackAnswerScore")
+            .lte(ts))
+      case _ => ;
+    }
+
+    annotationsIn.algorithmScoreAnswerGte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("algorithmAnswerScore")
+            .gte(ts))
+      case _ => ;
+    }
+
+    annotationsIn.algorithmScoreAnswerLte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("algorithmAnswerScore")
+            .lte(ts))
+      case _ => ;
+    }
+
+    annotationsIn.responseScoreGte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("responseScore")
+            .gte(ts))
+      case _ => ;
+    }
+
+    annotationsIn.responseScoreLte match {
+      case Some(ts) =>
+        boolQueryBuilder.filter(
+          QueryBuilders.rangeQuery("responseScore")
+            .lte(ts))
       case _ => ;
     }
 
