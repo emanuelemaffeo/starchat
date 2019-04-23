@@ -907,6 +907,8 @@ trait QuestionAnswerService extends AbstractDataService {
       case _ => ;
     }
 
+    sourceReq.query(boolQueryBuilder)
+
     sourceReq.aggregation(AggregationBuilders.cardinality("totalDocuments")
       .field("_id").precisionThreshold(40000))
 
