@@ -4852,7 +4852,7 @@ components:
         indexInConversation:
           type: number
           format: integer
-          description: the index of the document in the conversation flow
+          description: the index of the document in the conversation flow (Start from 1, 0 is reserved)
           example: 10
         coreData:
           type: object
@@ -4888,7 +4888,7 @@ components:
         indexInConversation:
           type: number
           format: integer
-          description: the index of the document in the conversation flow
+          description: the index of the document in the conversation flow (Start from 1, 0 is reserved)
           example: 10
         coreData:
           type: object

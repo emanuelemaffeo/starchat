@@ -167,11 +167,12 @@ class QAResource(questionAnswerService: QuestionAnswerService, routeName: String
                               })
                         }
                       case Failure(e) =>
-                        log.error("index(" + indexName + ") uri=(" + request.uri +
-                          ") method=(" + request.method.name + ") : " + e.getMessage)
+                        val message = "index(" + indexName + ") uri=(" + request.uri +
+                          ") method=(" + request.method.name + ") : " + e.getMessage
+                        log.error(message)
                         completeResponse(StatusCodes.BadRequest,
                           Option {
-                            ReturnMessageData(code = 105, message = "Error indexing new document")
+                            ReturnMessageData(code = 105, message = message)
                           })
                     }
                   }
