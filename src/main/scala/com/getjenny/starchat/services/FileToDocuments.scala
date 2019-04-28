@@ -40,7 +40,7 @@ object FileToDocuments extends JsonSupport {
       case _ => throw FileToDocumentsException("empty or malformed file: " + file.getPath)
     }
 
-    fileEntries.tail.map { case entry =>
+    fileEntries.tail.map { entry =>
       if (entry.length =/= header.length) {
         val message = "file row is not consistent entry(" + entry.length + ") != header(" + header.length +
           ") Row(" + entry.toString + ")"
