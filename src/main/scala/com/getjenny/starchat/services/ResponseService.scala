@@ -160,7 +160,7 @@ object ResponseService extends AbstractDataService {
           val maxStateCount: Int = doc.maxStateCount
           val analyzer: String = doc.analyzer
           var bubble: String = doc.bubble
-          var action: String = doc.action
+          val action: String = doc.action
           var actionInput: Map[String, String] = doc.actionInput
           val stateData: Map[String, String] = doc.stateData
 
