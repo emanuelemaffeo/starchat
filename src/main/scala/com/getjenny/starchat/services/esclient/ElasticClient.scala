@@ -19,6 +19,7 @@ import org.elasticsearch.client.{RequestOptions, RestClient, RestClientBuilder, 
 import scalaz.Scalaz._
 
 import scala.collection.immutable.{List, Map}
+import com.getjenny.starchat.utils.SslContext
 
 trait ElasticClient {
   val config: Config = ConfigFactory.load()
@@ -33,9 +34,17 @@ trait ElasticClient {
   val hostMap: Map[String, Int] = hostMapStr.split(";")
     .map(x => x.split("=")).map(x => (x(0), x(1).toInt)).toMap
 
-  val keystore: String = config.getString("starchat.client.https.keystore")
-  val keystoreType: String = config.getString("starchat.client.https.keystore_type")
-  val keystorePassword: String = config.getString("starchat.client.https.keystore_password")
+  val certFormat: String = config.getString("starchat.client.https.certificates.format")
+  val sslContext: SSLContext = certFormat match {
+    case "jks" =>
+      val path = config.getString("starchat.client.https.certificates.jks.keystore")
+      val password = config.getString("starchat.client.https.certificates.jks.password")
+      SslContext.jks(path, password)
+    case "pkcs12" | _ =>
+      val path = config.getString("starchat.client.https.certificates.pkcs12.keystore")
+      val password = config.getString("starchat.client.https.certificates.pkcs12.password")
+      SslContext.pkcs12(path, password)
+  }
   val disableHostValidation: Boolean = config.getBoolean("starchat.client.https.disable_host_validation")
 
   val inetAddresses: List[HttpHost] =
@@ -53,33 +62,6 @@ trait ElasticClient {
         httpBuilder.setSSLHostnameVerifier(AllHostsValid)
       httpBuilder
     }
-  }
-
-  def sslContext: SSLContext = {
-    val password = if (keystorePassword.nonEmpty)
-      keystorePassword.toCharArray
-    else null
-
-    val ks = KeyStore.getInstance(keystoreType)
-
-    val keystoreIs: InputStream = if (keystore.startsWith("/tls/certs/")) {
-      getClass.getResourceAsStream(keystore)
-    } else {
-      new FileInputStream(keystore)
-    }
-
-    require(keystoreIs != None.orNull, "Keystore required!")
-    ks.load(keystoreIs, password)
-
-    val keyManagerFactory = KeyManagerFactory.getInstance("SunX509")
-    keyManagerFactory.init(ks, password)
-
-    val tmf = TrustManagerFactory.getInstance("SunX509")
-    tmf.init(ks)
-
-    val sslContext = SSLContext.getInstance("TLS")
-    sslContext.init(keyManagerFactory.getKeyManagers, tmf.getTrustManagers, new SecureRandom)
-    sslContext
   }
 
   def buildClient(hostProto: String): RestClientBuilder = {
