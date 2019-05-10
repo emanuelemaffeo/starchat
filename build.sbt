@@ -20,7 +20,7 @@ libraryDependencies ++= {
   val AkkaHttpVersion	= "10.1.8"
   val AkkaVersion	= "2.5.22"
   val BreezeVersion	= "0.13.2"
-  val ESClientVersion	= "7.0.0"
+  val ESClientVersion	= "7.0.1"
   val LogbackVersion	= "1.2.3"
   val RoundeightsHasherVersion	= "1.2.0"
   val ScalatestVersion	= "3.0.5"
@@ -78,7 +78,7 @@ git.useGitDescribe := true
 
 //http://www.scala-sbt.org/sbt-native-packager/formats/docker.html
 dockerCommands := Seq(
-  Cmd("FROM", "openjdk:11"),
+  Cmd("FROM", "java:11"),
   Cmd("RUN", "apt", "update"),
   Cmd("RUN", "apt", "install", "-y", "netcat"),
   Cmd("LABEL", "maintainer=\"Angelo Leto <angelo@getjenny.com>\""),

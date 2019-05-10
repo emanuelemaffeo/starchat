@@ -4,11 +4,10 @@ package com.getjenny.starchat.services.esclient
   * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
   */
 
-import java.io.{FileInputStream, InputStream}
 import java.net.InetAddress
-import java.security.{KeyStore, SecureRandom}
 
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.utils.SslContext
 import com.typesafe.config.{Config, ConfigFactory}
 import javax.net.ssl._
 import org.apache.http.HttpHost
@@ -19,7 +18,6 @@ import org.elasticsearch.client.{RequestOptions, RestClient, RestClientBuilder, 
 import scalaz.Scalaz._
 
 import scala.collection.immutable.{List, Map}
-import com.getjenny.starchat.utils.SslContext
 
 trait ElasticClient {
   val config: Config = ConfigFactory.load()
