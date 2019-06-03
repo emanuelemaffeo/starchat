@@ -20,7 +20,7 @@ services:
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
 
   starchat:
-    image: java:8
+    image: java:9
     restart: unless-stopped
     command: ["/starchat/scripts/utils/wait-for-it.sh", "https://getjenny-es", "9200", "10", "/starchat/bin/starchat"]
     volumes:

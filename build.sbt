@@ -78,7 +78,7 @@ git.useGitDescribe := true
 
 //http://www.scala-sbt.org/sbt-native-packager/formats/docker.html
 dockerCommands := Seq(
-  Cmd("FROM", "java:11"),
+  Cmd("FROM", "java:9"),
   Cmd("RUN", "apt", "update"),
   Cmd("RUN", "apt", "install", "-y", "netcat"),
   Cmd("LABEL", "maintainer=\"Angelo Leto <angelo@getjenny.com>\""),
