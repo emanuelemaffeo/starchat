@@ -79,8 +79,9 @@ git.useGitDescribe := true
 //http://www.scala-sbt.org/sbt-native-packager/formats/docker.html
 dockerCommands := Seq(
   Cmd("FROM", "openjdk:8-jre-alpine"),
-  Cmd("RUN", "apt", "update"),
-  Cmd("RUN", "apt", "install", "-y", "netcat"),
+  Cmd("RUN", "apk", "update"),
+  Cmd("RUN", "apk", "add", "bash"),
+  Cmd("RUN", "apk", "add", "curl"),
   Cmd("LABEL", "maintainer=\"Angelo Leto <angelo@getjenny.com>\""),
   Cmd("LABEL", "description=\"Docker container for StarChat\""),
   Cmd("WORKDIR", "/"),
