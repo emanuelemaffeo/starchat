@@ -82,10 +82,12 @@ dockerCommands := Seq(
   Cmd("RUN", "apk", "update"),
   Cmd("RUN", "apk", "add", "bash"),
   Cmd("RUN", "apk", "add", "curl"),
+  Cmd("RUN", "addgroup", "-S", "starchat", "&&", "adduser", "-S", "starchat", "-G", "starchat"),
+  Cmd("USER", "starchat:starchat"),
   Cmd("LABEL", "maintainer=\"Angelo Leto <angelo@getjenny.com>\""),
   Cmd("LABEL", "description=\"Docker container for StarChat\""),
   Cmd("WORKDIR", "/"),
-  Cmd("ADD", "/opt/docker", "/starchat"),
+  Cmd("ADD", "--chown=starchat:starchat", "/opt/docker", "/starchat"),
   Cmd("VOLUME", "/starchat/config"),
   Cmd("VOLUME", "/starchat/log")
 )
