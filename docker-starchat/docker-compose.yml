@@ -26,7 +26,7 @@ services:
       options:
         max-size: "100m"
         max-file: "10"
-    command: ["/starchat/scripts/utils/wait-for-it.sh", "https://getjenny-es", "9200", "10", "/starchat/bin/starchat"]
+    command: ["/starchat/scripts/utils/wait-for-it.sh", "getjenny-es", "9200", "10", "/starchat/bin/starchat"]
     volumes:
       - ./starchat:/starchat
     ports:
