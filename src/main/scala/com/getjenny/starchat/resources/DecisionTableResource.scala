@@ -225,11 +225,16 @@ trait DecisionTableResource extends StarChatResource {
                                 })
                             }
                           )
-                        case e@(_: ResponseServiceNoResponseException | _: AnalyzerEvaluationException) =>
+                        case e@(_: ResponseServiceNoResponseException) =>
                           val message = "index(" + indexName + ") DecisionTableResource: " +
-                            "Unable to complete the request: " + e.getMessage
+                            "No response: " + e.getMessage
+                          log.info(message = message)
+                          completeResponse(StatusCodes.NoContent)
+                        case e@(_: AnalyzerEvaluationException) =>
+                          val message = "index(" + indexName + ") DecisionTableResource: " +
+                            "Unable to complete the request, due to analyzer: " + e.getMessage
                           log.error(message = message)
-                          completeResponse(StatusCodes.NoContent,
+                          completeResponse(StatusCodes.BadRequest,
                             Option {
                               ResponseRequestOutOperationResult(
                                 ReturnMessageData(code = 110, message = message),
@@ -238,11 +243,11 @@ trait DecisionTableResource extends StarChatResource {
                                 })
                             }
                           )
-                        case e@(_: ResponseServiceDocumentNotFoundException | _: AnalyzerEvaluationException) =>
+                        case e@(_: ResponseServiceDocumentNotFoundException) =>
                           val message = "index(" + indexName + ") DecisionTableResource: " +
                             "Unable to complete the request: " + e.getMessage
                           log.error(message = message)
-                          completeResponse(StatusCodes.Accepted,
+                          completeResponse(StatusCodes.BadRequest,
                             Option {
                               ResponseRequestOutOperationResult(
                                 ReturnMessageData(code = 111, message = message),
