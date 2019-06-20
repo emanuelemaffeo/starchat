@@ -18,6 +18,7 @@ import scalaz.Scalaz._
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
+import scala.util.matching.Regex
 import scala.util.{Failure, Success}
 
 trait DecisionTableResource extends StarChatResource {
@@ -26,6 +27,7 @@ trait DecisionTableResource extends StarChatResource {
   private[this] val analyzerService: AnalyzerService.type = AnalyzerService
   private[this] val responseService: ResponseService.type = ResponseService
   private[this] val dtReloadService: DtReloadService.type = DtReloadService
+  private[this] val fileTypeRegex: Regex = ("^(csv|json)$").r
 
   def decisionTableRoutesAllRoutes: Route = handleExceptions(routesExceptionHandler) {
     pathPrefix(indexRegex ~ Slash ~ "decisiontable" ~ Slash ~ "all") { indexName =>
@@ -55,17 +57,25 @@ trait DecisionTableResource extends StarChatResource {
     }
   }
 
-  def decisionTableUploadCSVRoutes: Route = handleExceptions(routesExceptionHandler) {
-    pathPrefix(indexRegex ~ Slash ~ "decisiontable" ~ Slash ~ "upload_csv") { indexName =>
+  def decisionTableUploadFilesRoutes: Route = handleExceptions(routesExceptionHandler) {
+    pathPrefix(indexRegex ~ Slash ~ "decisiontable" ~ Slash ~ "upload" ~ Slash ~ fileTypeRegex) { (indexName, fileType) =>
       pathEnd {
         post {
           authenticateBasicAsync(realm = authRealm, authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, indexName, Permissions.write)) {
-              storeUploadedFile("csv", tempDestination(".csv")) {
+              storeUploadedFile(fileType, tempDestination("." + fileType)) {
                 case (_, file) =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker(callTimeout = 60.seconds)
-                  onCompleteWithBreaker(breaker)(decisionTableService.indexCSVFileIntoDecisionTable(indexName, file, 0)) {
+                  onCompleteWithBreaker(breaker)(
+                    if (fileType == "csv") {
+                      decisionTableService.indexCSVFileIntoDecisionTable(indexName, file, 0)
+                    } else if (fileType == "json") {
+                      decisionTableService.indexJSONFileIntoDecisionTable(indexName, file)
+                    } else {
+                      throw DecisionTableServiceException("Bad or unsupported file format: " + fileType)
+                    }
+                  ) {
                     case Success(t) =>
                       file.delete()
                       completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {

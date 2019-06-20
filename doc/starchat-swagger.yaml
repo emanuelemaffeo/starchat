@@ -1129,7 +1129,7 @@ paths:
             schema:
               $ref: '#/components/schemas/DTDocumentSearch'
         description: DecisionTable document with the query parameters
-  '/<index_name>/decisiontable/upload_csv':
+  '/<index_name>/decisiontable/upload/<format>':
     post:
       tags:
         - customer
@@ -1143,6 +1143,11 @@ paths:
           name: index_name
           description: name of the index
           required: true
+          schema:
+            type: string
+        - in: path
+          name: format
+          description: 'the file format, supported only: csv or json (json dump format)'
           schema:
             type: string
       requestBody:

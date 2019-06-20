@@ -497,7 +497,7 @@ object TermService extends AbstractDataService {
                                     analyzer: String = "space_punctuation"): TermsResults = {
     val client: RestHighLevelClient = elasticClient.httpClient
 
-    val term_field_name = if (TokenizersDescription.analyzers_map.contains(analyzer))
+    val term_field_name = if (TokenizersDescription.analyzersMap.contains(analyzer))
       "term." + analyzer
     else
       throw TermServiceException("search: analyzer not found or not supported: (" + analyzer + ")")
@@ -651,7 +651,7 @@ object TermService extends AbstractDataService {
     * @return a TokenizerResponse with the result of the tokenization
     */
   def esTokenizer(indexName: String, query: TokenizerQueryRequest) : TokenizerResponse = {
-    val analyzer = TokenizersDescription.analyzers_map.get(query.tokenizer) match {
+    val analyzer = TokenizersDescription.analyzersMap.get(query.tokenizer) match {
       case Some((analyzerEsName, _)) => analyzerEsName
       case _ =>
         throw TermServiceException("esTokenizer: analyzer not found or not supported: (" + query.tokenizer + ")")
