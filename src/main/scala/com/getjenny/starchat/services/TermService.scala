@@ -666,8 +666,13 @@ object TermService extends AbstractDataService {
 
     val analyzeResponse: AnalyzeResponse = client.indices().analyze(analyzerReq, RequestOptions.DEFAULT)
 
+    val tokenizationRes: List[AnalyzeResponse.AnalyzeToken] = if(analyzeResponse.getTokens != null)
+      analyzeResponse.getTokens.listIterator.asScala.toList
+    else
+      List.empty[AnalyzeResponse.AnalyzeToken]
+
     val tokens : List[TokenizerResponseItem] =
-      analyzeResponse.getTokens.listIterator.asScala.toList.map(t => {
+      tokenizationRes.map(t => {
         val responseItem: TokenizerResponseItem =
           TokenizerResponseItem(startOffset = t.getStartOffset,
             position = t.getPosition,

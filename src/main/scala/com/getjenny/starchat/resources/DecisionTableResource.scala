@@ -255,7 +255,7 @@ trait DecisionTableResource extends StarChatResource {
                           )
                         case e@(_: ResponseServiceDocumentNotFoundException) =>
                           val message = "index(" + indexName + ") DecisionTableResource: " +
-                            "Unable to complete the request: " + e.getMessage
+                            "Requested document not found: " + e.getMessage
                           log.error(message = message)
                           completeResponse(StatusCodes.BadRequest,
                             Option {
