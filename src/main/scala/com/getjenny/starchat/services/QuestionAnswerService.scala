@@ -1115,6 +1115,18 @@ trait QuestionAnswerService extends AbstractDataService {
               )
           )
         }
+        if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesWithScoreHistogram)) {
+          sourceReq.aggregation(
+            AggregationBuilders.filter("qaMatchedStatesWithScoreHistogram",
+              QueryBuilders.boolQuery()
+                .must(QueryBuilders.rangeQuery("feedbackAnswerScore").gte(0.0))
+                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+              .subAggregation(
+                AggregationBuilders.terms("qaMatchedStatesWithScoreHistogram").field("state")
+              )
+          )
+        }
         if (reqAggs.contains(QAAggregationsTypes.avgFeedbackNotTransferredConvScoreOverTime)) {
           sourceReq.aggregation(
             AggregationBuilders.filter("avgFeedbackNotTransferredConvScoreOverTime",
@@ -1360,6 +1372,18 @@ trait QuestionAnswerService extends AbstractDataService {
             }.toList
           }
         } else None
+        val qaMatchedStatesWithScoreHistogram: Option[List[LabelCountHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesHistogram)) {
+          val pf: ParsedFilter = searchResp.getAggregations.get("qaMatchedStatesWithScoreHistogram")
+          val h: ParsedStringTerms = pf.getAggregations.get("qaMatchedStatesWithScoreHistogram")
+          Some {
+            h.getBuckets.asScala.map { bucket =>
+              LabelCountHistogramItem(
+                key = bucket.getKey.asInstanceOf[String],
+                docCount = bucket.getDocCount
+              )
+            }.toList
+          }
+        } else None
         val avgFeedbackNotTransferredConvScoreOverTime: Option[List[AvgScoresHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.avgFeedbackNotTransferredConvScoreOverTime)) {
           val pf: ParsedFilter = searchResp.getAggregations.get("avgFeedbackNotTransferredConvScoreOverTime")
           val h: ParsedDateHistogram = pf.getAggregations.get("avgFeedbackNotTransferredConvScoreOverTime")
@@ -1479,6 +1503,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
         val labelCountHistograms: Map[String, List[LabelCountHistogramItem]] = Map(
           "qaMatchedStatesHistogram" -> qaMatchedStatesHistogram,
+          "qaMatchedStatesWithScoreHistogram" -> qaMatchedStatesWithScoreHistogram,
         ).filter{case (_, v) => v.nonEmpty}.map{case(k, v) => (k, v.get)}
 
         val scoreHistograms: Map[String, List[ScoreHistogramItem]] = Map(
