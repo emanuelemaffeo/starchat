@@ -2554,6 +2554,10 @@ components:
         - analyzer
         - query
       properties:
+        stateName:
+          type: string
+          description: a state name used by some analyzers, if unset playground will be used as default
+          example: "statename"
         analyzer:
           type: string
           description: the analyzer expression
