@@ -1372,7 +1372,7 @@ trait QuestionAnswerService extends AbstractDataService {
             }.toList
           }
         } else None
-        val qaMatchedStatesWithScoreHistogram: Option[List[LabelCountHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesHistogram)) {
+        val qaMatchedStatesWithScoreHistogram: Option[List[LabelCountHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesWithScoreHistogram)) {
           val pf: ParsedFilter = searchResp.getAggregations.get("qaMatchedStatesWithScoreHistogram")
           val h: ParsedStringTerms = pf.getAggregations.get("qaMatchedStatesWithScoreHistogram")
           Some {
