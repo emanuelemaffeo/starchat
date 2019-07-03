@@ -42,7 +42,8 @@ case class DecisionTableRuntimeItem(executionOrder: Int = -1,
                                     ),
                                     version: Long = -1L,
                                     evaluationClass: String = "default",
-                                    queries: List[TextTerms] = List.empty[TextTerms]
+                                    queries: List[String] = List.empty[String],
+                                    queriesTerms: List[TextTerms] = List.empty[TextTerms]
                                    )
 
 case class ActiveAnalyzers(
@@ -129,7 +130,8 @@ object AnalyzerService extends AbstractDataService {
             analyzer=AnalyzerItem(declaration=analyzerDeclaration, build=false,
               analyzer = None,
               message = "Analyzer index(" + indexName + ") state(" + state + ") not built"),
-            queries = queriesTerms,
+            queries = queries,
+            queriesTerms = queriesTerms,
             evaluationClass = evaluationClass,
             version = version)
         (state, decisionTableRuntimeItem)
@@ -158,7 +160,8 @@ object AnalyzerService extends AbstractDataService {
       val executionOrder = runtimeItem.executionOrder
       val maxStateCounter = runtimeItem.maxStateCounter
       val analyzerDeclaration = runtimeItem.analyzer.declaration
-      val queriesTerms = runtimeItem.queries
+      val queries = runtimeItem.queries
+      val queriesTerms = runtimeItem.queriesTerms
       val version: Long = runtimeItem.version
       val evaluationClass: String = runtimeItem.evaluationClass
       val buildAnalyzerResult: BuildAnalyzerResult =
@@ -205,7 +208,8 @@ object AnalyzerService extends AbstractDataService {
             message = buildAnalyzerResult.message
           ),
         version = version,
-        queries = queriesTerms,
+        queries = queries,
+        queriesTerms = queriesTerms,
         evaluationClass = evaluationClass
       )
       (stateId, decisionTableRuntimeItem)
