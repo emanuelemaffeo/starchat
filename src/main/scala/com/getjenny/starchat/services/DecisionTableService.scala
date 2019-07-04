@@ -905,7 +905,61 @@ object DecisionTableService extends AbstractDataService {
     IndexDocumentListResult(data = indexDocumentListResult)
   }
 
-  //
+
+  def wordFrequenciesInQueries(indexName:String): List[DTWordFreqItem] =  {
+    val client: RestHighLevelClient = elasticClient.httpClient
+
+    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
+      .size(0)
+      .minScore(0.0f)
+
+    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
+      .source(sourceReq)
+      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
+      .requestCache(true)
+
+
+
+    /*   Query to fetch for word freq in queries
+    {
+       "size": 0,
+       "aggregations" : {
+           "wordInQueries": {
+               "nested": { "path": "queries" },
+               "aggregations": {
+                   "queries_children": {
+                       "terms" : { "field": "queries.query.base" }
+                   }
+               }
+
+           }
+        }
+    } */
+
+
+
+    // Calculate for each state with queries the words freq histogram. Ask Angelo about max size
+    sourceReq.aggregation(
+      AggregationBuilders.nested("queries", "queries")
+        .subAggregation(
+          AggregationBuilders.terms("queries_children").field("queries.query.base").minDocCount(1)
+        )
+    )
+
+    val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
+
+    val parsedNested: ParsedNested = searchResp.getAggregations.get("queries")
+    val nQueries: Double = parsedNested.getDocCount
+    val parsedStringTerms: ParsedStringTerms = parsedNested.getAggregations.get("queries_children")
+    val wordFreqs = parsedStringTerms.getBuckets.asScala.map {
+      bucket => DTWordFreqItem(bucket.getKeyAsString, bucket.getDocCount()/nQueries) // normalize on nQueries
+    }.toList
+
+    wordFreqs
+
+  }
+
+
   def wordFrequenciesInQueriesByState(indexName:String): List[DTStateWordFreqsItem] =  {
     val client: RestHighLevelClient = elasticClient.httpClient
 
