@@ -92,15 +92,13 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
 
   def evaluate(userQuery: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
 
-
     if(!userQuery.contains(keyword)) {
+      //keyword not present in the user's query: return 0, whatever the other conditions are
       Result(score=0.0d)
     }
     else {
-      var PS_K = 0.0d
-      var PK_S = 0.0d
-      var P_K = 0.0d
-      var P_S = 0.0d
+      var result = 0.0d
+
       val currentStateName = data.context.stateName
       val indexName = data.context.indexName;
       val currentState: DecisionTableRuntimeItem = AnalyzerService.analyzersMap(indexName).analyzerMap.get(currentStateName) match
@@ -109,33 +107,32 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
         case _  => throw ExceptionAtomic("Keyword atom: state not found in map")
       }
 
-      // Evaluation of PK_S
+      val P_S = stateFrequency(indexName,currentStateName)
+
+      //  keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
       if (currentState.queries.isEmpty) {
-        PK_S = 0.5d
+        result = P_S
       }
       else {
-        PK_S = fractionOfQueriesWithWordOfState(indexName,keyword,currentStateName)
+        val PK_S = fractionOfQueriesWithWordOfState(indexName,keyword,currentStateName)
+        val P_K = KeywordAbsoluteProbability(indexName,keyword)
+        // keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
+        if (PK_S == 0 || P_K == 0)
+          result = P_S
+        else {
+          result = PK_S * P_S / P_K
+        }
+
+        var msg = "index(" + indexName + ") : state(" + currentStateName + ")"
+        msg += " : PK_S(" + PK_S + ")"
+        msg += " : PK(" + P_K + ")"
+        msg += " : PS(" + P_S + ")"
+        msg += " : PS_K(" + result + ")"
+        log.info(msg)
       }
 
-      // Evaluation of P_S
-      P_S = stateFrequency(indexName,currentStateName)
 
-      //Evaluation of P_K
-      P_K = KeywordAbsoluteProbability(indexName,keyword)
-
-
-
-      PS_K = PK_S * P_S / P_K
-
-      var msg = "index(" + indexName + ") : state(" + currentStateName + ")"
-      msg += " : PK_S(" + PK_S + ")"
-      msg += " : PK(" + P_K + ")"
-      msg += " : PS(" + P_S + ")"
-      msg += " : PS_K(" + PS_K + ")"
-      log.info(msg)
-
-
-      Result(score=PS_K)
+      Result(score=result)
     }
 
   }
