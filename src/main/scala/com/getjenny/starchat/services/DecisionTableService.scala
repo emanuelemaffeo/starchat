@@ -1017,7 +1017,7 @@ object DecisionTableService extends AbstractDataService {
       }
     } */
 
-    val StateAggsName = "StatesWordStats"
+    val stateAggsName = "StatesWordStats"
 
     // Filter all states with queries
     sourceReq.query(
@@ -1030,7 +1030,7 @@ object DecisionTableService extends AbstractDataService {
 
     // Calculate for each state with queries the words freq histogram. Ask Angelo about max size
     sourceReq.aggregation(
-      AggregationBuilders.terms(StateAggsName).field("state").size(10000).minDocCount(1)
+      AggregationBuilders.terms(stateAggsName).field("state").size(10000).minDocCount(1)
         .subAggregation(
           AggregationBuilders.nested("queries","queries")
             .subAggregation(
@@ -1042,7 +1042,7 @@ object DecisionTableService extends AbstractDataService {
     val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
 
 
-    val pst: ParsedStringTerms = searchResp.getAggregations.get(StateAggsName)
+    val pst: ParsedStringTerms = searchResp.getAggregations.get(stateAggsName)
     val res =
       pst.getBuckets.asScala.map {
         stateBucket => {

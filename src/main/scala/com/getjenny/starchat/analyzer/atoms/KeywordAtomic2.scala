@@ -10,7 +10,7 @@ import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services._
-
+import scalaz.Scalaz._
 /**
   * Query ElasticSearch
   */
@@ -30,32 +30,36 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   val decisionTableService: DecisionTableService.type = DecisionTableService
   val conversationLogsService: ConversationLogsService.type  = ConversationLogsService
 
-  private def fractionOfQueriesWithWordOfState(indexName: String, word: String, state: String): Double =
+  private[this] def fractionOfQueriesWithWordOfState(indexName: String, word: String, state: String): Double =
   {
     // get keyword freq in queries associated to the current state
-    val wordsFreqCurrentState: List[DTStateWordFreqsItem] = DecisionTableService.wordFrequenciesInQueriesByState(indexName).filter(item => item.state == state)
+    val wordsFreqCurrentState: List[DTStateWordFreqsItem] = DecisionTableService.wordFrequenciesInQueriesByState(indexName).filter(item => item.state === state)
     // check if stats are present for the current state
     if (!wordsFreqCurrentState.isEmpty) wordsFreqCurrentState.head.getFreqOfWord(word)
     else 0.0d
   }
-  private def wordFrequencyInQueriesFieldOfAllStates(indexName: String, word: String): Double =
+  private[this] def wordFrequencyInQueriesFieldOfAllStates(indexName: String, word: String): Double =
   {
     // get keyword freq in all queries
-    val wordsFreq: List[DTWordFreqItem] = DecisionTableService.wordFrequenciesInQueries(indexName).filter(item => item.word == word)
+    val wordsFreq: List[DTWordFreqItem] = DecisionTableService.wordFrequenciesInQueries(indexName).filter(item => item.word === word)
     // check if word is present in the histogram
-    if (!wordsFreq.isEmpty) wordsFreq.head.freq
-    else 0.0d
+
+    val res: Double =  wordsFreq.headOption match {
+      case Some(t) => t.freq
+      case _  => 0.0d
+    }
+    res
   }
 
-  private def KeywordAbsoluteProbability(indexName: String, word: String): Double = {
+  private[this] def keywordAbsoluteProbability(indexName: String, word: String): Double = {
     val freq = wordFrequencyInQueriesFieldOfAllStates(indexName, keyword)
-    if (freq == 0.0d)
+    if (freq === 0.0d)
       0.5d
     else
       freq
   }
 
-  private def stateFrequency(indexName:String, stateName: String): Double =
+  private[this] def stateFrequency(indexName:String, stateName: String): Double =
   {
     val nStates =AnalyzerService.analyzersMap(indexName).analyzerMap.size
     val request = QAAggregatedAnalyticsRequest(
@@ -81,13 +85,14 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
     }
 
     // look if actually processed state is present in the histogram. There should be not more than one
-    val histStateEntries = stateFrequenciesHist.filter(elem => elem.key == stateName)
-    val P_S: Double = histStateEntries.length match {
-      case 0 => 1.0d/nStates
-      case 1 => histStateEntries.head.docCount.toDouble / queryResult.totalDocuments // normalized on all conversations logs
-      case _ => throw ExceptionAtomic("keyword2 atom invalid qaMatchedStatesHistogram")
+    val histStateEntries = stateFrequenciesHist.filter(elem => elem.key === stateName)
+
+    val probS = histStateEntries.headOption  match
+    {
+      case Some(t) => t.docCount.toDouble / queryResult.totalDocuments // normalized on all conversations logs
+      case _ => 1.0d/nStates
     }
-    P_S
+    probS
   }
 
   def evaluate(userQuery: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
@@ -107,27 +112,23 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
         case _  => throw ExceptionAtomic("Keyword atom: state not found in map")
       }
 
-      val P_S = stateFrequency(indexName,currentStateName)
+      val pS= stateFrequency(indexName,currentStateName)
 
       //  keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
       if (currentState.queries.isEmpty) {
-        result = P_S
+        result = pS
       }
       else {
-        val PK_S = fractionOfQueriesWithWordOfState(indexName,keyword,currentStateName)
-        val P_K = KeywordAbsoluteProbability(indexName,keyword)
+        val pKS = fractionOfQueriesWithWordOfState(indexName,keyword,currentStateName)
+        val pK = keywordAbsoluteProbability(indexName,keyword)
         // keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
-        if (PK_S == 0 || P_K == 0)
-          result = P_S
+        if (pKS === 0 || pK === 0)
+          result = pS
         else {
-          result = PK_S * P_S / P_K
+          result = pKS * pS / pK
         }
 
-        var msg = "index(" + indexName + ") : state(" + currentStateName + ")"
-        msg += " : PK_S(" + PK_S + ")"
-        msg += " : PK(" + P_K + ")"
-        msg += " : PS(" + P_S + ")"
-        msg += " : PS_K(" + result + ")"
+        val msg = "index(" + indexName + ") : state(" + currentStateName + ") : PK_S(" + pKS + ") : PK(" + pK + ") : PS(" + pS + ") : PS_K(" + result + ")"
         log.info(msg)
       }
 
