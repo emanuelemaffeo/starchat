@@ -23,8 +23,8 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   }
 
   override def toString: String = "keyword(\"" + keyword + "\")"
-  val isEvaluateNormalized: Boolean = false
-  override val matchThreshold: Double = 0.6
+  val isEvaluateNormalized: Boolean = true
+  override val matchThreshold: Double = 0.0
 
   private[this] val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
   val decisionTableService: DecisionTableService.type = DecisionTableService
