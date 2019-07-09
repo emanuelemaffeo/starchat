@@ -92,11 +92,13 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
     // look if actually processed state is present in the histogram. There should be not more than one
     val histStateEntries = stateFrequenciesHist.filter(elem => elem.key === stateName)
 
-    val probS = histStateEntries.headOption  match
+    val stateHits: Double = histStateEntries.headOption  match
     {
-      case Some(t) => t.docCount.toDouble / queryResult.totalDocuments // normalized on all conversations logs
-      case _ => 1.0d/nStates
+      case Some(t) => t.docCount
+      case _ => 0
     }
+
+    val probS = (stateHits+100.0d) / (100.0d*nStates + queryResult.totalDocuments)
     probS
   }
 
