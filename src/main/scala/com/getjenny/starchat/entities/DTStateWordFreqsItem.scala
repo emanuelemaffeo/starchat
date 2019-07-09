@@ -1,4 +1,9 @@
 package com.getjenny.starchat.entities
-case class DTStateWordFreqsItem(state: String, wordFreqs: List[DTWordFreqItem])
+
+/**
+  * Created by Andrea Collamati <andrea@getjenny.com> on 07/09/2019.
+  */
+
+case class DTStateWordFreqsItem(state: String, wordFreqs: Map[String,Double])
 
 

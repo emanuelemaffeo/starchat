@@ -11,6 +11,7 @@ class StarchatFactoryAtomic extends AtomicFactoryTrait[List[String], AbstractAto
 
   override val operations: Set[String] = Set(
     "keyword",
+    "keyword1",
     "regex",
     "search",
     "synonym",
@@ -48,6 +49,7 @@ class StarchatFactoryAtomic extends AtomicFactoryTrait[List[String], AbstractAto
   override def get(name: String, argument: List[String], restrictedArgs: Map[String, String]):
                   AbstractAtomic = name.filter(c => !c.isWhitespace ) match {
     case "keyword" => new KeywordAtomic2(argument, restrictedArgs)
+    case "keyword1" => new KeywordAtomic(argument, restrictedArgs)
     case "regex" => new RegularExpressionAtomic(argument, restrictedArgs)
     case "search" => new SearchAtomic(argument, restrictedArgs)
     case "synonym" => new W2VCosineWordAtomic(argument, restrictedArgs)
