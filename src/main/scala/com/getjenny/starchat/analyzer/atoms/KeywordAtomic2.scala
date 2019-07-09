@@ -102,7 +102,6 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
       Result(score=0.0d)
     }
     else {
-      var result = 0.0d
 
       val currentStateName = data.context.stateName
       val indexName = data.context.indexName;
@@ -116,24 +115,29 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
 
       //  keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
       if (currentState.queries.isEmpty) {
-        result = pS
+        Result(score=pS)
       }
       else {
         val pKS = fractionOfQueriesWithWordOfState(indexName,keyword,currentStateName)
         val pK = keywordAbsoluteProbability(indexName,keyword)
         // keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
-        if (pKS === 0 || pK === 0)
-          result = pS
+        if (pKS === 0 || pK === 0) {
+          val msg = "K2.0 Result(" + pS + ") : state(" + currentStateName + ") : PK_S(" + pKS + ") : PK(" + pK + ") : PS(" + pS + ")"
+          log.info(msg)
+          Result(score = pS)
+        }
         else {
-          result = pKS * pS / pK
+          val pSK = pKS * pS / pK
+
+          val msg = "K2.0 Result(" + pSK + ") : state(" + currentStateName + ") : PK_S(" + pKS + ") : PK(" + pK + ") : PS(" + pS + ") : PS_K(" + pSK + ")"
+          log.info(msg)
+
+          Result(score=pSK)
         }
 
-        val msg = "index(" + indexName + ") : state(" + currentStateName + ") : PK_S(" + pKS + ") : PK(" + pK + ") : PS(" + pS + ") : PS_K(" + result + ")"
-        log.info(msg)
       }
 
-
-      Result(score=result)
+      Result(score=0.0d)
     }
 
   }
