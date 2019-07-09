@@ -14,7 +14,7 @@ ROUTE=conversation_logs
 #add new conversion log with id and state
 id=1
 
-function addConversionLog () {
+function addConversationLog () {
  state="$1"
  question="$2"
  body='{
@@ -42,7 +42,9 @@ function addConversionLog () {
 
 
 
-addConversionLog licence "howdo I activate the license?"
-addConversionLog licence 'my license seems to be broken. What can I do?'
-addConversionLog terrible_feedback 'This chat is awful!!'
-addConversionLog call_operator 'May I talk to operator'
+addConversationLog licence "howdo I activate the license?"
+addConversationLog licence 'my license seems to be broken. What can I do?'
+addConversationLog terrible_feedback 'This chat is awful!!'
+addConversationLog call_operator 'May I talk to operator'
+addConversationLog call_operator 'May I talk to operator'
+addConversationLog further_details_access_question 'May I ask you help'
