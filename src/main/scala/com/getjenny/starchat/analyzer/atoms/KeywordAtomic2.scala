@@ -35,9 +35,14 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
     // get keyword freq in queries associated to the current state
     val wordsFreqCurrentState: List[DTStateWordFreqsItem] = DecisionTableService.wordFrequenciesInQueriesByState(indexName).filter(item => item.state === state)
     // check if stats are present for the current state
-    if (!wordsFreqCurrentState.isEmpty) wordsFreqCurrentState.head.getFreqOfWord(word)
-    else 0.0d
+
+    val res: Double =  wordsFreqCurrentState.headOption match {
+      case Some(t) => t.getFreqOfWord(word)
+      case _  => 0.0d
+    }
+    res
   }
+
   private[this] def wordFrequencyInQueriesFieldOfAllStates(indexName: String, word: String): Double =
   {
     // get keyword freq in all queries
