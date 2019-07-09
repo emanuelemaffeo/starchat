@@ -30,6 +30,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   val decisionTableService: DecisionTableService.type = DecisionTableService
   val conversationLogsService: ConversationLogsService.type  = ConversationLogsService
 
+
   private[this] def fractionOfQueriesWithWordOfState(indexName: String, word: String, state: String): Double =
   {
     // get keyword freq in queries associated to the current state
@@ -37,7 +38,12 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
     // check if stats are present for the current state
 
     val res: Double =  wordsFreqCurrentState.headOption match {
-      case Some(t) => t.getFreqOfWord(word)
+      case Some(t) => {
+        t.wordFreqs.filter(p => p.word === word).headOption match {
+          case Some(t) => t.freq
+          case _ => 0.0d
+        }
+      }
       case _  => 0.0d
     }
     res
