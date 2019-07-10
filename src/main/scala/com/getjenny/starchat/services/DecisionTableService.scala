@@ -1032,7 +1032,7 @@ object DecisionTableService extends AbstractDataService {
 
     // Calculate for each state with queries the words freq histogram.
     sourceReq.aggregation(
-      AggregationBuilders.terms(stateAggsName).field("state").size(2^16).minDocCount(1)
+      AggregationBuilders.terms(stateAggsName).field("state").size(65536).minDocCount(1)
         .subAggregation(
           AggregationBuilders.nested("queries", "queries")
             .subAggregation(
