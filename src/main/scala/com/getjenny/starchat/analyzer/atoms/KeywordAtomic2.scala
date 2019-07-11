@@ -12,13 +12,13 @@ import scalaz.Scalaz._
 
 class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String]) extends AbstractAtomic {
 
+  val atomName:String = "keyword2"
+
   val keyword: String = arguments.headOption match {
     case Some(t) => t
     case _ =>
-      throw ExceptionAtomic("search requires argument keyword")
+      throw ExceptionAtomic(atomName + ": search requires argument")
   }
-
-  val atomName:String = "keyword2"
 
   override def toString: String = atomName + "(\"" + keyword + "\")"
 
@@ -57,7 +57,11 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
 
 
   private[this] def stateFrequency(indexName: String, stateName: String): Double = {
-    val nStates = AnalyzerService.analyzersMap(indexName).analyzerMap.size
+    val activeAnalyzeMap = AnalyzerService.analyzersMap.get(indexName) match {
+      case Some(t) => t
+      case _ => throw ExceptionAtomic(atomName + ":active analyzer map not found, DT not posted")
+    }
+    val nStates = activeAnalyzeMap.analyzerMap.size
     val request = QAAggregatedAnalyticsRequest(
       aggregations = Some(List(QAAggregationsTypes.qaMatchedStatesHistogram, QAAggregationsTypes.qaMatchedStatesWithScoreHistogram)))
 
@@ -95,10 +99,15 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
 
       val currentStateName = data.context.stateName
       val indexName = data.context.indexName
-      val currentState: DecisionTableRuntimeItem = AnalyzerService.analyzersMap(indexName).analyzerMap.get(currentStateName) match {
+      val activeAnalyzeMap = AnalyzerService.analyzersMap.get(indexName) match {
         case Some(t) => t
-        case _ => throw ExceptionAtomic(atomName + ":state not found in map")
+        case _ => throw ExceptionAtomic(atomName + ":active analyzer map not found, DT not posted")
       }
+      val currentState: DecisionTableRuntimeItem =
+        activeAnalyzeMap.analyzerMap.get(currentStateName) match {
+          case Some(t) => t
+          case _ => throw ExceptionAtomic(atomName + ":state not found in map")
+        }
 
       val pS = stateFrequency(indexName, currentStateName)
 
