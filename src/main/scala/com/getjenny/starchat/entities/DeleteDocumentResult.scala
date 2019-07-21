@@ -11,6 +11,6 @@ case class DeleteDocumentResult(index: String,
                                 found: Boolean
                                )
 
-case class DeleteDocumentsResult(message: String, deleted: Long)
+case class DeleteDocumentsResult(data: List[DeleteDocumentResult])
 
-case class DeleteDocumentListResult(data: List[DeleteDocumentResult])
+case class DeleteDocumentsSummaryResult(message: String, deleted: Long)

@@ -15,7 +15,7 @@
     </encoder>
   </appender>
 
-  <contextName>${HOSTNAME}</contextName>
+  <contextName>${hostName}</contextName>
 
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>

@@ -9,8 +9,8 @@ import java.util.Base64
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.stream.ActorMaterializer
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.serializers.JsonSupport
@@ -19,8 +19,8 @@ import scopt.OptionParser
 
 import scala.collection.immutable
 import scala.collection.immutable.List
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.io.Source
 
 object IndexCorpusOnKnowledgeBase extends JsonSupport {
@@ -88,7 +88,7 @@ object IndexCorpusOnKnowledgeBase extends JsonSupport {
         answer_scored_terms = None: Option[List[(String, Double)]],
         topics = None: Option[String],
         dclass = None: Option[String],
-        doctype = doctypes.hidden,
+        doctype = Doctypes.hidden,
         state = None: Option[String],
       )
 

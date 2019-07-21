@@ -6,6 +6,7 @@ package com.getjenny.starchat.resources
 
 import java.io.File
 
+import akka.http.javadsl.server.CircuitBreakerOpenRejection
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.directives.FileInfo
@@ -14,11 +15,12 @@ import com.getjenny.analyzer.analyzers.AnalyzerEvaluationException
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.routing._
 import com.getjenny.starchat.services._
+import scalaz.Scalaz._
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
-import scalaz.Scalaz._
 
 trait DecisionTableResource extends StarChatResource {
 
@@ -32,13 +34,13 @@ trait DecisionTableResource extends StarChatResource {
       pathEnd {
         post {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, indexName, Permissions.write)) {
               parameters("refresh".as[Int] ? 0) { refresh =>
                 entity(as[DTDocument]) { document =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                  onCompleteWithBreaker(breaker)(decisionTableService.create(indexName, document, refresh)) {
+                  onCompleteWithBreaker(breaker)(Future{decisionTableService.create(indexName, document, refresh)}) {
                     case Success(t) =>
                       completeResponse(StatusCodes.Created, StatusCodes.BadRequest, t)
                     case Failure(e) =>
@@ -55,7 +57,7 @@ trait DecisionTableResource extends StarChatResource {
         } ~
           get {
             authenticateBasicAsync(realm = authRealm,
-              authenticator = authenticator.authenticator) { (user) =>
+              authenticator = authenticator.authenticator) { user =>
               authorizeAsync(_ =>
                 authenticator.hasPermissions(user, indexName, Permissions.read)) {
                 parameters("ids".as[String].*, "dump".as[Boolean] ? false) { (ids, dump) =>
@@ -94,11 +96,11 @@ trait DecisionTableResource extends StarChatResource {
           } ~
           delete {
             authenticateBasicAsync(realm = authRealm,
-              authenticator = authenticator.authenticator) { (user) =>
+              authenticator = authenticator.authenticator) { user =>
               authorizeAsync(_ =>
                 authenticator.hasPermissions(user, indexName, Permissions.write)) {
                 val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                onCompleteWithBreaker(breaker)(decisionTableService.deleteAll(indexName)) {
+                onCompleteWithBreaker(breaker)(Future{decisionTableService.deleteAll(indexName)}) {
                   case Success(t) =>
                     completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
                       t
@@ -117,7 +119,7 @@ trait DecisionTableResource extends StarChatResource {
         path(Segment) { id =>
           put {
             authenticateBasicAsync(realm = authRealm,
-              authenticator = authenticator.authenticator) { (user) =>
+              authenticator = authenticator.authenticator) { user =>
               authorizeAsync(_ =>
                 authenticator.hasPermissions(user, indexName, Permissions.write)) {
                 entity(as[DTDocumentUpdate]) { update =>
@@ -147,7 +149,8 @@ trait DecisionTableResource extends StarChatResource {
                   authenticator.hasPermissions(user, indexName, Permissions.write)) {
                   parameters("refresh".as[Int] ? 0) { refresh =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                    onCompleteWithBreaker(breaker)(decisionTableService.delete(indexName, id, refresh)) {
+                    onCompleteWithBreaker(breaker)(
+                      Future{decisionTableService.delete(indexName, List(id), refresh)}) {
                       case Success(opRes) =>
                         completeResponse(StatusCodes.OK, StatusCodes.BadRequest, opRes)
                       case Failure(e) =>
@@ -207,11 +210,11 @@ trait DecisionTableResource extends StarChatResource {
       pathEnd {
         post {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, indexName, Permissions.read)) {
               val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-              onCompleteWithBreaker(breaker)(dtReloadService.setDTReloadTimestamp(indexName, refresh = 1)) {
+              onCompleteWithBreaker(breaker)(dtReloadService.updateDTReloadTimestamp(indexName, refresh = 1)) {
                 case Success(t) =>
                   completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
                     t
@@ -235,7 +238,7 @@ trait DecisionTableResource extends StarChatResource {
       pathEnd {
         get {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, indexName, Permissions.read)) {
               val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
@@ -256,7 +259,7 @@ trait DecisionTableResource extends StarChatResource {
         } ~
           post {
             authenticateBasicAsync(realm = authRealm,
-              authenticator = authenticator.authenticator) { (user) =>
+              authenticator = authenticator.authenticator) { user =>
               authorizeAsync(_ =>
                 authenticator.hasPermissions(user, indexName, Permissions.write)) {
                 parameters("propagate".as[Boolean] ? true,
@@ -288,7 +291,7 @@ trait DecisionTableResource extends StarChatResource {
       pathEnd {
         post {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, indexName, Permissions.read)) {
               entity(as[DTDocumentSearch]) { docsearch =>
@@ -318,7 +321,7 @@ trait DecisionTableResource extends StarChatResource {
       pathEnd {
         post {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, indexName, Permissions.read)) {
               entity(as[ResponseRequestIn]) {
@@ -337,14 +340,46 @@ trait DecisionTableResource extends StarChatResource {
                                 })
                             }
                           )
-                        case e @ (_: ResponseServiceDocumentNotFoundException | _: AnalyzerEvaluationException) =>
+                        case e@(_: ResponseServiceNoResponseException) =>
                           val message = "index(" + indexName + ") DecisionTableResource: " +
-                            "Unable to complete the request: " + e.getMessage
+                            "No response: " + e.getMessage
+                          log.info(message = message)
+                          completeResponse(StatusCodes.NoContent)
+                        case e@(_: AnalyzerEvaluationException) =>
+                          val message = "index(" + indexName + ") DecisionTableResource: " +
+                            "Unable to complete the request, due to analyzer: " + e.getMessage
                           log.error(message = message)
                           completeResponse(StatusCodes.BadRequest,
                             Option {
                               ResponseRequestOutOperationResult(
                                 ReturnMessageData(code = 110, message = message),
+                                Option {
+                                  List.empty[ResponseRequestOut]
+                                })
+                            }
+                          )
+                        case e@(_: ResponseServiceDocumentNotFoundException) =>
+                          val message = "index(" + indexName + ") DecisionTableResource: " +
+                            "Requested document not found: " + e.getMessage
+                          log.error(message = message)
+                          completeResponse(StatusCodes.BadRequest,
+                            Option {
+                              ResponseRequestOutOperationResult(
+                                ReturnMessageData(code = 111, message = message),
+                                Option {
+                                  List.empty[ResponseRequestOut]
+                                })
+                            }
+                          )
+                        case e@(_: CircuitBreakerOpenRejection) =>
+                          val message = "index(" + indexName + ") DecisionTableResource: " +
+                            "The request the takes too much time: " + e.getMessage +
+                            " : stacktrace(" + e.getStackTrace.map(x => x.toString).mkString(";") + ")"
+                          log.error(message = message)
+                          completeResponse(StatusCodes.RequestTimeout,
+                            Option {
+                              ResponseRequestOutOperationResult(
+                                ReturnMessageData(code = 112, message = message),
                                 Option {
                                   List.empty[ResponseRequestOut]
                                 })
@@ -358,32 +393,18 @@ trait DecisionTableResource extends StarChatResource {
                           completeResponse(StatusCodes.BadRequest,
                             Option {
                               ResponseRequestOutOperationResult(
-                                ReturnMessageData(code = 111, message = message),
+                                ReturnMessageData(code = 113, message = message),
                                 Option {
                                   List.empty[ResponseRequestOut]
                                 })
                             }
                           )
                       }
-                    case Success(response_value) =>
-                      response_value match {
-                        case Some(t) =>
-                          if (t.status.code === 200) {
-                            completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t.response_request_out)
-                          } else {
-                            completeResponse(StatusCodes.NoContent) // no response found
-                          }
-                        case None =>
-                          log.error("index(" + indexName + ") DecisionTableResource: Unable to complete the request")
-                          completeResponse(StatusCodes.BadRequest,
-                            Option {
-                              ResponseRequestOutOperationResult(
-                                ReturnMessageData(code = 112, message = "unable to complete the response"),
-                                Option {
-                                  List.empty[ResponseRequestOut]
-                                })
-                            }
-                          )
+                    case Success(responseValue) =>
+                      if (responseValue.status.code === 200) {
+                        completeResponse(StatusCodes.OK, StatusCodes.BadRequest, responseValue.response_request_out)
+                      } else {
+                        completeResponse(StatusCodes.NoContent) // no response found
                       }
                   }
               }

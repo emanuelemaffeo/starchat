@@ -5,13 +5,13 @@ package com.getjenny.starchat.analyzer.atoms
   */
 
 import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
-import com.getjenny.analyzer.expressions.{AnalyzersData, Result}
+import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
 import com.getjenny.analyzer.util.VectorUtils._
 import com.getjenny.starchat.analyzer.utils.TextToVectorsTools
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services._
 
-class W2VCosineStateAtomic(val arguments: List[String], restricted_args: Map[String, String]) extends AbstractAtomic  {
+class W2VCosineStateAtomic(val arguments: List[String], restrictedArgs: Map[String, String]) extends AbstractAtomic  {
   /**
     * cosine distance between sentences renormalized at [0, 1]: (cosine + 1)/2
     *
@@ -30,7 +30,8 @@ class W2VCosineStateAtomic(val arguments: List[String], restricted_args: Map[Str
 
   val analyzerService: AnalyzerService.type = AnalyzerService
 
-  val indexName = restricted_args("index_name")
+  val indexName: String = restrictedArgs("index_name")
+
   val querySentences: Option[DecisionTableRuntimeItem] =
     AnalyzerService.analyzersMap(indexName).analyzerMap.get(state)
   if (querySentences.isEmpty) {
@@ -40,21 +41,21 @@ class W2VCosineStateAtomic(val arguments: List[String], restricted_args: Map[Str
   }
 
   val queryTerms: List[TextTerms] = querySentences match {
-    case Some(t) => t.queries
+    case Some(t) => t.queriesTerms
     case _ => List.empty[TextTerms]
   }
 
   val queryVectors: List[(Vector[Double], Double)] = queryTerms.map(item => {
-    val query_vector = TextToVectorsTools.getSumOfTermsVectors(Option{item})
+    val query_vector = TextToVectorsTools.sumOfTermsVectors(item)
     query_vector
   })
 
   val isEvaluateNormalized: Boolean = true
-  def evaluate(query: String, data: AnalyzersData = AnalyzersData()): Result = {
+  def evaluate(query: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
     val distance = queryVectors.map{
       case (sentenceVector, reliabilityFactor) =>
         val (querySentenceVector, queryReliabilityFactor) =
-            TextToVectorsTools.getSumOfVectorsFromText(indexName, query)
+            TextToVectorsTools.sumOfVectorsFromText(indexName, query)
         val dist = (1.0 - cosineDist(sentenceVector, querySentenceVector)) *
           (reliabilityFactor * queryReliabilityFactor)
         dist

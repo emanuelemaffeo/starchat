@@ -22,7 +22,7 @@ trait UserResource extends StarChatResource {
     pathPrefix("user") {
       post {
         authenticateBasicAsync(realm = authRealm,
-          authenticator = authenticator.authenticator) { (user) =>
+          authenticator = authenticator.authenticator) { user =>
           authorizeAsync(_ =>
             authenticator.hasPermissions(user, "admin", Permissions.admin)) {
             entity(as[User]) { user_entity =>
@@ -48,7 +48,7 @@ trait UserResource extends StarChatResource {
       path(Segment) { id =>
         put {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, "admin", Permissions.admin)) {
               entity(as[UserUpdate]) { user_entity =>
@@ -76,7 +76,7 @@ trait UserResource extends StarChatResource {
       path(Segment) { id =>
         delete {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, "admin", Permissions.admin)) {
               val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
@@ -101,7 +101,7 @@ trait UserResource extends StarChatResource {
       path(Segment) { id =>
         get {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, "admin", Permissions.admin)) {
               val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
@@ -126,7 +126,7 @@ trait UserResource extends StarChatResource {
       path(Segment) { id =>
         post {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, "admin", Permissions.admin)) {
               entity(as[UserUpdate]) { user_entity =>

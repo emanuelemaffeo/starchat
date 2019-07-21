@@ -52,13 +52,15 @@ trait TermResource extends StarChatResource {
           operation match {
             case "index" =>
               authenticateBasicAsync(realm = authRealm,
-                authenticator = authenticator.authenticator) { (user) =>
+                authenticator = authenticator.authenticator) { user =>
                 authorizeAsync(_ =>
                   authenticator.hasPermissions(user, indexName, Permissions.write)) {
                   parameters("refresh".as[Int] ? 0) { refresh =>
                     entity(as[Terms]) { request_data =>
                       val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                      onCompleteWithBreaker(breaker)(termService.indexTerm(indexName, request_data, refresh)) {
+                      onCompleteWithBreaker(breaker)(Future {
+                        termService.indexTerm(indexName, request_data, refresh)
+                      }) {
                         case Success(t) =>
                           completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                         case Failure(e) =>
@@ -76,16 +78,16 @@ trait TermResource extends StarChatResource {
             case "index_default_synonyms" =>
               withoutRequestTimeout {
                 authenticateBasicAsync(realm = authRealm,
-                  authenticator = authenticator.authenticator) { (user) =>
+                  authenticator = authenticator.authenticator) { user =>
                   authorizeAsync(_ =>
                     authenticator.hasPermissions(user, indexName, Permissions.write)) {
-                    parameters("refresh".as[Int] ? 0, "groupsize".as[Int] ? 1000) { (refresh, groupSize) =>
+                    parameters("refresh".as[Int] ? 0) { refresh =>
                       val breaker: CircuitBreaker =
                         StarChatCircuitBreaker.getCircuitBreaker(maxFailure = 5,
                           callTimeout = 120.seconds, resetTimeout = 120.seconds)
                       onCompleteWithBreaker(breaker)(
                         termService.indexDefaultSynonyms(
-                          indexName = indexName, groupSize = groupSize, refresh = refresh)) {
+                          indexName = indexName, refresh = refresh)) {
                         case Success(t) =>
                           completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                         case Failure(e) =>
@@ -102,13 +104,13 @@ trait TermResource extends StarChatResource {
               }
             case "get" =>
               authenticateBasicAsync(realm = authRealm,
-                authenticator = authenticator.authenticator) { (user) =>
+                authenticator = authenticator.authenticator) { user =>
                 authorizeAsync(_ =>
                   authenticator.hasPermissions(user, indexName, Permissions.read)) {
                   entity(as[TermIdsRequest]) { request_data =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
                     onCompleteWithBreaker(breaker)(Future {
-                      termService.getTermsById(indexName, request_data)
+                      termService.termsById(indexName, request_data)
                     }) {
                       case Success(t) =>
                         completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
@@ -134,14 +136,16 @@ trait TermResource extends StarChatResource {
         pathEnd {
           delete {
             authenticateBasicAsync(realm = authRealm,
-              authenticator = authenticator.authenticator) { (user) =>
+              authenticator = authenticator.authenticator) { user =>
               authorizeAsync(_ =>
                 authenticator.hasPermissions(user, indexName, Permissions.write)) {
                 parameters("refresh".as[Int] ? 0) { refresh =>
                   entity(as[TermIdsRequest]) { request_data =>
                     if (request_data.ids.nonEmpty) {
                       val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                      onCompleteWithBreaker(breaker)(termService.delete(indexName, request_data, refresh)) {
+                      onCompleteWithBreaker(breaker)(Future{
+                        termService.delete(indexName, request_data.ids, refresh)
+                      }) {
                         case Success(t) =>
                           completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                         case Failure(e) =>
@@ -153,7 +157,9 @@ trait TermResource extends StarChatResource {
                       }
                     } else {
                       val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                      onCompleteWithBreaker(breaker)(termService.deleteAll(indexName)) {
+                      onCompleteWithBreaker(breaker)(Future {
+                        termService.deleteAll(indexName)
+                      }) {
                         case Success(t) =>
                           completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                         case Failure(e) =>
@@ -171,7 +177,7 @@ trait TermResource extends StarChatResource {
           } ~
             put {
               authenticateBasicAsync(realm = authRealm,
-                authenticator = authenticator.authenticator) { (user) =>
+                authenticator = authenticator.authenticator) { user =>
                 authorizeAsync(_ =>
                   authenticator.hasPermissions(user, indexName, Permissions.write)) {
                   parameters("refresh".as[Int] ? 0) { refresh =>
@@ -195,14 +201,14 @@ trait TermResource extends StarChatResource {
         path(Segment) { operation: String =>
           get {
             authenticateBasicAsync(realm = authRealm,
-              authenticator = authenticator.authenticator) { (user) =>
+              authenticator = authenticator.authenticator) { user =>
               authorizeAsync(_ => authenticator.hasPermissions(user, indexName, Permissions.read)) {
                 operation match {
                   case "term" =>
                     entity(as[SearchTerm]) { requestData =>
                       val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
                       onCompleteWithBreaker(breaker)(
-                        termService.searchTerm(indexName = indexName, term = requestData)
+                        termService.searchFuture[SearchTerm](indexName = indexName, query = requestData)
                       ) {
                         case Success(t) =>
                           completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
@@ -220,7 +226,7 @@ trait TermResource extends StarChatResource {
                       val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
                       parameters("analyzer".as[String] ? "space_punctuation") { analyzer =>
                         onCompleteWithBreaker(breaker)(
-                          termService.search(indexName = indexName, text = requestData, analyzer = analyzer)
+                          termService.searchFuture[String](indexName = indexName, query = requestData, analyzer = analyzer)
                         ) {
                           case Success(t) =>
                             completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)

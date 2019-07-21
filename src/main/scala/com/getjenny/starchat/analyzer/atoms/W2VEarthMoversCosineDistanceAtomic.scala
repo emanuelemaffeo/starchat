@@ -1,15 +1,15 @@
 package com.getjenny.starchat.analyzer.atoms
 
 import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
-import com.getjenny.analyzer.expressions.{AnalyzersData, Result}
-import com.getjenny.starchat.analyzer.utils.EmDistance
+import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
+import com.getjenny.starchat.analyzer.utils.EMDVectorDistances
 import com.getjenny.starchat.services._
 
 /**
   * Created by angelo on 04/04/17.
   */
 
-class W2VEarthMoversCosineDistanceAtomic(val arguments: List[String], restricted_args: Map[String, String])
+class W2VEarthMoversCosineDistanceAtomic(val arguments: List[String], restrictedArgs: Map[String, String])
   extends AbstractAtomic  {
   /**
     * cosine distance between sentences renormalized at [0, 1]: (cosine + 1)/2
@@ -34,10 +34,10 @@ class W2VEarthMoversCosineDistanceAtomic(val arguments: List[String], restricted
   override def toString: String = "similarCosEmd(\"" + sentence + "\")"
   val isEvaluateNormalized: Boolean = true
 
-  val indexName = restricted_args("index_name")
+  val indexName: String = restrictedArgs("index_name")
 
-  def evaluate(query: String, data: AnalyzersData = AnalyzersData()): Result = {
-    val emdDist = EmDistance.distanceCosine(indexName, query, sentence)
+  def evaluate(query: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
+    val emdDist = EMDVectorDistances.distanceCosine(indexName, query, sentence)
     Result(score=emdDist)
   }
 

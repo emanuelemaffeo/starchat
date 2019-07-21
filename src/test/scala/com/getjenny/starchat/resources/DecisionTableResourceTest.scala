@@ -26,8 +26,10 @@ class DecisionTableResourceTest extends WordSpec with Matchers with ScalatestRou
         val index_name_regex = "(?:[A-Za-z0-9_]+)"
         val response = responseAs[IndexManagementResponse]
         response.message should fullyMatch regex "IndexCreation: " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\)".r
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\)".r
       }
     }
   }
@@ -53,16 +55,15 @@ class DecisionTableResourceTest extends WordSpec with Matchers with ScalatestRou
         val index_name_regex = "index_(?:[a-z]+)_(?:[A-Za-z0-9_]+)"
         val response = responseAs[IndexManagementResponse]
         response.message should fullyMatch regex "IndexCreation: " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\)".r
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\)".r
       }
     }
   }
 
   it should {
     "return an HTTP code 200 when indexing a decision table from csv file" in {
-
       val input_file = getClass.getResourceAsStream("/doc/decision_table_starchat_doc.csv")
       val input_data = scala.io.Source.fromInputStream(input_file).mkString
 

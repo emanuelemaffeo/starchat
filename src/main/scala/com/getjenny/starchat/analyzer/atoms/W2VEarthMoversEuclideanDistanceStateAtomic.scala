@@ -5,12 +5,12 @@ package com.getjenny.starchat.analyzer.atoms
   */
 
 import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
-import com.getjenny.analyzer.expressions.{AnalyzersData, Result}
-import com.getjenny.starchat.analyzer.utils.EmDistance
+import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
+import com.getjenny.starchat.analyzer.utils.EMDVectorDistances
 import com.getjenny.starchat.entities.TextTerms
 import com.getjenny.starchat.services._
 
-class W2VEarthMoversEuclideanDistanceStateAtomic(val arguments: List[String], restricted_args: Map[String, String])
+class W2VEarthMoversEuclideanDistanceStateAtomic(val arguments: List[String], restrictedArgs: Map[String, String])
   extends AbstractAtomic  {
   /**
     * cosine distance between sentences renormalized at [0, 1]: (cosine + 1)/2
@@ -36,7 +36,7 @@ class W2VEarthMoversEuclideanDistanceStateAtomic(val arguments: List[String], re
 
   val analyzerService: AnalyzerService.type = AnalyzerService
 
-  val indexName = restricted_args("index_name")
+  val indexName: String = restrictedArgs("index_name")
 
   val queriesSentences: Option[DecisionTableRuntimeItem] =
     AnalyzerService.analyzersMap(indexName).analyzerMap.get(state)
@@ -46,15 +46,15 @@ class W2VEarthMoversEuclideanDistanceStateAtomic(val arguments: List[String], re
     analyzerService.log.info(toString + " : initialized")
   }
 
-  val queriesVectors: List[Option[TextTerms]] = queriesSentences match {
-    case Some(sentences) => sentences.queries.map(item => Option{item})
-    case _ => List.empty[Option[TextTerms]]
+  val queriesVectors: List[TextTerms] = queriesSentences match {
+    case Some(sentences) => sentences.queriesTerms.map(item => item)
+    case _ => List.empty[TextTerms]
   }
   val isEvaluateNormalized: Boolean = true
-  def evaluate(query: String, data: AnalyzersData = AnalyzersData()): Result = {
+  def evaluate(query: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
     val queryVectors = termService.textToVectors(indexName = indexName, text = query)
     val emdDistQueries = queriesVectors.map(q => {
-      val dist = EmDistance.distanceEuclidean(q , queryVectors)
+      val dist = EMDVectorDistances.distanceEuclidean(q , queryVectors)
       dist
     })
 

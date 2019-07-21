@@ -15,16 +15,15 @@ import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import au.com.bytecode.opencsv.CSVWriter
 import breeze.io.CSVReader
-import com.getjenny.analyzer.expressions.Data
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.serializers.JsonSupport
 import scopt.OptionParser
 
-import scala.util.{Failure, Success, Try}
 import scala.collection.immutable
 import scala.collection.immutable.Map
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
+import scala.util.{Failure, Success}
 
 object SimilarityTest extends JsonSupport {
 
@@ -88,7 +87,8 @@ object SimilarityTest extends JsonSupport {
       val evaluate_request = AnalyzerEvaluateRequest(
         analyzer = analyzer,
         query = text2,
-        data = Option{ Data(extracted_variables = params.variables, item_list = params.itemList.toList) }
+        data = Option{ AnalyzersData_v4(extracted_variables = params.variables,
+          item_list = params.itemList.toVector) }
       )
 
       val entityFuture = Marshal(evaluate_request).to[MessageEntity]
@@ -101,7 +101,7 @@ object SimilarityTest extends JsonSupport {
           entity = entity))
       val result = Await.result(responseFuture, timeout)
       result.status match {
-        case StatusCodes.OK => {
+        case StatusCodes.OK =>
           val response =
             Unmarshal(result.entity).to[AnalyzerEvaluateResponse]
           val value = response.value match {
@@ -118,7 +118,6 @@ object SimilarityTest extends JsonSupport {
           val input_csv_fields = entry.toArray
           val csv_line = input_csv_fields ++ Array(score)
           outputCsv.writeNext(csv_line)
-        }
         case _ =>
           println("failed running analyzer(" + evaluate_request.analyzer
             + ") Query(" + evaluate_request.query + ")")

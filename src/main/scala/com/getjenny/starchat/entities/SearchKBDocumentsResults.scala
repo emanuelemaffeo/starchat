@@ -8,5 +8,5 @@ import scala.collection.immutable.{List}
 
 case class SearchKBDocument(score: Float, document: KBDocument)
 
-case class SearchKBDocumentsResults(total: Int, max_score: Float, hits: List[SearchKBDocument])
+case class SearchKBDocumentsResults(total: Long, max_score: Float, hits: List[SearchKBDocument])
 

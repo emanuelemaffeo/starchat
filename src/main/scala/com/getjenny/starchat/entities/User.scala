@@ -4,13 +4,12 @@ package com.getjenny.starchat.entities
   * Created by Angelo Leto <angelo@getjenny.com> on 17/11/17.
   */
 
-import scalaz._
-import Scalaz._
+import scalaz.Scalaz._
 
 object Permissions extends Enumeration {
   type Permission = Value
   val stream, read, write, admin, unknown = Value
-  def getValue(permission: String) = values.find(_.toString === permission).getOrElse(unknown)
+  def value(permission: String): Permissions.Value = values.find(_.toString === permission).getOrElse(unknown)
 }
 
 case class User(

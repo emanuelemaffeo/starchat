@@ -8,7 +8,7 @@ case class UserClassNotFoundException(message: String = "", cause: Throwable = N
 object SupportedAuthCredentialStoreImpl extends Enumeration {
   type Permission = Value
   val es, unknown = Value
-  def getValue(authMethod: String) =
+  def getValue(authMethod: String): SupportedAuthCredentialStoreImpl.Value =
     values.find(_.toString === authMethod).getOrElse(SupportedAuthCredentialStoreImpl.unknown)
 }
 

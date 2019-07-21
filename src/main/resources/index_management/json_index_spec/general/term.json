@@ -1,63 +1,61 @@
 {
   "mappings": {
-    "term": {
-      "properties": {
-        "term": {
-          "type": "text",
-          "store": true,
-          "fields": {
-            "raw": {
-              "type": "keyword"
-            },
-            "space_punctuation": {
-              "type": "text",
-              "analyzer": "jenny_space_punctuation_analyzer"
-            },
-            "base": {
-              "type": "text",
-              "analyzer": "jenny_base_analyzer"
-            },
-            "stop": {
-              "type": "text",
-              "analyzer": "jenny_stop_analyzer"
-            },
-            "stem": {
-              "type": "text",
-              "analyzer": "jenny_stem_analyzer"
-            }
+    "properties": {
+      "term": {
+        "type": "text",
+        "store": true,
+        "fields": {
+          "raw": {
+            "type": "keyword"
+          },
+          "space_punctuation": {
+            "type": "text",
+            "analyzer": "jenny_space_punctuation_analyzer"
+          },
+          "base": {
+            "type": "text",
+            "analyzer": "jenny_base_analyzer"
+          },
+          "stop": {
+            "type": "text",
+            "analyzer": "jenny_stop_analyzer"
+          },
+          "stem": {
+            "type": "text",
+            "analyzer": "jenny_stem_analyzer"
           }
-        },
-        "synonyms": {
-          "type": "text",
-          "term_vector": "with_positions_offsets_payloads",
-          "analyzer": "jenny_delimited_double"
-        },
-        "antonyms": {
-          "type": "text",
-          "term_vector": "with_positions_offsets_payloads",
-          "analyzer": "jenny_delimited_double"
-        },
-        "tags": {
-          "type": "text",
-          "store": true
-        },
-        "features": {
-          "type": "text",
-          "store": true
-        },
-        "frequency_base": {
-          "store": true,
-          "type": "double"
-        },
-        "frequency_stem": {
-          "store": true,
-          "type": "double"
-        },
-        "vector": {
-          "type": "text",
-          "term_vector": "with_positions_offsets_payloads",
-          "analyzer": "jenny_delimited_double"
         }
+      },
+      "synonyms": {
+        "type": "text",
+        "term_vector": "with_positions_offsets",
+        "analyzer": "jenny_delimited_double"
+      },
+      "antonyms": {
+        "type": "text",
+        "term_vector": "with_positions_offsets",
+        "analyzer": "jenny_delimited_double"
+      },
+      "tags": {
+        "type": "text",
+        "store": true
+      },
+      "features": {
+        "type": "text",
+        "store": true
+      },
+      "frequency_base": {
+        "store": true,
+        "type": "double"
+      },
+      "frequency_stem": {
+        "store": true,
+        "type": "double"
+      },
+      "vector": {
+        "type": "text",
+        "term_vector": "with_positions_offsets",
+        "analyzer": "jenny_delimited_double"
       }
     }
   }

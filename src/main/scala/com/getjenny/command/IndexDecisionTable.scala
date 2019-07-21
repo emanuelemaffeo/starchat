@@ -9,16 +9,16 @@ import java.io.File
 import akka.actor.ActorSystem
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.marshalling.Marshal
-import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.http.scaladsl.model.headers.RawHeader
+import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.stream.ActorMaterializer
 import com.getjenny.starchat.serializers.JsonSupport
-import com.getjenny.starchat.services.FileToDTDocuments
+import com.getjenny.starchat.services.FileToDocuments
 import scopt.OptionParser
 
 import scala.collection.immutable
-import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 
 object IndexDecisionTable extends JsonSupport {
 
@@ -58,7 +58,7 @@ object IndexDecisionTable extends JsonSupport {
 
     val timeout = Duration(params.timeout, "s")
 
-    FileToDTDocuments.getDTDocumentsFromCSV(log = system.log, file = file, separator = params.separator)
+    FileToDocuments.getDTDocumentsFromCSV(log = system.log, file = file, separator = params.separator)
       .foreach(state => {
         val entity_future = Marshal(state).to[MessageEntity]
         val entity = Await.result(entity_future, 10.second)

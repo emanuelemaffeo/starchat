@@ -7,9 +7,12 @@ sudo: required
 services:
   - docker
 script:
-   - sbt ++$TRAVIS_SCALA_VERSION dockerComposeUp
-   - sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport codacyCoverage
-   - sbt ++$TRAVIS_SCALA_VERSION dockerComposeStop
+  - mkdir -p ${HOME}/.sbt/1.2 && echo echo "credentials += Credentials(\"Sonatype Nexus Repository Manager\", \"oss.sonatype.org\", \"${SONATYPE_USERNAME}\", \"${SONATYPE_PASSWORD}\")" > ${HOME}/.sbt/1.2/sonatype.sbt
+  - CURRENT_UID=$(id -u):$(id -g) sbt ++$TRAVIS_SCALA_VERSION dockerComposeUp
+  - nc -z 0.0.0.0 9200 && echo "OK PORT(9200)" || echo "FAILED PORT(9200)"
+  - curl -v -k https://0.0.0.0:9200 && echo "OK PORT(9200)" || echo "FAILED PORT(9200)"
+  - sbt ++$TRAVIS_SCALA_VERSION clean coverage test coverageReport codacyCoverage
+  - sbt ++$TRAVIS_SCALA_VERSION dockerComposeStop
 notifications:
   webhooks:
     urls:

@@ -5,14 +5,14 @@ package com.getjenny.starchat.analyzer.atoms
   */
 
 import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
-import com.getjenny.analyzer.expressions.{AnalyzersData, Result}
+import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services._
 
 /**
   * Query ElasticSearch
   */
-class SearchAtomic(arguments: List[String], restricted_args: Map[String, String]) extends AbstractAtomic {
+class SearchAtomic(arguments: List[String], restrictedArgs: Map[String, String]) extends AbstractAtomic {
   val state: String = arguments.headOption match {
     case Some(t) => t
     case _ =>
@@ -26,17 +26,14 @@ class SearchAtomic(arguments: List[String], restricted_args: Map[String, String]
 
   val decisionTableService: DecisionTableService.type = DecisionTableService
 
-  def evaluate(query: String, data: AnalyzersData = AnalyzersData()): Result = {
+  def evaluate(query: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
 
-    val searchResOpt = data.data.getOrElse("dt_queries_search_result", None)
-      .asInstanceOf[Option[Map[String, (Float, SearchDTDocument)]]]
-
-    val score = searchResOpt match {
+    val score = data.data.get("dt_queries_search_result") match {
       case Some(searchResult) =>
-        searchResult.get(state) match {
+        val res = searchResult.asInstanceOf[Map[String, (Float, SearchDTDocument)]]
+        res.get(state) match {
           case Some((referenceStateScore, _)) =>
-            val searchScoresWeight = searchResult.map { case (_, (docScore, _)) => docScore }.sum + 1
-            referenceStateScore / searchScoresWeight
+            referenceStateScore
           case _ => 0.0d
         }
       case _ => 0.0d
@@ -44,5 +41,4 @@ class SearchAtomic(arguments: List[String], restricted_args: Map[String, String]
 
     Result(score=score)
   } // returns elasticsearch score of the highest query in queries
-
 }

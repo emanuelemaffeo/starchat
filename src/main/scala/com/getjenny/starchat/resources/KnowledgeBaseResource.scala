@@ -13,6 +13,7 @@ import com.getjenny.starchat.entities._
 import com.getjenny.starchat.routing._
 import com.getjenny.starchat.services.KnowledgeBaseService
 
+import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 trait KnowledgeBaseResource extends StarChatResource {
@@ -48,7 +49,7 @@ trait KnowledgeBaseResource extends StarChatResource {
       pathEnd {
         post {
           authenticateBasicAsync(realm = authRealm,
-            authenticator = authenticator.authenticator) { (user) =>
+            authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, indexName, Permissions.write)) {
               parameters("refresh".as[Int] ? 0) { refresh =>
@@ -82,12 +83,13 @@ trait KnowledgeBaseResource extends StarChatResource {
         } ~
           get {
             authenticateBasicAsync(realm = authRealm,
-              authenticator = authenticator.authenticator) { (user) =>
+              authenticator = authenticator.authenticator) { user =>
               authorizeAsync(_ =>
                 authenticator.hasPermissions(user, indexName, Permissions.read)) {
                 parameters("ids".as[String].*) { ids =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                  onCompleteWithBreaker(breaker)(knowledgeBaseService.read(indexName, ids.toList)) {
+                  onCompleteWithBreaker(breaker)(Future { knowledgeBaseService.read(indexName, ids.toList) }
+                  ) {
                     case Success(t) =>
                       completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
                         t
@@ -105,11 +107,13 @@ trait KnowledgeBaseResource extends StarChatResource {
           } ~
           delete {
             authenticateBasicAsync(realm = authRealm,
-              authenticator = authenticator.authenticator) { (user) =>
+              authenticator = authenticator.authenticator) { user =>
               authorizeAsync(_ =>
                 authenticator.hasPermissions(user, indexName, Permissions.write)) {
                 val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                onCompleteWithBreaker(breaker)(knowledgeBaseService.deleteAll(indexName)) {
+                onCompleteWithBreaker(breaker)( Future {
+                  knowledgeBaseService.deleteAll(indexName)
+                }) {
                   case Success(t) =>
                     completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
                       t
@@ -128,13 +132,15 @@ trait KnowledgeBaseResource extends StarChatResource {
         path(Segment) { id =>
           put {
             authenticateBasicAsync(realm = authRealm,
-              authenticator = authenticator.authenticator) { (user) =>
+              authenticator = authenticator.authenticator) { user =>
               authorizeAsync(_ =>
                 authenticator.hasPermissions(user, indexName, Permissions.write)) {
                 parameters("refresh".as[Int] ? 0) { refresh =>
                   entity(as[KBDocumentUpdate]) { update =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                    onCompleteWithBreaker(breaker)(knowledgeBaseService.update(indexName, id, update, refresh)) {
+                    onCompleteWithBreaker(breaker)(
+                      Future{knowledgeBaseService.update(indexName, id, update, refresh)}
+                    ) {
                       case Success(t) =>
                         completeResponse(StatusCodes.Created, StatusCodes.BadRequest, t)
                       case Failure(e) =>
@@ -156,7 +162,9 @@ trait KnowledgeBaseResource extends StarChatResource {
                   authenticator.hasPermissions(user, indexName, Permissions.write)) {
                   parameters("refresh".as[Int] ? 0) { refresh =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                    onCompleteWithBreaker(breaker)(knowledgeBaseService.delete(indexName, id, refresh)) {
+                    onCompleteWithBreaker(breaker)(Future {
+                      knowledgeBaseService.delete(indexName, List(id), refresh)
+                    }) {
                       case Success(t) =>
                         completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                       case Failure(e) =>
@@ -184,7 +192,9 @@ trait KnowledgeBaseResource extends StarChatResource {
               authenticator.hasPermissions(user, indexName, Permissions.write)) {
               entity(as[KBDocumentSearch]) { docsearch =>
                 val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                onCompleteWithBreaker(breaker)(knowledgeBaseService.search(indexName, docsearch)) {
+                onCompleteWithBreaker(breaker)(Future{
+                  knowledgeBaseService.search(indexName, docsearch)
+                }) {
                   case Success(t) =>
                     completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
                       t

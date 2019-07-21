@@ -4,26 +4,24 @@ package com.getjenny.starchat.services
   * Created by Angelo Leto <angelo@getjenny.com> on 01/12/17.
   */
 
-import javax.naming.AuthenticationException
-
-import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.util.RandomNumbers
-import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services.auth.AbstractStarChatAuthenticator
+import com.getjenny.starchat.services.esclient.SystemIndexManagementElasticClient
 import com.typesafe.config.{Config, ConfigFactory}
-import org.elasticsearch.action.delete.DeleteResponse
-import org.elasticsearch.action.get.{GetRequestBuilder, GetResponse}
-import org.elasticsearch.action.update.UpdateResponse
-import org.elasticsearch.client.transport.TransportClient
+import javax.naming.AuthenticationException
+import org.elasticsearch.action.delete.{DeleteRequest, DeleteResponse}
+import org.elasticsearch.action.get.{GetResponse, _}
+import org.elasticsearch.action.index.{IndexRequest, IndexResponse}
+import org.elasticsearch.action.update.{UpdateRequest, UpdateResponse}
+import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.rest.RestStatus
+import scalaz.Scalaz._
 
 import scala.collection.JavaConverters._
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
-import scalaz.Scalaz._
 
 case class UserEsServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -32,15 +30,14 @@ case class UserEsServiceException(message: String = "", cause: Throwable = None.
   * Implements functions, eventually used by IndexManagementResource, for ES index management
   */
 class UserEsService extends AbstractUserService {
-  val config: Config = ConfigFactory.load()
-  val elasticClient: SystemIndexManagementElasticClient.type = SystemIndexManagementElasticClient
-  val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
-  val indexName: String = elasticClient.indexName + "." + elasticClient.userIndexSuffix
+  private[this] val config: Config = ConfigFactory.load()
+  private[this] val elasticClient: SystemIndexManagementElasticClient.type = SystemIndexManagementElasticClient
+  private[this] val indexName: String = elasticClient.indexName + "." + elasticClient.userIndexSuffix
 
-  val admin: String = config.getString("starchat.basic_http_es.admin")
-  val password: String = config.getString("starchat.basic_http_es.password")
-  val salt: String = config.getString("starchat.basic_http_es.salt")
-  val admin_user = User(id = admin, password = password, salt = salt,
+  private[this] val admin: String = config.getString("starchat.basic_http_es.admin")
+  private[this] val password: String = config.getString("starchat.basic_http_es.password")
+  private[this] val salt: String = config.getString("starchat.basic_http_es.salt")
+  private[this] val adminUser = User(id = admin, password = password, salt = salt,
     permissions = Map("admin" -> Set(Permissions.admin)))
 
   def create(user: User): Future[IndexDocumentResult] = Future {
@@ -58,28 +55,31 @@ class UserEsService extends AbstractUserService {
     val permissions = builder.startObject("permissions")
     user.permissions.foreach{case(permIndexName, userPermissions) =>
       val array = permissions.field(permIndexName).startArray()
-      userPermissions.foreach(p => { array.value(p)}) // for each permission
+      userPermissions.foreach(p => { array.value(p.toString)}) // for each permission
       array.endArray()
     }
     permissions.endObject()
 
     builder.endObject()
 
-    val client: TransportClient = elasticClient.getClient()
-    val response = client.prepareIndex().setIndex(indexName)
-      .setCreate(true)
-      .setType(elasticClient.userIndexSuffix)
-      .setId(user.id)
-      .setSource(builder).get()
+    val client: RestHighLevelClient = elasticClient.httpClient
 
-    val refreshIndex = elasticClient.refreshIndex(indexName)
+    val indexReq = new IndexRequest()
+      .index(indexName)
+      .create(true)
+      .id(user.id)
+      .source(builder)
+
+    val response: IndexResponse = client.index(indexReq, RequestOptions.DEFAULT)
+
+    val refreshIndex = elasticClient.refresh(indexName)
     if(refreshIndex.failed_shards_n > 0) {
-      throw new Exception("User : index refresh failed: (" + indexName + ")")
+      throw UserEsServiceException("User : index refresh failed: (" + indexName + ")")
     }
 
     val docResult: IndexDocumentResult = IndexDocumentResult(index = response.getIndex,
-      dtype = response.getType,
       id = response.getId,
+      dtype = response.getType,
       version = response.getVersion,
       created = response.status === RestStatus.CREATED
     )
@@ -87,8 +87,7 @@ class UserEsService extends AbstractUserService {
     docResult
   }
 
-  def update(id: String, user: UserUpdate):
-  Future[UpdateDocumentResult] = Future {
+  def update(id: String, user: UserUpdate): Future[UpdateDocumentResult] = Future {
 
     if(id === "admin") {
       throw new AuthenticationException("admin user cannot be changed")
@@ -107,12 +106,13 @@ class UserEsService extends AbstractUserService {
     }
 
     user.permissions match {
-      case Some(t) =>
+      case Some(_) =>
         val permissions = builder.startObject("permissions")
-        user.permissions.getOrElse(Map.empty).foreach{case(permIndexName, userPermissions) =>
-          val array = permissions.field(permIndexName).startArray()
-          userPermissions.foreach(p => { array.value(p)})
-          array.endArray()
+        user.permissions.getOrElse(Map.empty).foreach {
+          case(permIndexName, userPermissions) =>
+            val array = permissions.field(permIndexName).startArray()
+            userPermissions.foreach(p => { array.value(p.toString)})
+            array.endArray()
         }
         permissions.endObject()
       case None => ;
@@ -120,20 +120,23 @@ class UserEsService extends AbstractUserService {
 
     builder.endObject()
 
-    val client: TransportClient = elasticClient.getClient()
-    val response: UpdateResponse = client.prepareUpdate().setIndex(indexName)
-      .setType(elasticClient.userIndexSuffix).setId(id)
-      .setDoc(builder)
-      .get()
+    val client: RestHighLevelClient = elasticClient.httpClient
 
-    val refresh_index = elasticClient.refreshIndex(indexName)
+    val updateReq = new UpdateRequest()
+      .index(indexName)
+      .doc(builder)
+      .id(id)
+
+    val response: UpdateResponse = client.update(updateReq, RequestOptions.DEFAULT)
+
+    val refresh_index = elasticClient.refresh(indexName)
     if(refresh_index.failed_shards_n > 0) {
-      throw new Exception("User : index refresh failed: (" + indexName + ")")
+      throw UserEsServiceException("User : index refresh failed: (" + indexName + ")")
     }
 
     val docResult: UpdateDocumentResult = UpdateDocumentResult(index = response.getIndex,
-      dtype = response.getType,
       id = response.getId,
+      dtype = response.getType,
       version = response.getVersion,
       created = response.status === RestStatus.CREATED
     )
@@ -147,18 +150,22 @@ class UserEsService extends AbstractUserService {
       throw new AuthenticationException("admin user cannot be changed")
     }
 
-    val client: TransportClient = elasticClient.getClient()
-    val response: DeleteResponse = client.prepareDelete().setIndex(indexName)
-      .setType(elasticClient.userIndexSuffix).setId(id).get()
+    val client: RestHighLevelClient = elasticClient.httpClient
 
-    val refreshIndex = elasticClient.refreshIndex(indexName)
+    val deleteReq = new DeleteRequest()
+      .index(indexName)
+      .id(id)
+
+    val response: DeleteResponse = client.delete(deleteReq, RequestOptions.DEFAULT)
+
+    val refreshIndex = elasticClient.refresh(indexName)
     if(refreshIndex.failed_shards_n > 0) {
       throw new Exception("User: index refresh failed: (" + indexName + ")")
     }
 
     val docResult: DeleteDocumentResult = DeleteDocumentResult(index = response.getIndex,
-      dtype = response.getType,
       id = response.getId,
+      dtype = response.getType,
       version = response.getVersion,
       found = response.status =/= RestStatus.NOT_FOUND
     )
@@ -168,13 +175,16 @@ class UserEsService extends AbstractUserService {
 
   def read(id: String): Future[User] = Future {
     if(id === "admin") {
-      admin_user
+      adminUser
     } else {
 
-      val client: TransportClient = elasticClient.getClient()
-      val getBuilder: GetRequestBuilder = client.prepareGet(indexName, elasticClient.userIndexSuffix, id)
+      val client: RestHighLevelClient = elasticClient.httpClient
 
-      val response: GetResponse = getBuilder.get()
+      val getReq = new GetRequest()
+        .index(indexName)
+        .id(id)
+
+      val response: GetResponse = client.get(getReq, RequestOptions.DEFAULT)
       val source = if(response.getSource != None.orNull) {
         response.getSource.asScala.toMap
       } else {
@@ -199,7 +209,7 @@ class UserEsService extends AbstractUserService {
       val permissions: Map[String, Set[Permissions.Value]] = source.get("permissions") match {
         case Some(t) => t.asInstanceOf[java.util.HashMap[String, java.util.List[String]]]
           .asScala.map{case(permIndexName, userPermissions) =>
-          (permIndexName, userPermissions.asScala.map(permissionString => Permissions.getValue(permissionString)).toSet)
+          (permIndexName, userPermissions.asScala.map(permissionString => Permissions.value(permissionString)).toSet)
         }.toMap
         case None =>
           throw UserEsServiceException("Permissions list is empty for the user: " + id)
@@ -235,10 +245,11 @@ class UserEsService extends AbstractUserService {
   }
 
   def generatePassword(size: Int = 16): String = {
-    RandomNumbers.getString(size)
+    RandomNumbers.string(size)
   }
 
   def generateSalt(): String = {
-    RandomNumbers.getString(16)
+    RandomNumbers.string(16)
   }
 }
+

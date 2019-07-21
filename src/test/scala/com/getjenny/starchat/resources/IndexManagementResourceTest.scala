@@ -25,8 +25,10 @@ class IndexManagementResourceTest extends WordSpec with Matchers with ScalatestR
         val index_name_regex = "(?:[A-Za-z0-9_]+)"
         val response = responseAs[IndexManagementResponse]
         response.message should fullyMatch regex "IndexCreation: " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\)".r
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\)".r
       }
     }
   }
@@ -52,9 +54,9 @@ class IndexManagementResourceTest extends WordSpec with Matchers with ScalatestR
         val index_name_regex = "index_(?:[a-z]+)_(?:[A-Za-z0-9_]+)"
         val response = responseAs[IndexManagementResponse]
         response.message should fullyMatch regex "IndexCreation: " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\)".r
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
+          "\\(" + index_name_regex + "\\.(?:[A-Za-z0-9_]+), true\\)".r
       }
     }
   }
@@ -64,7 +66,7 @@ class IndexManagementResourceTest extends WordSpec with Matchers with ScalatestR
       Post(s"/index_english_0/index_management/create") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.BadRequest
         val response = responseAs[IndexManagementResponse]
-        response.message should fullyMatch regex "index \\[.*\\] already exists"
+        response.message should fullyMatch regex "Elasticsearch exception \\[type=resource_already_exists_exception, reason=index \\[index_.*\\] already exists\\]"
       }
     }
   }

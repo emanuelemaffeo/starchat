@@ -1,7 +1,7 @@
 package com.getjenny.starchat.analyzer.atoms
 
 import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
-import com.getjenny.analyzer.expressions.{AnalyzersData, Result}
+import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
 import com.getjenny.analyzer.util.VectorUtils._
 import com.getjenny.starchat.analyzer.utils.TextToVectorsTools
 import com.getjenny.starchat.services._
@@ -10,7 +10,8 @@ import com.getjenny.starchat.services._
   * Created by mal on 20/02/2017.
   */
 
-class W2VCosineSentenceAtomic(val arguments: List[String], restricted_args: Map[String, String]) extends AbstractAtomic  {
+class W2VCosineSentenceAtomic(val arguments: List[String],
+                              restrictedArgs: Map[String, String]) extends AbstractAtomic  {
   /**
     * cosine distance between sentences renormalized at [0, 1]: (cosine + 1)/2
     *
@@ -30,12 +31,12 @@ class W2VCosineSentenceAtomic(val arguments: List[String], restricted_args: Map[
   override def toString: String = "similar(\"" + sentence + "\")"
   val isEvaluateNormalized: Boolean = true
 
+  val indexName: String = restrictedArgs("index_name")
 
-  val indexName = restricted_args("index_name")
-  val sentenceVector: (Vector[Double], Double) = TextToVectorsTools.getSumOfVectorsFromText(indexName, sentence)
+  val sentenceVector: (Vector[Double], Double) = TextToVectorsTools.sumOfVectorsFromText(indexName, sentence)
 
-  def evaluate(query: String, data: AnalyzersData = AnalyzersData()): Result = {
-    val query_vector = TextToVectorsTools.getSumOfVectorsFromText(indexName, query)
+  def evaluate(query: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
+    val query_vector = TextToVectorsTools.sumOfVectorsFromText(indexName, query)
 
     /** cosineDist returns 0.0 for the closest vector, we want 1.0 when the similarity is the highest
       *   so we use 1.0 - ...

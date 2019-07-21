@@ -15,7 +15,13 @@ object TokenizersDescription {
     "shingles2" -> ("jenny_shingles_2_analyzer", "2-grams"),
     "shingles3" -> ("jenny_shingles_3_analyzer", "3-grams"),
     "shingles4" -> ("jenny_shingles_4_analyzer", "4-grams"),
-    "shingles2_10" -> ("jenny_shingles_2_10_analyzer", "from 2 to 10 n-grams")
+    "shingles2_10" -> ("jenny_shingles_2_10_analyzer", "from 2 to 10 n-grams"),
+    "ngram2" -> ("jenny_ngram_2_analyzer", "character level n-grams"),
+    "stemmed_ngram2" -> ("jenny_stemmed_ngram_2_analyzer", "character level n-grams"),
+    "ngram3" -> ("jenny_ngram_3_analyzer", "character level n-grams"),
+    "stemmed_ngram3" -> ("jenny_stemmed_ngram_3_analyzer", "character level n-grams"),
+    "ngram4" -> ("jenny_ngram_4_analyzer", "character level n-grams"),
+    "stemmed_ngram4" -> ("jenny_stemmed_ngram_4_analyzer", "character level n-grams")
   )
 }
 

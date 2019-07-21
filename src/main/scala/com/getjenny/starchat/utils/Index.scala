@@ -1,7 +1,5 @@
 package com.getjenny.starchat.utils
 
-import com.getjenny.starchat.services.TermService
-
 import scala.util.matching.Regex
 
 /**

@@ -1,18 +1,18 @@
 package com.getjenny.starchat.analyzer.atoms
 
 import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
-import com.getjenny.analyzer.expressions.{AnalyzersData, Result}
+import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
 import com.getjenny.analyzer.util.VectorUtils._
 import com.getjenny.starchat.analyzer.utils.TextToVectorsTools
+import com.getjenny.starchat.entities.{Term, Terms}
 import com.getjenny.starchat.services._
-
 import scalaz.Scalaz._
 
 /**
   * Created by mal on 20/02/2017.
   */
 
-class W2VCosineWordAtomic(arguments: List[String], restricted_args: Map[String, String]) extends AbstractAtomic {
+class W2VCosineWordAtomic(arguments: List[String], restrictedArgs: Map[String, String]) extends AbstractAtomic {
   /**
     * Return the normalized w2vcosine similarity of the nearest word
     */
@@ -27,33 +27,28 @@ class W2VCosineWordAtomic(arguments: List[String], restricted_args: Map[String, 
 
   val termService: TermService.type = TermService
 
-  val indexName: String = restricted_args("index_name")
+  val indexName: String = restrictedArgs("index_name")
+
   val (sentenceVector: Vector[Double], reliabilityFactor: Double) =
-    TextToVectorsTools.getSumOfVectorsFromText(indexName, word)
+    TextToVectorsTools.sumOfVectorsFromText(indexName, word)
 
   val isEvaluateNormalized: Boolean = true
-  def evaluate(query: String, data: AnalyzersData = AnalyzersData()): Result = {
+  def evaluate(query: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
     val textVectors = termService.textToVectors(indexName, query)
-    val distance: Double = textVectors match {
-      case Some(vectors) =>
-        val termVector = vectors.terms match {
-          case Some(terms) => terms.terms.map(term => term.vector.getOrElse(Vector.empty[Double]))
-            .filter(vector => vector.nonEmpty)
-          case _ => List.empty[Vector[Double]]
-        }
-        val distanceList = termVector.map(vector => {
-          if(vector.isEmpty || reliabilityFactor === 0.0) {
-            0.0
-          } else {
-            1 - cosineDist(vector, sentenceVector)
-          }
-        })
-        val dist = if (distanceList.nonEmpty) distanceList.max else 0.0
-        dist
-      case _ => 0.0
-    }
-    Result(score=distance)
+
+    val termsList = textVectors.terms.getOrElse(Terms(terms = List.empty[Term]))
+    val distanceList = termsList.terms.map(term => term.vector.getOrElse(Vector.empty[Double]))
+      .map(wordVector =>
+        if(wordVector.isEmpty || reliabilityFactor === 0.0)
+          0.0
+        else
+          1 - cosineDist(wordVector, sentenceVector)
+      )
+
+    val score = if (distanceList.nonEmpty) distanceList.max else 0.0
+    Result(score=score)
   }
+
   // Similarity is normally the cosine itself. The threshold should be at least
   // angle < pi/2 (cosine > 0), but for synonyms let's put cosine > 0.6, i.e. self.evaluate > 0.8
   override val matchThreshold: Double = 0.8

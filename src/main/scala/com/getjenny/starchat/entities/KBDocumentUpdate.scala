@@ -14,7 +14,7 @@ case class KBDocumentUpdate(conversation: Option[String],
                             verified: Option[Boolean],
                             topics: Option[String],
                             dclass: Option[String],
-                            doctype: Option[String],
+                            doctype: Option[Doctypes.Value],
                             state: Option[String],
                             status: Option[Int]
                    )

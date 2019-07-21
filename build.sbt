@@ -5,27 +5,28 @@ name := "StarChat"
 
 organization := "com.getjenny"
 
-crossScalaVersions := Seq("2.12.6")
+crossScalaVersions := Seq("2.12.8")
 
 resolvers ++= Seq("Typesafe Repository" at "http://repo.typesafe.com/typesafe/releases/",
   Resolver.bintrayRepo("hseeberger", "maven"))
 
 libraryDependencies ++= {
-  val AkkaHttpVersion	= "10.1.5"
-  val AkkaVersion	= "2.5.18"
+  val AkkaHttpVersion	= "10.1.8"
+  val AkkaVersion	= "2.5.23"
   val BreezeVersion	= "0.13.2"
-  val ESClientVersion	= "6.2.4"
-  val Log4JVersion	= "2.9.1"
+  val ESClientVersion	= "7.2.0"
   val LogbackVersion	= "1.2.3"
-  val ParboiledVersion	= "2.1.4"
   val RoundeightsHasherVersion	= "1.2.0"
-  val ScalatestVersion	= "3.0.1"
-  val ScalazVersion	= "7.2.18"
+  val ScalatestVersion	= "3.0.5"
+  val ScalazVersion	= "7.2.24"
   val ScoptVersion	= "3.7.0"
-  val TikaVersion	= "1.17"
+  val TikaVersion	= "1.18"
+  val StanfordCoreNLP = "3.9.2"
+  val AnalyzerVersion = "2.0.0"
+  val CourierVersion = "1.0.0"
   Seq(
-    "ch.qos.logback" % "logback-classic" % LogbackVersion,
     "com.github.scopt" %% "scopt" % ScoptVersion,
+    "com.getjenny" %% "analyzer" % AnalyzerVersion,
     "com.roundeights" %% "hasher" % RoundeightsHasherVersion,
     "com.typesafe.akka" %% "akka-actor" % AkkaVersion,
     "com.typesafe.akka" %% "akka-contrib" % AkkaVersion,
@@ -36,21 +37,21 @@ libraryDependencies ++= {
     "com.typesafe.akka" %% "akka-stream-testkit" % AkkaVersion % Test,
     "com.typesafe.akka" %% "akka-testkit" % AkkaVersion % Test,
     "com.typesafe.akka" %% "akka-slf4j" % AkkaVersion,
-    "org.apache.logging.log4j" % "log4j-api" % Log4JVersion,
-    "org.apache.logging.log4j" % "log4j-core" % Log4JVersion,
+    "ch.qos.logback" % "logback-classic" % LogbackVersion,
+    "com.typesafe.akka" %% "akka-stream" % AkkaVersion,
     "org.apache.tika" % "tika-app" % TikaVersion,
     "org.apache.tika" % "tika-core" % TikaVersion,
     "org.apache.tika" % "tika-parsers" % TikaVersion,
-    //"org.elasticsearch.client" % "elasticsearch-rest-client" % ESClientVersion,
-    //"org.elasticsearch.client" % "elasticsearch-rest-high-level-client" % ESClientVersion,
-    "org.elasticsearch.client" % "transport" % ESClientVersion,
+    "edu.stanford.nlp" % "stanford-corenlp" % StanfordCoreNLP,
+    "org.elasticsearch.client" % "elasticsearch-rest-client" % ESClientVersion,
+    "org.elasticsearch.client" % "elasticsearch-rest-high-level-client" % ESClientVersion,
     "org.elasticsearch" % "elasticsearch" % ESClientVersion,
-    "org.parboiled" %% "parboiled" % ParboiledVersion,
     "org.scalanlp" %% "breeze" % BreezeVersion,
     "org.scalanlp" %% "breeze-natives" % BreezeVersion,
-    "org.scalatest" %% "scalatest" % ScalatestVersion % "test",
-    "org.scalaz" %% "scalaz-core" % ScalazVersion
-   )
+    "org.scalatest" %% "scalatest" % ScalatestVersion % Test,
+    "org.scalaz" %% "scalaz-core" % ScalazVersion,
+    "com.github.daddykotex" %% "courier" % CourierVersion
+  )
 }
 
 scalacOptions += "-deprecation"
@@ -61,6 +62,7 @@ testOptions in Test += Tests.Argument("-oF")
 enablePlugins(GitVersioning)
 enablePlugins(GitBranchPrompt)
 enablePlugins(JavaServerAppPackaging)
+enablePlugins(AshScriptPlugin)
 enablePlugins(UniversalPlugin)
 enablePlugins(DockerPlugin)
 enablePlugins(DockerComposePlugin)
@@ -69,13 +71,16 @@ git.useGitDescribe := true
 
 //http://www.scala-sbt.org/sbt-native-packager/formats/docker.html
 dockerCommands := Seq(
-  Cmd("FROM", "java:8"),
-  Cmd("RUN", "apt", "update"),
-  Cmd("RUN", "apt", "install", "-y", "netcat"),
+  Cmd("FROM", "openjdk:8-jre-alpine"),
+  Cmd("RUN", "apk", "update"),
+  Cmd("RUN", "apk", "add", "bash"),
+  Cmd("RUN", "apk", "add", "curl"),
+  Cmd("RUN", "addgroup", "-S", "starchat", "&&", "adduser", "-S", "starchat", "-G", "starchat"),
+  Cmd("USER", "starchat:starchat"),
   Cmd("LABEL", "maintainer=\"Angelo Leto <angelo@getjenny.com>\""),
-  Cmd("LABEL", "description=\"Docker container for Starchat\""),
+  Cmd("LABEL", "description=\"Docker container for StarChat\""),
   Cmd("WORKDIR", "/"),
-  Cmd("ADD", "/opt/docker", "/starchat"),
+  Cmd("ADD", "--chown=starchat:starchat", "/opt/docker", "/starchat"),
   Cmd("VOLUME", "/starchat/config"),
   Cmd("VOLUME", "/starchat/log")
 )

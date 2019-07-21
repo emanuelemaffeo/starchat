@@ -10,33 +10,46 @@ import com.getjenny.starchat.services._
 
 object TextToVectorsTools {
   val termService: TermService.type = TermService
-  val emptyVec: Vector[Double] = Vector.fill(300){0.0}
+  def emptyVec(length: Int = 300): Vector[Double] = Vector.fill(length){0.0}
 
   implicit class Crosstable[X](xs: Traversable[X]) {
     def cross[Y](ys: Traversable[Y]): Traversable[(X, Y)] = for { x <- xs; y <- ys } yield (x, y)
   }
 
-   def getSumOfTermsVectors(terms: Option[TextTerms]): (Vector[Double], Double) = {
-    val textVectors = terms
-    val vector = textVectors match {
-      case Some(t) => {
-        val vectors = t.terms match {
-          case Some(k) => k.terms.map(e => e.vector.getOrElse(emptyVec)).toVector
-          case _ => Vector.empty[Vector[Double]]
-        }
-        val sentenceVector = if (vectors.nonEmpty) sumArrayOfArrays(vectors) else emptyVec
-        val reliabilityFactor =
-          t.terms_found_n.toDouble / t.text_terms_n.toDouble
-        (sentenceVector, reliabilityFactor)
-      }
-      case _ => (emptyVec, 0.0) //default dimension
-    }
-    vector
+  def textTermsToVectors(textTerms: TextTerms): List[(String, Vector[Double])] = {
+    val termsList = textTerms.terms.getOrElse(Terms(terms = List.empty[Term]))
+    termsList.terms.map(e => (e.term, e.vector.getOrElse(TextToVectorsTools.emptyVec())))
   }
 
-  def getSumOfVectorsFromText(index_name: String, text: String): (Vector[Double], Double) = {
+  def meanOfTermsVectors(textTerms: TextTerms, length: Int = 300): (Vector[Double], Double) = {
+    val termsList = textTerms.terms.getOrElse(Terms(terms = List.empty[Term]))
+    val vectors = termsList.terms.map(e => e.vector.getOrElse(emptyVec())).toVector
+    val sentenceVector = if (vectors.nonEmpty)
+      meanArrayOfArrays(vectors)
+    else
+      emptyVec(length)
+
+    val reliabilityFactor =
+      textTerms.terms_found_n.toDouble / math.max(1, textTerms.text_terms_n.toDouble)
+    (sentenceVector, reliabilityFactor)
+  }
+
+  def sumOfTermsVectors(textTerms: TextTerms, length: Int = 300): (Vector[Double], Double) = {
+    val termsList = textTerms.terms.getOrElse(Terms(terms = List.empty[Term]))
+    val vectors = termsList.terms.map(e => e.vector.getOrElse(emptyVec())).toVector
+    val sentenceVector = if (vectors.nonEmpty)
+      sumArrayOfArrays(vectors)
+    else
+      emptyVec(length)
+
+    val reliabilityFactor =
+      textTerms.terms_found_n.toDouble / math.max(1, textTerms.text_terms_n.toDouble)
+    (sentenceVector, reliabilityFactor)
+  }
+
+  def sumOfVectorsFromText(index_name: String, text: String): (Vector[Double], Double) = {
     val textVectors = termService.textToVectors(index_name, text)
-    val vector = getSumOfTermsVectors(textVectors)
+    val vector = sumOfTermsVectors(textVectors)
     vector
   }
 

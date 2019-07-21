@@ -8,15 +8,14 @@ import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.stream.ActorMaterializer
 import com.getjenny.starchat.entities.{Term, Terms}
 import com.getjenny.starchat.serializers.JsonSupport
+import scalaz.Scalaz._
 import scopt.OptionParser
 
 import scala.collection.immutable
-import scala.collection.immutable.Map
 import scala.concurrent.duration._
 import scala.concurrent.{Await, ExecutionContextExecutor, Future}
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
 
 object IndexTerms extends JsonSupport {
 
