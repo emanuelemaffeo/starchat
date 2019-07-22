@@ -16,10 +16,11 @@ services:
       - ./elasticsearch/config:/usr/share/elasticsearch/config
       - ./elasticsearch/logs:/usr/share/elasticsearch/logs
     environment:
+      - MAX_LOCKED_MEMORY=unlimited
       - ES_JAVA_OPTS=-Xms1g -Xmx1g
 
   starchat:
-    image: java:8
+    image: openjdk:8-jre-alpine
     restart: unless-stopped
     command: ["/starchat/scripts/utils/wait-for-it.sh", "getjenny-es", "9200", "10", "/starchat/bin/starchat"]
     volumes:

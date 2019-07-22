@@ -19,7 +19,7 @@ services:
       - MAX_LOCKED_MEMORY=unlimited
 
   starchat:
-    image: java:8
+    image: openjdk:8-jre-alpine
     restart: unless-stopped
     logging:
       driver: "json-file"

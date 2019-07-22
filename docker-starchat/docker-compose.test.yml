@@ -13,7 +13,6 @@ services:
       - "9300"
     volumes:
       - ./elasticsearch/config:/usr/share/elasticsearch/config
-      - ./elasticsearch_test/logs:/usr/share/elasticsearch/logs
     environment:
       - MAX_LOCKED_MEMORY=unlimited
 
