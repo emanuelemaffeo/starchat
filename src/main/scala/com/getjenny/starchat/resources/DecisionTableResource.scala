@@ -27,7 +27,7 @@ trait DecisionTableResource extends StarChatResource {
   private[this] val analyzerService: AnalyzerService.type = AnalyzerService
   private[this] val responseService: ResponseService.type = ResponseService
   private[this] val dtReloadService: DtReloadService.type = DtReloadService
-  private[this] val fileTypeRegex: Regex = ("^(csv|json)$").r
+  private[this] val fileTypeRegex: Regex = "^(csv|json)$".r
 
   def decisionTableRoutesAllRoutes: Route = handleExceptions(routesExceptionHandler) {
     pathPrefix(indexRegex ~ Slash ~ "decisiontable" ~ Slash ~ "all") { indexName =>

@@ -13,26 +13,21 @@ import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services.esclient.DecisionTableElasticClient
 import com.getjenny.starchat.utils.Index
 import org.apache.lucene.search.join._
-import org.elasticsearch.action.get._
-import org.elasticsearch.action.update.{UpdateRequest, UpdateResponse}
-import org.elasticsearch.script.Script
-import org.elasticsearch.search.SearchHit
-import org.elasticsearch.action.get.{GetResponse, MultiGetItemResponse, MultiGetRequest}
+import org.elasticsearch.action.get.{GetResponse, MultiGetItemResponse, MultiGetRequest, _}
 import org.elasticsearch.action.index.{IndexRequest, IndexResponse}
-import org.elasticsearch.action.search.{SearchRequest, SearchResponse, SearchScrollRequest, SearchType}
-import org.elasticsearch.action.update.UpdateRequest
+import org.elasticsearch.action.search.{SearchRequest, SearchResponse, SearchType}
+import org.elasticsearch.action.update.{UpdateRequest, UpdateResponse}
 import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.index.query.{BoolQueryBuilder, InnerHitBuilder, QueryBuilder, QueryBuilders}
 import org.elasticsearch.rest.RestStatus
+import org.elasticsearch.script.Script
+import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.aggregations.AggregationBuilders
-import org.elasticsearch.search.aggregations.bucket.filter.{Filters, ParsedFilter}
-import org.elasticsearch.search.aggregations.bucket.histogram.{DateHistogramInterval, Histogram, ParsedDateHistogram}
 import org.elasticsearch.search.aggregations.bucket.nested.ParsedNested
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms
-import org.elasticsearch.search.aggregations.metrics.{Avg, Cardinality, Sum}
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import scalaz.Scalaz._
 
@@ -953,7 +948,7 @@ object DecisionTableService extends AbstractDataService {
     val parsedStringTerms: ParsedStringTerms = parsedNested.getAggregations.get("queries_children")
     if (nQueries > 0) {
       parsedStringTerms.getBuckets.asScala.map {
-        bucket => bucket.getKeyAsString -> bucket.getDocCount() / nQueries
+        bucket => bucket.getKeyAsString -> bucket.getDocCount / nQueries
       }.toMap
     }
     else
@@ -1054,7 +1049,7 @@ object DecisionTableService extends AbstractDataService {
         val parsedStringTerms: ParsedStringTerms = parsedNested.getAggregations.get("queries_children")
         if (nQueries > 0) {
           val wordFreqs = parsedStringTerms.getBuckets.asScala.map {
-            bucket => bucket.getKeyAsString -> bucket.getDocCount() / nQueries // normalize on nQueries
+            bucket => bucket.getKeyAsString -> bucket.getDocCount / nQueries // normalize on nQueries
           }.toMap
           // add to map for each state the histogram wordFreqs
           DTStateWordFreqsItem(state, wordFreqs)

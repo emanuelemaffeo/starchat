@@ -158,7 +158,8 @@ object IndexManagementService extends AbstractDataService {
 
       val createIndexRes: CreateIndexResponse = client.indices.create(createIndexReq, RequestOptions.DEFAULT)
 
-      loadLangSpecificResources(indexName, item.indexSuffix, language, true)
+      loadLangSpecificResources(indexName = indexName, indexSuffix = item.indexSuffix,
+        language = language, openCloseIndices = true)
 
       (item.indexSuffix + "(" + fullIndexName + ", " + createIndexRes.isAcknowledged + ")",
         createIndexRes.isAcknowledged)

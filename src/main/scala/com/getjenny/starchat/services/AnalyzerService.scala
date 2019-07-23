@@ -224,7 +224,7 @@ object AnalyzerService extends AbstractDataService {
 
     val dtAnalyzerLoad = DTAnalyzerLoad(numOfEntries=analyzerMap.size)
     val activeAnalyzers: ActiveAnalyzers = ActiveAnalyzers(analyzerMap = analyzerMap,
-      lastEvaluationTimestamp = 0, lastReloadingTimestamp = System.currentTimeMillis)
+      lastReloadingTimestamp = System.currentTimeMillis)
     if (AnalyzerService.analyzersMap.contains(indexName)) {
       AnalyzerService.analyzersMap.replace(indexName, activeAnalyzers)
     } else {

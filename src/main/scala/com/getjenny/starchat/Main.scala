@@ -79,13 +79,13 @@ final class StarChatService(parameters: Option[Parameters] = None) extends RestI
   }
 
   /* activate cron jobs for data synchronization */
-  cronReloadDTService.scheduleAction
-  cronCleanDTService.scheduleAction
+  cronReloadDTService.scheduleAction()
+  cronCleanDTService.scheduleAction()
 
   /* activate cron jobs for the alive nodes listing */
-  cronCleanDeadNodesService.scheduleAction
-  cronNodeAliveSignalService.scheduleAction
-  cronCleanDtLoadingRecordsService.scheduleAction
+  cronCleanDeadNodesService.scheduleAction()
+  cronNodeAliveSignalService.scheduleAction()
+  cronCleanDtLoadingRecordsService.scheduleAction()
 }
 
 object Main extends App {
