@@ -69,13 +69,16 @@ git.useGitDescribe := true
 
 //http://www.scala-sbt.org/sbt-native-packager/formats/docker.html
 dockerCommands := Seq(
-  Cmd("FROM", "java:8"),
-  Cmd("RUN", "apt", "update"),
-  Cmd("RUN", "apt", "install", "-y", "netcat"),
+  Cmd("FROM", "openjdk:8-jre-alpine"),
+  Cmd("RUN", "apk", "update"),
+  Cmd("RUN", "apk", "add", "bash"),
+  Cmd("RUN", "apk", "add", "curl"),
+  Cmd("RUN", "addgroup", "-S", "starchat", "&&", "adduser", "-S", "starchat", "-G", "starchat"),
+  Cmd("USER", "starchat:starchat"),
   Cmd("LABEL", "maintainer=\"Angelo Leto <angelo@getjenny.com>\""),
-  Cmd("LABEL", "description=\"Docker container for Starchat\""),
+  Cmd("LABEL", "description=\"Docker container for StarChat\""),
   Cmd("WORKDIR", "/"),
-  Cmd("ADD", "/opt/docker", "/starchat"),
+  Cmd("ADD", "--chown=starchat:starchat", "/opt/docker", "/starchat"),
   Cmd("VOLUME", "/starchat/config"),
   Cmd("VOLUME", "/starchat/log")
 )
