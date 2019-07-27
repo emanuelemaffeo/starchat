@@ -17,7 +17,7 @@ resolvers +=
   "Sonatype OSS Releases" at "https://oss.sonatype.org/service/local/staging/deploy/maven2"
 
 libraryDependencies ++= {
-  val AkkaHttpVersion	= "10.1.8"
+  val AkkaHttpVersion	= "10.1.9"
   val AkkaVersion	= "2.5.23"
   val BreezeVersion	= "0.13.2"
   val ESClientVersion	= "7.2.0"

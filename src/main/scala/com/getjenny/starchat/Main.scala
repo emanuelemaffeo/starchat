@@ -20,8 +20,6 @@ case class Parameters(
                        https_host: String,
                        https_port: Int)
 
-
-
 final class StarChatService(parameters: Option[Parameters] = None) extends RestInterface {
   val params: Parameters = parameters match {
     case Some(p) => p
