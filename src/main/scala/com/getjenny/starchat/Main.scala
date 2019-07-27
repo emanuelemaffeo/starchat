@@ -7,9 +7,12 @@ package com.getjenny.starchat
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
-import akka.stream.ActorMaterializer
+import akka.stream.{ActorMaterializer, TLSClientAuth}
 import com.getjenny.starchat.utils.SslContext
+import com.typesafe.sslconfig.akka.AkkaSSLConfig
+import javax.net.ssl.{SSLContext, SSLParameters}
 
+import scala.collection.immutable
 import scala.concurrent.ExecutionContextExecutor
 
 case class Parameters(
@@ -53,7 +56,14 @@ final class StarChatService(parameters: Option[Parameters] = None) extends RestI
         SslContext.pkcs12(path, password)
     }
 
-    val https: HttpsConnectionContext = ConnectionContext.https(sslCtx)
+    val https: HttpsConnectionContext = ConnectionContext.https(
+      sslContext = sslCtx,
+      sslConfig = None,
+      enabledCipherSuites = None,
+      enabledProtocols = None,
+      clientAuth = None,
+      sslParameters = None
+    )
 
     Http()
       .bindAndHandleAsync(handler = Route.asyncHandler(routes),
