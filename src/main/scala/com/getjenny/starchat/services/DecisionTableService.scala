@@ -1060,4 +1060,123 @@ object DecisionTableService extends AbstractDataService {
     }.toList
 
   }
+
+
+  def totalQueriesMatchingRegEx(indexName: String, rx: String): Long = {
+    val client: RestHighLevelClient = elasticClient.httpClient
+
+    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
+      .size(10000)
+      .minScore(0.0f)
+
+    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
+      .source(sourceReq)
+      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
+      .requestCache(true)
+
+    /*   Query to fetch inner hits for the queries which satisfy regex expression
+    {
+      "size": 10000,
+      "query": {
+        "nested": {
+          "path": "queries",
+          "query": {
+            "regexp": {
+              "queries.query.base": {
+                "value": "acc.*",
+                "flags": "ALL",
+                "max_determinized_states": 10000,
+                "rewrite": "constant_score"
+              }
+            }
+          },
+          "inner_hits": {
+            "size": 100
+          }
+        }
+      }
+    }
+    */
+
+    sourceReq.query(QueryBuilders
+      .nestedQuery("queries",
+        QueryBuilders.regexpQuery("queries.query.base", rx).maxDeterminizedStates(10000), ScoreMode.None)
+      .innerHit(new InnerHitBuilder().setSize(100)) // Increase in Index Definition
+    )
+
+
+    val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
+
+    val hits: List[SearchHit] = searchResp.getHits.getHits.toList
+    hits.foldLeft(0L) {
+      (sum, element) => {
+        sum + element.getInnerHits().get("queries").getTotalHits().value
+      }
+    }
+
+  }
+
+
+  def totalQueriesOfStateMatchingRegEx(indexName: String, rx: String, stateName: String): Long = {
+    val client: RestHighLevelClient = elasticClient.httpClient
+
+    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
+      .size(10000)
+      .minScore(0.0f)
+
+    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
+      .source(sourceReq)
+      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
+      .requestCache(true)
+
+    /*   Query to fetch inner hits for the queries which satisfy regex expression
+    "size": 10000,
+      "query":
+      {
+         "bool" : {
+            "must": {
+              "match": {
+                "state": "quickstart"
+                }
+             },
+            "filter": {
+              "nested": {
+                "path": "queries",
+                "query": {
+                  "regexp": {
+                    "queries.query.base": {
+                      "value": "start.*",
+                      "flags": "ALL",
+                      "max_determinized_states": 10000,
+                      "rewrite": "constant_score"
+                    }
+                  }
+                },
+                  "inner_hits": {"size": 100}
+              }
+            }
+      }
+      }
+      }
+    */
+
+    sourceReq.query(QueryBuilders.boolQuery()
+      .must(QueryBuilders.matchQuery("state", stateName))
+      .filter(QueryBuilders.nestedQuery("queries",
+        QueryBuilders.regexpQuery("queries.query.base", rx).maxDeterminizedStates(10000), ScoreMode.None)
+        .innerHit(new InnerHitBuilder().setSize(100))) // Increase in Index Definition
+    )
+
+
+    val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
+
+    val hits: List[SearchHit] = searchResp.getHits.getHits.toList
+    hits.foldLeft(0L) {
+      (sum, element) => {
+        sum + element.getInnerHits().get("queries").getTotalHits().value
+      }
+    }
+
+  }
+
 }

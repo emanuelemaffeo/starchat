@@ -7,22 +7,35 @@ package com.getjenny.starchat.analyzer.atoms
 import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
 import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.services.DecisionTableService.wordFrequenciesInQueries
 import com.getjenny.starchat.services._
 import scalaz.Scalaz._
 
+import scala.util.matching.Regex
+
 class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String]) extends AbstractAtomic {
 
-  val atomName:String = "keyword2"
+  val atomName: String = "keyword2"
 
-  val keyword: String = arguments.headOption match {
+  val atomArgument: String = arguments.headOption match {
     case Some(t) => t
     case _ =>
-      throw ExceptionAtomic(atomName + ": search requires argument")
+      throw ExceptionAtomic("search requires as argument a keyword or a regex")
   }
 
-  private[this] val rxMatchWord = {"""\b""" + keyword + """\b"""}.r
+  // Argument could be single word or regex expression. The following flags helps to discriminate among the two cases
+  private[this] val argumentIsKeyword: Boolean = {
+    val specialCharacters: String = "[!@#$%^&*(),.?\":{}|\\[\\]\\\\<>]"
+    specialCharacters.r.findFirstMatchIn(atomArgument).isEmpty
+  }
 
-  override def toString: String = atomName + "(\"" + keyword + "\")"
+  // regular expression used to understand if the user query contains the keyword/regex specified in the atom argument
+  private[this] val rxToBeMatched: Regex = {
+    if (argumentIsKeyword) {"""\b""" + atomArgument + """\b"""}.r
+    else atomArgument.r
+  }
+
+  override def toString: String = atomName + "(\"" + atomArgument + "\")"
 
   val isEvaluateNormalized: Boolean = true
   override val matchThreshold: Double = 0.0
@@ -30,10 +43,10 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   val decisionTableService: DecisionTableService.type = DecisionTableService
   val conversationLogsService: ConversationLogsService.type = ConversationLogsService
 
-
+  // Keyword Frequency Functions
   private[this] def fractionOfQueriesWithWordOfState(indexName: String, word: String, state: String): Double = {
     // get keyword freq in queries associated to the current state
-    //TODO: to be optimized"
+    //TODO: to be optimized
     DecisionTableService.wordFrequenciesInQueriesByState(indexName).find(item => item.state === state) match {
       case Some(t) =>
         t.wordFreqs.get(word) match {
@@ -51,9 +64,25 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   }
 
   private[this] def keywordAbsoluteProbability(indexName: String, word: String): Double = {
-    wordFrequencyInQueriesFieldOfAllStates(indexName, keyword) match {
+    wordFrequencyInQueriesFieldOfAllStates(indexName, atomArgument) match {
       case v: Double if v > 0 => v
       case _ => 0.5d
+    }
+  }
+
+  // Regex Frequency Functions
+
+  private[this] def fractionOfQueriesMatchingRegEx(indexName: String, rx: String, totalQueries: Long): Double = {
+    totalQueries match {
+      case v: Long if v <= 0 => throw ExceptionAtomic(atomName + ":totalQueries = 0 not expected here")
+      case _ => DecisionTableService.totalQueriesMatchingRegEx(indexName, rx) / totalQueries.toDouble
+    }
+  }
+
+  private[this] def fractionOfQueriesOfStateMatchingRegEx(indexName: String, rx: String, state: String, totalStateQueries: Long): Double = {
+    totalStateQueries match {
+      case v: Long if v <= 0 => throw ExceptionAtomic(atomName + ":totalQueries = 0 not expected here")
+      case _ => DecisionTableService.totalQueriesOfStateMatchingRegEx(indexName, rx, state) / totalStateQueries.toDouble
     }
   }
 
@@ -91,44 +120,42 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
 
   }
 
-  def evaluate(userQuery: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
+  def probStateGivenAKeyword(userQuery: String, keyword: String, indexName: String, stateName: String): Result = {
 
-    if (rxMatchWord.findFirstMatchIn(userQuery).isEmpty) {
+    // check if keyword is present in the userQuery using regex with word boundary condition
+    if (rxToBeMatched.findFirstMatchIn(userQuery).isEmpty) {
       //keyword not present in the user's query: return 0, whatever the other conditions are
       Result(score = 0.0d)
     }
     else {
-
-      val currentStateName = data.context.stateName
-      val indexName = data.context.indexName
       val activeAnalyzeMap = AnalyzerService.analyzersMap.get(indexName) match {
         case Some(t) => t
         case _ => throw ExceptionAtomic(atomName + ":active analyzer map not found, DT not posted")
       }
-      val currentState: DecisionTableRuntimeItem =
-        activeAnalyzeMap.analyzerMap.get(currentStateName) match {
-          case Some(t) => t
-          case _ => throw ExceptionAtomic(atomName + ":state not found in map")
-        }
 
-      val pS = stateFrequency(indexName, currentStateName)
+      val currentState: DecisionTableRuntimeItem = activeAnalyzeMap.analyzerMap.get(stateName) match {
+        case Some(t) => t
+        case _ => throw ExceptionAtomic(atomName + ":state not found in map")
+      }
+
+      val pS = stateFrequency(indexName, stateName)
 
       //  keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
       if (currentState.queries.isEmpty) {
         Result(score = pS)
       }
       else {
-        val pKS = fractionOfQueriesWithWordOfState(indexName, keyword, currentStateName)
+        val pKS = fractionOfQueriesWithWordOfState(indexName, keyword, stateName)
         val pK = keywordAbsoluteProbability(indexName, keyword)
         // keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
         if (pKS === 0 || pK === 0) {
-          val msg = atomName + ":Result(" + pS + ") : state(" + currentStateName + ") : PK_S(" + pKS + ") : PK(" + pK + ") : PS(" + pS + ")"
+          val msg = atomName + "(" + atomArgument + "):Result(" + pS + ") : state(" + stateName + ") : PK_S(" + pKS + ") : PK(" + pK + ") : PS(" + pS + ")"
           println(msg) //"TODO: remove me"
           Result(score = pS)
         }
         else {
           val pSK = pKS * pS / pK
-          val msg = atomName + ":Result(" + pSK + ") : state(" + currentStateName + ") : PK_S(" + pKS + ") : PK(" + pK + ") : PS(" + pS + ") : PS_K(" + pSK + ")"
+          val msg = atomName + "(" + atomArgument + "):Result(" + pSK + ") : state(" + stateName + ") : PK_S(" + pKS + ") : PK(" + pK + ") : PS(" + pS + ") : PS_K(" + pSK + ")"
           println(msg) //"TODO: remove me"
 
           Result(score = pSK)
@@ -136,6 +163,65 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
 
       }
 
+    }
+
+  }
+
+  def probStateGivenARegEx(userQuery: String, rx: String, indexName: String, stateName: String): Result = {
+    // check if regula expression is present in the userQuery.
+    if (rxToBeMatched.findFirstMatchIn(userQuery).isEmpty) {
+      //regex not matched in the user's query: return 0, whatever the other conditions are
+      Result(score = 0.0d)
+    }
+    else {
+      val activeAnalyzeMap = AnalyzerService.analyzersMap.get(indexName) match {
+        case Some(t) => t
+        case _ => throw ExceptionAtomic(atomName + ":active analyzer map not found, DT not posted")
+      }
+
+      val currentState: DecisionTableRuntimeItem = activeAnalyzeMap.analyzerMap.get(stateName) match {
+        case Some(t) => t
+        case _ => throw ExceptionAtomic(atomName + ":state not found in map")
+      }
+
+      val pS = stateFrequency(indexName, stateName)
+
+      //  keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
+      if (currentState.queries.isEmpty) {
+        Result(score = pS)
+      }
+      else {
+        val totalQueries = activeAnalyzeMap.analyzerMap.foldLeft(0) { (sum, state) => sum + state._2.queries.size }
+        val pReS = fractionOfQueriesOfStateMatchingRegEx(indexName, rx, stateName, currentState.queries.length)
+        val pRe = fractionOfQueriesMatchingRegEx(indexName, rx, totalQueries)
+
+        if (pReS === 0 || pRe === 0) {
+          val msg = atomName + "(" + atomArgument + "):Result(" + pS + ") : state(" + stateName + ") : PRe_S(" + pReS + ") : PRe(" + pRe + ") : PS(" + pS + ")"
+          println(msg) //"TODO: remove me"
+          Result(score = pS)
+        }
+        else {
+          val pSRe = pReS * pS / pRe
+          val msg = atomName + "(" + atomArgument + "):Result(" + pSRe + ") : state(" + stateName + ") : Re_S(" + pReS + ") : PK(" + pRe + ") : PS(" + pS + ") : PS_K(" + pSRe + ")"
+          println(msg) //"TODO: remove me"
+
+          Result(score = pSRe)
+        }
+
+      }
+
+    }
+  }
+
+  def evaluate(userQuery: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
+    val indexName = data.context.indexName
+    val stateName = data.context.stateName
+
+    if (argumentIsKeyword) {
+      probStateGivenAKeyword(userQuery, atomArgument, indexName, stateName)
+    }
+    else {
+      probStateGivenARegEx(userQuery, atomArgument, indexName, stateName)
     }
 
   }
