@@ -20,6 +20,8 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
       throw ExceptionAtomic(atomName + ": search requires argument")
   }
 
+  private[this] val rxMatchWord = {"""\b""" + keyword + """\b"""}.r
+
   override def toString: String = atomName + "(\"" + keyword + "\")"
 
   val isEvaluateNormalized: Boolean = true
@@ -91,7 +93,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
 
   def evaluate(userQuery: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
 
-    if (!userQuery.contains(keyword)) {
+    if (rxMatchWord.findFirstMatchIn(userQuery).isEmpty) {
       //keyword not present in the user's query: return 0, whatever the other conditions are
       Result(score = 0.0d)
     }
