@@ -7,7 +7,6 @@ package com.getjenny.starchat.analyzer.atoms
 import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
 import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
 import com.getjenny.starchat.entities._
-import com.getjenny.starchat.services.DecisionTableService.wordFrequenciesInQueries
 import com.getjenny.starchat.services._
 import scalaz.Scalaz._
 
@@ -30,10 +29,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   }
 
   // regular expression used to understand if the user query contains the keyword/regex specified in the atom argument
-  private[this] val rxToBeMatched: Regex = {
-    if (argumentIsKeyword) {"""\b""" + atomArgument + """\b"""}.r
-    else atomArgument.r
-  }
+  private[this] val rxToBeMatched: Regex = {"""(?ui)\b""" + atomArgument + """\b"""}.r
 
   override def toString: String = atomName + "(\"" + atomArgument + "\")"
 
@@ -168,7 +164,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   }
 
   def probStateGivenARegEx(userQuery: String, rx: String, indexName: String, stateName: String): Result = {
-    // check if regula expression is present in the userQuery.
+    // check if regular expression is present in the userQuery.
     if (rxToBeMatched.findFirstMatchIn(userQuery).isEmpty) {
       //regex not matched in the user's query: return 0, whatever the other conditions are
       Result(score = 0.0d)
