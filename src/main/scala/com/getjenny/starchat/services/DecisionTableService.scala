@@ -34,6 +34,7 @@ import scalaz.Scalaz._
 import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
 import scala.concurrent.Future
+import com.getjenny.starchat.utils.Base64
 
 case class DecisionTableServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -71,7 +72,7 @@ object DecisionTableService extends AbstractDataService {
         }
 
         val analyzer : String = source.get("analyzer") match {
-          case Some(t) => t.asInstanceOf[String]
+          case Some(t) => Base64.decode(t.asInstanceOf[String])
           case None => ""
         }
 
@@ -172,7 +173,7 @@ object DecisionTableService extends AbstractDataService {
         }
 
         val analyzer : String = source.get("analyzer") match {
-          case Some(t) => t.asInstanceOf[String]
+          case Some(t) => Base64.decode(t.asInstanceOf[String])
           case None => ""
         }
 
@@ -534,7 +535,7 @@ object DecisionTableService extends AbstractDataService {
     builder.field("state", document.state)
     builder.field("execution_order", document.executionOrder)
     builder.field("max_state_count", document.maxStateCount)
-    builder.field("analyzer", document.analyzer)
+    builder.field("analyzer", Base64.encode(document.analyzer))
 
     val array = builder.startArray("queries")
     document.queries.foreach(q => {
@@ -592,7 +593,7 @@ object DecisionTableService extends AbstractDataService {
     val builder : XContentBuilder = jsonBuilder().startObject()
 
     document.analyzer match {
-      case Some(t) => builder.field("analyzer", t)
+      case Some(t) => builder.field("analyzer", Base64.encode(t))
       case None => ;
     }
 
@@ -710,7 +711,7 @@ object DecisionTableService extends AbstractDataService {
       }
 
       val analyzer : String = source.get("analyzer") match {
-        case Some(t) => t.asInstanceOf[String]
+        case Some(t) => Base64.decode(t.asInstanceOf[String])
         case None => ""
       }
 
@@ -812,7 +813,7 @@ object DecisionTableService extends AbstractDataService {
         }
 
         val analyzer: String = source.get("analyzer") match {
-          case Some(t) => t.asInstanceOf[String]
+          case Some(t) => Base64.decode(t.asInstanceOf[String])
           case None => ""
         }
 
