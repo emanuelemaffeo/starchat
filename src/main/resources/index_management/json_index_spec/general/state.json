@@ -15,10 +15,9 @@
           "type": "integer"
         },
         "analyzer": {
-          "type": "keyword",
+          "type": "text",
           "store": true,
-          "index": true,
-          "null_value": ""
+          "index": true
         },
         "action_input": {
           "type": "object"
