@@ -86,6 +86,10 @@ final class StarChatService(parameters: Option[Parameters] = None) extends RestI
     }
   }
 
+  /* activate cron job for initializing system indices */
+  if(config.getBoolean("starchat.auto_initialize_system_index"))
+    cronInitializeSystemIndicesService.scheduleAction()
+
   /* activate cron jobs for data synchronization */
   cronReloadDTService.scheduleAction()
   cronCleanDTService.scheduleAction()
