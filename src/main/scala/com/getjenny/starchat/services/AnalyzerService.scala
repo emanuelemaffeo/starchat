@@ -26,6 +26,7 @@ import scala.collection.immutable.{List, Map}
 import scala.collection.{concurrent, mutable}
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
+import com.getjenny.starchat.utils.Base64
 
 case class AnalyzerServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -92,7 +93,7 @@ object AnalyzerService extends AbstractDataService {
         val source : Map[String, Any] = item.getSourceAsMap.asScala.toMap
 
         val analyzerDeclaration : String = source.get("analyzer") match {
-          case Some(t) => t.asInstanceOf[String]
+          case Some(t) => Base64.decode(t.asInstanceOf[String])
           case _ => ""
         }
 
