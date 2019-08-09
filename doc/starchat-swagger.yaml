@@ -3013,9 +3013,12 @@ components:
         userInput:
           $ref: '#/components/schemas/ResponseRequestInUserInput'
         state:
-          type: string
+          type: array
           description: request a specific state
-          example: "welcome_state"
+          example:
+           - "welcome_state1"
+           - "welcome_state2"
+           - "welcome_state3"
         data:
           type:  object
           description: the variables passed to StarChat, they may be used by the analyzers and to complete the templates.
