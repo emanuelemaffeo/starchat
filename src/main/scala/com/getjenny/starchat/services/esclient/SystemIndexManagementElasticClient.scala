@@ -18,4 +18,5 @@ object SystemIndexManagementElasticClient extends ElasticClient {
   val clusterNodeCleanDeadInterval: Int = config.getInt("es.cluster_node_clean_dead_interval")
   val clusterCleanDtLoadingRecordsInterval: Int = config.getInt("es.cluster_clean_dt_loading_records_interval")
   val authMethod: String = config.getString("starchat.auth_method")
+  val autoInitializeSystemIndex: Boolean = config.getBoolean("es.auto_initialize_system_index")
 }

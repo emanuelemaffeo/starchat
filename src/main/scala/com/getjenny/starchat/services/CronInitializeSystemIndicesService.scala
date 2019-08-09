@@ -22,7 +22,7 @@ object CronInitializeSystemIndicesService extends CronService {
           log.info("System indices exist")
         else {
           log.info("System indices are missing, initializing system indices")
-          systemIndexManagementService.create(None)
+          systemIndexManagementService.create()
         }
       case _ =>
         log.error("Unknown error initializing system indices.")
