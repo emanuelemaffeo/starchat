@@ -22,14 +22,18 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
       throw ExceptionAtomic("search requires as argument a keyword or a regex")
   }
 
-  // Argument could be single word or regex expression. The following flags helps to discriminate among the two cases
-  private[this] val argumentIsKeyword: Boolean = {
-    val specialCharacters: String = "[!@#$%^&*(),.?\":{}|\\[\\]\\\\<>]"
-    specialCharacters.r.findFirstMatchIn(atomArgument).isEmpty
+
+  private[this] val argumentIsSingleWord: Boolean = {
+    val specialCharactersAndSpaces: String = "[!@#$%^&*(),.?\":{}|\\[\\]\\\\<>]"
+    specialCharactersAndSpaces.r.findFirstMatchIn(atomArgument).isEmpty && !atomArgument.contains(" ")
+  }
+
+  private[this] val argumentIsSingleStartsWithExpression: Boolean = {
+    atomArgument.count(_ == '*') == 1 && !atomArgument.contains(" ") && atomArgument.endsWith("*")
   }
 
   // regular expression used to understand if the user query contains the keyword/regex specified in the atom argument
-  private[this] val rxToBeMatched: Regex = {"""(?ui)\b""" + atomArgument + """\b"""}.r
+  private[this] val rxToBeMatched: Regex = {"""(?ui)\b""" + atomArgument.replace("*", """\w*""") + """\b"""}.r
 
   override def toString: String = atomName + "(\"" + atomArgument + "\")"
 
@@ -213,12 +217,21 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
     val indexName = data.context.indexName
     val stateName = data.context.stateName
 
-    if (argumentIsKeyword) {
+    if (argumentIsSingleWord) {
       probStateGivenAKeyword(userQuery, atomArgument, indexName, stateName)
     }
-    else {
-      probStateGivenARegEx(userQuery, atomArgument, indexName, stateName)
+    else if (argumentIsSingleStartsWithExpression) {
+      val rxForES = atomArgument.replace("*",".*")
+      probStateGivenARegEx(userQuery, rxForES, indexName, stateName)
     }
+    else {
+      // we assume is double words expression. Only boolean result.
+      if (rxToBeMatched.findFirstMatchIn(userQuery).isEmpty)
+        Result(score = 0.0)
+      else
+        Result(score = 1.0)
+    }
+
 
   }
 }
