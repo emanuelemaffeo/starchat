@@ -29,7 +29,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   }
 
   private[this] val argumentIsSingleStartsWithExpression: Boolean = {
-    atomArgument.count(_ == '*') == 1 && !atomArgument.contains(" ") && atomArgument.endsWith("*")
+    atomArgument.count(_ === '*') === 1 && !atomArgument.contains(" ") && atomArgument.endsWith("*")
   }
 
   // regular expression used to understand if the user query contains the keyword/regex specified in the atom argument
@@ -221,7 +221,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
       probStateGivenAKeyword(userQuery, atomArgument, indexName, stateName)
     }
     else if (argumentIsSingleStartsWithExpression) {
-      val rxForES = atomArgument.replace("*",".*")
+      val rxForES = atomArgument.replace("*", ".*")
       probStateGivenARegEx(userQuery, rxForES, indexName, stateName)
     }
     else {
