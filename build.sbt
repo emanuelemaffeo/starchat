@@ -75,8 +75,6 @@ enablePlugins(UniversalPlugin)
 enablePlugins(DockerPlugin)
 enablePlugins(DockerComposePlugin)
 
-coverageEnabled := true
-
 git.useGitDescribe := true
 
 //http://www.scala-sbt.org/sbt-native-packager/formats/docker.html
