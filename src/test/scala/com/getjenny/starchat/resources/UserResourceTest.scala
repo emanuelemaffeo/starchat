@@ -21,6 +21,7 @@ class UserResourceTest extends WordSpec with Matchers with ScalatestRouteTest wi
   val routes: Route = service.routes
 
   val testAdminCredentials = BasicHttpCredentials("admin", "adminp4ssw0rd")
+  val userCredentials = BasicHttpCredentials("AzureDiamond", "hunter3")
 
   "StarChat" should {
     "return an HTTP code 201 when creating a new system index" in {
@@ -105,6 +106,55 @@ class UserResourceTest extends WordSpec with Matchers with ScalatestRouteTest wi
           val response = responseAs[UserUpdate]
           response shouldEqual updatedUser
       })
+    }
+  }
+
+  it should {
+    "return an HTTP code 403 when not having admin permissions" in {
+      val userUpdate = UserUpdate(
+        id = "AzureDiamond",
+        password = Some("hunter3"),
+        salt = Some("smoked salt"),
+        permissions = Some(Map("index_getjenny_english_0" -> Set(
+          Permissions.read, Permissions.write, Permissions.admin, Permissions.stream)))
+      )
+      Post("/user/generate", userUpdate) ~> addCredentials(userCredentials) ~> Route.seal(routes) ~> check {
+        status shouldEqual StatusCodes.Forbidden
+      }
+      Put("/user", userUpdate) ~> addCredentials(userCredentials) ~> Route.seal(routes) ~> check {
+        status shouldEqual StatusCodes.Forbidden
+      }
+      Post("/user/get", UserId(userUpdate.id)) ~> addCredentials(userCredentials) ~> Route.seal(routes) ~> check {
+        status shouldEqual StatusCodes.Forbidden
+      }
+      Post("/user/delete", UserId(userUpdate.id)) ~> addCredentials(userCredentials) ~> Route.seal(routes) ~> check {
+        status shouldEqual StatusCodes.Forbidden
+      }
+    }
+  }
+
+  it should {
+    "return an HTTP code 401 when unauthorized" in {
+      val fakeCredentials = BasicHttpCredentials("admin", "admin")
+      val userUpdate = UserUpdate(
+        id = "admin",
+        password = Some("admin"),
+        salt = Some("smelly salt"),
+        permissions = Some(Map("index_getjenny_english_0" -> Set(
+          Permissions.read, Permissions.write, Permissions.admin, Permissions.stream)))
+      )
+      Post("/user/generate", userUpdate) ~> addCredentials(fakeCredentials) ~> Route.seal(routes) ~> check {
+        status shouldEqual StatusCodes.Unauthorized
+      }
+      Put("/user", userUpdate) ~> addCredentials(fakeCredentials) ~> Route.seal(routes) ~> check {
+        status shouldEqual StatusCodes.Unauthorized
+      }
+      Post("/user/get", UserId(userUpdate.id)) ~> addCredentials(fakeCredentials) ~> Route.seal(routes) ~> check {
+        status shouldEqual StatusCodes.Unauthorized
+      }
+      Post("/user/delete", UserId("admin")) ~> addCredentials(fakeCredentials) ~> Route.seal(routes) ~> check {
+        status shouldEqual StatusCodes.Unauthorized
+      }
     }
   }
 
