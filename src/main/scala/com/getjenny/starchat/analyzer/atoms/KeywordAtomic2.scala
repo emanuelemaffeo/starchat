@@ -19,7 +19,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   val atomArgument: String = arguments.headOption match {
     case Some(t) => t
     case _ =>
-      throw ExceptionAtomic("search requires as argument a keyword or a regex")
+      throw ExceptionAtomic(atomName + " requires as argument a keyword or a regex")
   }
 
 

@@ -4317,6 +4317,7 @@ components:
                   between HUMAN_PICKED and HUMAN_REPLY
           * `HUMAN_PICKED` -> When an agent chooses and answer suggestion provided by smartLayer
           * `STARCHAT` -> the answer was provided by StarChat
+          * `CONNECTOR` -> the answer was provided by the connector, usually because starchat doesn't responds
           * `UNSPECIFIED` -> when the information is unset/not applicable
       example: HUMAN_REPLY
       enum:

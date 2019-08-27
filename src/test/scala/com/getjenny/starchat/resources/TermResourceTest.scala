@@ -117,6 +117,20 @@ class TermResourceTest extends WordSpec with Matchers with ScalatestRouteTest wi
       }
     }
   }
+  it should {
+    "return an HTTP code 200 when indexing default synonyms" in {
+      Post("/index_getjenny_english_0/term/index_default_synonyms?refresh=1") ~> addCredentials(testUserCredentials) ~> routes ~> check {
+        status shouldEqual StatusCodes.OK
+        val response = responseAs[UpdateDocumentsResult]
+        response.data.map(_.id)
+      }.andThen(ids =>
+        Post("/index_getjenny_english_0/term/delete?refresh=1", DocsIds(ids)) ~> addCredentials(testUserCredentials) ~> routes ~> check {
+          status shouldEqual StatusCodes.OK
+          val response = responseAs[DeleteDocumentsResult]
+        }
+      )
+    }
+  }
 
   it should {
     "return an HTTP code 200 when streaming terms" in {
