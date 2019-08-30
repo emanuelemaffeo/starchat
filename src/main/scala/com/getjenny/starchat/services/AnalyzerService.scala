@@ -256,7 +256,7 @@ object AnalyzerService extends AbstractDataService {
 
     log.debug("updating: " + nodeDtLoadingStatusService.clusterNodesService.uuid + " : " + nodeDtLoadingTimestamp)
     nodeDtLoadingStatusService.update(dtNodeStatus =
-      NodeDtLoadingStatus(index = indexName, timestamp = nodeDtLoadingTimestamp))
+      NodeDtLoadingStatus(index = indexName, timestamp = Some{nodeDtLoadingTimestamp}))
 
     dtAnalyzerLoad
   }
