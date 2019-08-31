@@ -7,12 +7,9 @@ package com.getjenny.starchat
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
-import akka.stream.{ActorMaterializer, TLSClientAuth}
+import akka.stream.ActorMaterializer
 import com.getjenny.starchat.utils.SslContext
-import com.typesafe.sslconfig.akka.AkkaSSLConfig
-import javax.net.ssl.{SSLContext, SSLParameters}
 
-import scala.collection.immutable
 import scala.concurrent.ExecutionContextExecutor
 
 case class Parameters(
@@ -85,6 +82,10 @@ final class StarChatService(parameters: Option[Parameters] = None) extends RestI
         eX.getMessage)
     }
   }
+
+  /* activate cron job for initializing system indices */
+  if(systemIndexManagementService.elasticClient.autoInitializeSystemIndex)
+    cronInitializeSystemIndicesService.scheduleAction()
 
   /* activate cron jobs for data synchronization */
   cronReloadDTService.scheduleAction()

@@ -19,7 +19,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   val atomArgument: String = arguments.headOption match {
     case Some(t) => t
     case _ =>
-      throw ExceptionAtomic("search requires as argument a keyword or a regex")
+      throw ExceptionAtomic(atomName + " requires as argument a keyword or a regex")
   }
 
 
@@ -156,7 +156,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
         case _ => throw ExceptionAtomic(atomName + ":state not found in map")
       }
 
-      valpS = stateFrequency(indexName, stateName)
+      val pS = stateFrequency(indexName, stateName)
 
       //  keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
       if (currentState.queries.isEmpty) {
