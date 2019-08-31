@@ -92,7 +92,16 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
       case Some(t) => t
       case _ => throw ExceptionAtomic(atomName + ":active analyzer map not found, DT not posted")
     }
+
+    val currentState: DecisionTableRuntimeItem = activeAnalyzeMap.analyzerMap.get(stateName) match {
+      case Some(t) => t
+      case _ => throw ExceptionAtomic(atomName + ":state not found in map")
+    }
+
     val nStates = activeAnalyzeMap.analyzerMap.size
+    val nQueries = currentState.queries.length
+
+    /*  ---- Solution using conversation logs temporarily disabled because of normalization problems -----
     val request = QAAggregatedAnalyticsRequest(
       aggregations = Some(List(QAAggregationsTypes.qaMatchedStatesHistogram, QAAggregationsTypes.qaMatchedStatesWithScoreHistogram)))
 
@@ -117,7 +126,16 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
     }
 
     (stateHits + 100.0d) / (100.0d * nStates + queryResult.totalDocuments)
-
+    */
+    nStates match {
+      case v: Int if v > 0 => {
+        nQueries match {
+          case n: Int if n > 0 => nQueries / nStates
+          case _ => 1 / nStates
+        }
+      }
+      case _ => 0d
+    }
   }
 
   def probStateGivenAKeyword(userQuery: String, keyword: String, indexName: String, stateName: String): Result = {
@@ -138,7 +156,7 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
         case _ => throw ExceptionAtomic(atomName + ":state not found in map")
       }
 
-      val pS = stateFrequency(indexName, stateName)
+      valpS = stateFrequency(indexName, stateName)
 
       //  keyword present in the user's query but not in the state's queries: return P(S) (because we cannot return 0)
       if (currentState.queries.isEmpty) {
