@@ -98,7 +98,11 @@ object ResponseService extends AbstractDataService {
       .getOrElse(ResponseRequestInValues(None, None))
       .return_value
     val state: Option[List[String]] = if(return_value.isDefined) {
-      Some{List(return_value.getOrElse(""))}
+      if(return_value.getOrElse("") === "") {
+        None
+      } else {
+        Some{List(return_value.getOrElse(""))}
+      }
     } else {
       None
     }
