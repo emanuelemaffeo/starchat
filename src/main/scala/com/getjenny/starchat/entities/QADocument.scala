@@ -39,6 +39,9 @@ object Agent extends Enumeration {
   /** When an agent chooses and answer suggestion provided by smartLayer */
   STARCHAT,
 
+  /** The answer was provided by the connector */
+  CONNECTOR,
+
   /** the answer was provided by StarChat */
   UNSPECIFIED = Agent.Value
 
