@@ -244,7 +244,7 @@ class DecisionTableResourceTest extends WordSpec with Matchers with ScalatestRou
       Get("/index_getjenny_english_0/decisiontable?dump=true") ~> addCredentials(testUserCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[SearchDTDocumentsResults]
-        response.total should be (21)
+        response.total should be (24)
       }
     }
   }
@@ -522,7 +522,7 @@ class DecisionTableResourceTest extends WordSpec with Matchers with ScalatestRou
       Delete("/index_getjenny_english_0/decisiontable/all") ~> addCredentials(testUserCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[DeleteDocumentsSummaryResult]
-        response.deleted should be (20)
+        response.deleted should be (23)
       }
     }
   }
