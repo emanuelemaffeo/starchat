@@ -94,10 +94,18 @@ object ResponseService extends AbstractDataService {
         data = analyzersInternalData)
     })
 
+    val return_value: Option[String] = request.values
+      .getOrElse(ResponseRequestInValues(None, None))
+      .return_value
+    val state: Option[List[String]] = if(return_value.isDefined) {
+      Some{List(return_value.getOrElse(""))}
+    } else {
+      None
+    }
     val returnState: Future[ResponseRequestOutOperationResult] = searchResAnalyzers.map( data => {
       val maxResults: Int = request.max_results.getOrElse(2)
       val threshold: Double = request.threshold.getOrElse(0.0d)
-      val (evaluationList, reqState) = request.state match {
+      val (evaluationList, reqState) = state match {
         case Some(states) =>
           (
             states.map { state =>

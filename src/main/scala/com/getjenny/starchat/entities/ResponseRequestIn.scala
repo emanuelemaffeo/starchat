@@ -13,7 +13,6 @@ case class ResponseRequestInValues(return_value: Option[String], data: Option[Ma
 case class ResponseRequestIn(conversation_id: String,
                              traversed_states: Option[Vector[String]],
                              user_input: Option[ResponseRequestInUserInput],
-                             state: Option[List[String]] = None,
                              values: Option[ResponseRequestInValues],
                              threshold: Option[Double],
                              max_results: Option[Int],
