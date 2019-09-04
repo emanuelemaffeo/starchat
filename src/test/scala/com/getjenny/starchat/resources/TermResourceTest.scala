@@ -1,7 +1,6 @@
 package com.getjenny.starchat.resources
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.common.EntityStreamingSupport
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
@@ -117,20 +116,6 @@ class TermResourceTest extends WordSpec with Matchers with ScalatestRouteTest wi
       }
     }
   }
-  it should {
-    "return an HTTP code 200 when indexing and deleting default synonyms" in {
-      Post("/index_getjenny_english_0/term/index_default_synonyms?refresh=1") ~> addCredentials(testUserCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.OK
-        val response = responseAs[UpdateDocumentsResult]
-        response.data.map(_.id)
-      }.andThen(ids =>
-        Post("/index_getjenny_english_0/term/delete?refresh=1", DocsIds(ids)) ~> addCredentials(testUserCredentials) ~> routes ~> check {
-          status shouldEqual StatusCodes.OK
-          val response = responseAs[DeleteDocumentsResult]
-        }
-      )
-    }
-  }
 
   it should {
     "return an HTTP code 200 when streaming terms" in {
@@ -150,7 +135,6 @@ class TermResourceTest extends WordSpec with Matchers with ScalatestRouteTest wi
       Post("/index_getjenny_english_0/term/index_default_synonyms?refresh=1") ~> addCredentials(testUserCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[UpdateDocumentsResult]
-        response.data.map(_.id)
       }
     }
   }
@@ -172,14 +156,13 @@ class TermResourceTest extends WordSpec with Matchers with ScalatestRouteTest wi
     }
   }
 
-
   it should {
     "return an HTTP code 200 when getting terms" in {
       val docsIds = DocsIds(List("hello", "typo"))
       Post("/index_getjenny_english_0/term/get", docsIds) ~> addCredentials(testUserCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[Terms]
-        response.terms.length should be (docsIds.ids.length)
+        response.terms.map(_.term) shouldEqual docsIds.ids
       }
     }
   }
@@ -202,28 +185,39 @@ class TermResourceTest extends WordSpec with Matchers with ScalatestRouteTest wi
         val response = responseAs[TermsResults]
         response.hits.terms.map(_.term) should contain ("hello")
       }
-
     }
   }
 
-
   it should {
+    val terms = List("term1", "term2")
     "return an HTTP code 200 when deleting terms" in {
-      val docsIds = DocsIds(List("term1", "term2"))
-      Post("/index_getjenny_english_0/term/delete", docsIds) ~> addCredentials(testUserCredentials) ~> routes ~> check {
+      val docsIds = DocsIds(terms)
+      Post("/index_getjenny_english_0/term/delete?refresh=1", docsIds) ~> addCredentials(testUserCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[DeleteDocumentsResult]
-        response.data.size should be (docsIds.ids.length)
+        response.data.length should be(docsIds.ids.length)
       }
     }
 
+    "return an HTTP code 200 when searching deleted terms" in {
+      for(term <- terms){
+        val searchTerm = SearchTerm(term = Some(term))
+        Post("/index_getjenny_english_0/term/term", searchTerm) ~> addCredentials(testUserCredentials) ~> routes ~> check {
+          status shouldEqual StatusCodes.OK
+          val response = responseAs[TermsResults]
+          response.total shouldBe 0
+        }
+      }
+    }
+  }
+
+  it should {
     "return an HTTP code 200 when deleting all terms" in {
       Post("/index_getjenny_english_0/term/delete?refresh=1", DocsIds(Nil)) ~> addCredentials(testUserCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[DeleteDocumentsSummaryResult]
       }
     }
-
   }
 
   it should {
