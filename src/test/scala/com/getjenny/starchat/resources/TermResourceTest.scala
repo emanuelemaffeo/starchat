@@ -15,7 +15,7 @@ import scala.io.Source.fromResource
 import scala.concurrent.duration._
 
 class TermResourceTest extends WordSpec with Matchers with ScalatestRouteTest with JsonSupport {
-  implicit def default(implicit system: ActorSystem) = RouteTestTimeout(10.seconds.dilated(system))
+  implicit def default(implicit system: ActorSystem) = RouteTestTimeout(20.seconds.dilated(system))
 
   val service = TestFixtures.service
   val routes = service.routes
