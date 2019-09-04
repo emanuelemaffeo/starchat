@@ -1,7 +1,6 @@
 package com.getjenny.starchat.resources
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.common.EntityStreamingSupport
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.model.headers.BasicHttpCredentials
 import akka.http.scaladsl.server.Route
