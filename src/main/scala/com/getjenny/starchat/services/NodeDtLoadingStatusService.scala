@@ -46,7 +46,7 @@ object NodeDtLoadingStatusService extends AbstractDataService {
     val uuid = calcUuid(dtNodeStatus.uuid.getOrElse(""))
     val id = calcId(dtNodeStatus.index, uuid)
     val timestamp = if (dtNodeStatus.timestamp.getOrElse(0: Long) <= 0)
-      System.currentTimeMillis else dtNodeStatus.timestamp
+      System.currentTimeMillis else dtNodeStatus.timestamp.getOrElse(0: Long)
     val builder : XContentBuilder = jsonBuilder().startObject()
 
     builder.field("uuid", uuid)
