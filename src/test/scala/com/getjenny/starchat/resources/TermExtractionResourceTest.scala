@@ -155,21 +155,17 @@ class TermExtractionResourceTest extends WordSpec with Matchers with ScalatestRo
       Post("/index_getjenny_english_0/extraction/frequencies", request) ~> addCredentials(testUserCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[TokenFrequency]
-        response shouldEqual TokenFrequency(
-          observedTotalTerms = 7,
-          priorTotalTerms = 4,
-          tokensFreq = List(
-            TokenFrequencyItem(
-              token = "term1", priorFrequency = 2, observedFrequency = 3
-            ), TokenFrequencyItem(
-              token = "term2", priorFrequency = 0, observedFrequency = 1
-            ), TokenFrequencyItem(
-              token = "term3", priorFrequency = 0, observedFrequency = 2
-            ), TokenFrequencyItem(
-              token = "term4", priorFrequency = 0, observedFrequency = 1
-            ), TokenFrequencyItem(
-              token = "term5", priorFrequency = 1, observedFrequency = 0
-            ),
+        response.tokensFreq shouldEqual List(
+          TokenFrequencyItem(
+            token = "term1", priorFrequency = 2, observedFrequency = 3
+          ), TokenFrequencyItem(
+            token = "term2", priorFrequency = 0, observedFrequency = 1
+          ), TokenFrequencyItem(
+            token = "term3", priorFrequency = 0, observedFrequency = 2
+          ), TokenFrequencyItem(
+            token = "term4", priorFrequency = 0, observedFrequency = 1
+          ), TokenFrequencyItem(
+            token = "term5", priorFrequency = 1, observedFrequency = 0
           )
         )
       }
