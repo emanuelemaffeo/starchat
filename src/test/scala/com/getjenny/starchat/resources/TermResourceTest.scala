@@ -137,9 +137,10 @@ class TermResourceTest extends WordSpec with Matchers with ScalatestRouteTest wi
       Get("/index_getjenny_english_0/stream/term") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[String]
-        response shouldEqual
-            """{"synonyms":{"term1":1.0},"term":"term2"}""" + "\n" +
-            """{"synonyms":{"term2":1.0},"term":"term1"}"""
+        response should (equal("""{"synonyms":{"term1":1.0},"term":"term2"}""" + "\n" +
+            """{"synonyms":{"term2":1.0},"term":"term1"}""")
+          or equal("""{"synonyms":{"term2":1.0},"term":"term1"}""" + "\n" +
+            """{"synonyms":{"term1":1.0},"term":"term2"}"""))
       }
     }
   }
