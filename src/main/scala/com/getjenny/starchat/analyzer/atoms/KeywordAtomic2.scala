@@ -130,8 +130,8 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
     nStates match {
       case v: Int if v > 0 => {
         nQueries match {
-          case n: Int if n > 0 => nQueries / nStates
-          case _ => 1 / nStates
+          case n: Int if n > 0 => nQueries.toDouble / nStates
+          case _ => 1.0 / nStates
         }
       }
       case _ => 0d
