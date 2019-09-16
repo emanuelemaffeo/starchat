@@ -37,7 +37,7 @@ class SearchAtomic(arguments: List[String], restrictedArgs: Map[String, String])
         }
       case _ => 0.0d
     }
-
-    Result(score=score)
+    // TODO: remove 1.5 factor in output score (added as TEMPORARY FIX to compete with probabilities >1 returned by reinfConjunction)
+    Result(score=1.5*score)
   } // returns elasticsearch score of the highest query in queries
 }
