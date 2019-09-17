@@ -75,6 +75,7 @@ dockerCommands := Seq(
   Cmd("RUN", "apk", "update"),
   Cmd("RUN", "apk", "add", "bash"),
   Cmd("RUN", "apk", "add", "curl"),
+  Cmd("RUN", "apk", "add", "perl-utils"),
   Cmd("RUN", "addgroup", "-S", "starchat", "&&", "adduser", "-S", "starchat", "-G", "starchat"),
   Cmd("USER", "starchat:starchat"),
   Cmd("LABEL", "maintainer=\"Angelo Leto <angelo@getjenny.com>\""),

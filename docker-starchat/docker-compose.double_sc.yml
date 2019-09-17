@@ -31,7 +31,7 @@ services:
     links:
       - "elasticsearch:getjenny-es"
   starchat2:
-    image: java:8
+    image: openjdk:8-jre-alpine
     restart: unless-stopped
     command: ["/starchat/scripts/utils/wait-for-it.sh", "getjenny-es", "9200", "10", "/starchat/bin/starchat"]
     volumes:
