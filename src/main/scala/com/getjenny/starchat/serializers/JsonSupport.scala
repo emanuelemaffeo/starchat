@@ -111,6 +111,11 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val spellcheckTermsResponseFormat = jsonFormat1(SpellcheckTermsResponse)
   implicit val spellcheckTermsRequestFormat = jsonFormat3(SpellcheckTermsRequest)
   implicit val responseRequestOutOperationResultFormat = jsonFormat2(ResponseRequestOutOperationResult)
+  implicit val clusterNodeFormat = jsonFormat3(ClusterNode)
+  implicit val clusterNodesFormat = jsonFormat2(ClusterNodes)
+  implicit val clusterLoadingDtStatusFormat = jsonFormat5(ClusterLoadingDtStatusIndex)
+  implicit val nodeDtLoadingStatusFormat = jsonFormat3(NodeDtLoadingStatus)
+  implicit val nodeLoadingAllDtStatusFormat = jsonFormat3(NodeLoadingAllDtStatus)
 
   implicit object PermissionsJsonFormat extends JsonFormat[Permissions.Value] {
     def write(obj: Permissions.Value): JsValue = JsString(obj.toString)

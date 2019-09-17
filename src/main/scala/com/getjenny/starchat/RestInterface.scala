@@ -13,7 +13,7 @@ import scala.concurrent.ExecutionContext
 trait Resources extends KnowledgeBaseResource with DecisionTableResource
   with RootAPIResource with SystemIndexManagementResource with IndexManagementResource with LanguageGuesserResource
   with TermResource with TokenizersResource with AnalyzersPlaygroundResource
-  with SpellcheckResource with UserResource
+  with SpellcheckResource with UserResource with NodeDtLoadingStatusResource with ClusterNodesResource
 
 trait RestInterface extends Resources {
   implicit def executionContext: ExecutionContext
@@ -64,5 +64,7 @@ trait RestInterface extends Resources {
     LoggingEntities.logRequestAndResult(putUserRoutes) ~
     LoggingEntities.logRequestAndResult(getUserRoutes) ~
     LoggingEntities.logRequestAndResult(deleteUserRoutes) ~
-    LoggingEntities.logRequestAndResult(genUserRoutes)
+    LoggingEntities.logRequestAndResult(genUserRoutes) ~
+    LoggingEntities.logRequestAndResultReduced(clusterNodesRoutes) ~
+    LoggingEntities.logRequestAndResultReduced(nodeDtLoadingStatusRoutes)
 }
