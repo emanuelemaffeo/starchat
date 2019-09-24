@@ -54,62 +54,63 @@ class BayesOperator(children: List[Expression]) extends AbstractOperator(childre
     if (triggerResult.score < 1.0d) {
       Result(score = 0.0d, data = triggerResult.data)
     }
+    else {
+      // Trigger Condition is true we can start to evaluate the condition on Whisperer Query
+      val activeAnalyzeMap = AnalyzerService.analyzersMap.get(data.context.indexName) match {
+        case Some(t) => t.analyzerMap
+        case _ => throw ExceptionAtomic(operatorName + "Operator:active analyzer map not found, DT not posted")
+      }
 
-    // Trigger Condition is true we can start to evaluate the condition on Whisperer Query
-    val activeAnalyzeMap = AnalyzerService.analyzersMap.get(data.context.indexName) match {
-      case Some(t) => t.analyzerMap
-      case _ => throw ExceptionAtomic(operatorName + "Operator:active analyzer map not found, DT not posted")
-    }
+      val currentStateName = data.context.stateName
 
-    val currentStateName = data.context.stateName
+      val currentState: DecisionTableRuntimeItem = activeAnalyzeMap.get(currentStateName) match {
+        case Some(t) => t
+        case _ => throw ExceptionAtomic(operatorName + "Operator:state not found in map")
+      }
 
-    val currentState: DecisionTableRuntimeItem = activeAnalyzeMap.get(currentStateName) match {
-      case Some(t) => t
-      case _ => throw ExceptionAtomic(operatorName + "Operator:state not found in map")
-    }
+      val nQueries = currentState.queries.length
 
-    val nQueries = currentState.queries.length
-
-    if (nQueries > 0) {
-      val counters = activeAnalyzeMap.foldLeft(new BayesCounters()) {
-        (cnt, elem) => {
-          val stateName = elem._1
-          val queries = elem._2.queries
-          queries.foldLeft(cnt) {
-            (cnt2, whispererQuery) => {
-              // count queries that satisfy trigger condition totally and per state
-              val triggerResult = triggerCondition.matches(whispererQuery, data)
-              if (triggerResult.score === 1.0d) {
-                val totalTriggered = cnt2.nTotalQueriesTriggered + 1
-                val totalTriggeredInState = {
-                  if (currentStateName == stateName) {
-                    cnt2.nQueriesOfStateTriggered + 1
+      if (nQueries > 0) {
+        val counters = activeAnalyzeMap.foldLeft(new BayesCounters()) {
+          (cnt, elem) => {
+            val stateName = elem._1
+            val queries = elem._2.queries
+            queries.foldLeft(cnt) {
+              (cnt2, whispererQuery) => {
+                // count queries that satisfy trigger condition totally and per state
+                val triggerResult = triggerCondition.matches(whispererQuery, data)
+                if (triggerResult.score === 1.0d) {
+                  val totalTriggered = cnt2.nTotalQueriesTriggered + 1
+                  val totalTriggeredInState = {
+                    if (currentStateName == stateName) {
+                      cnt2.nQueriesOfStateTriggered + 1
+                    }
+                    else {
+                      cnt2.nQueriesOfStateTriggered
+                    }
                   }
-                  else {
-                    cnt2.nQueriesOfStateTriggered
-                  }
+                  new BayesCounters(totalTriggeredInState, totalTriggered)
                 }
-                new BayesCounters(totalTriggeredInState, totalTriggered)
+                else
+                  cnt2
               }
-              else
-                cnt2
             }
           }
         }
+
+        val bayesScore = counters.nTotalQueriesTriggered.toDouble match {
+          case v: Double if v > 0 => counters.nQueriesOfStateTriggered.toDouble / v
+          case v: Double if v == 0 => 1.0d
+          case _ => throw ExceptionAtomic(operatorName + "Operator:totalQueries = 0 not expected here")
+        }
+
+        val msg = operatorName + "Operator: score = " + bayesScore + "(" + counters.nQueriesOfStateTriggered + "/" + counters.nTotalQueriesTriggered + ")"
+        println(msg) //"TODO: remove me"
+
+        Result(score = bayesScore, data = triggerResult.data)
       }
-
-      val bayesScore = counters.nTotalQueriesTriggered.toDouble match {
-        case v: Double if v > 0 => counters.nQueriesOfStateTriggered.toDouble / v
-        case v: Double if v == 0 => 1.0d
-        case _ => throw ExceptionAtomic(operatorName + "Operator:totalQueries = 0 not expected here")
-      }
-
-      val msg = operatorName + "Operator: score = " + bayesScore + "(" + counters.nQueriesOfStateTriggered + "/" + counters.nTotalQueriesTriggered + ")"
-      println(msg) //"TODO: remove me"
-
-      Result(score = bayesScore, data = triggerResult.data)
+      else
+        Result(score = 1.0d, data = triggerResult.data)
     }
-    else
-      Result(score = 1.0d, data = triggerResult.data)
   }
 }
