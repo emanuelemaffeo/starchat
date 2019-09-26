@@ -39,6 +39,6 @@ class SearchAtomic(arguments: List[String], restrictedArgs: Map[String, String])
       case _ => 0.0d
     }
 
-    Result(score=score)
+    Result(score=score * 1.5)
   } // returns elasticsearch score of the highest query in queries
 }
