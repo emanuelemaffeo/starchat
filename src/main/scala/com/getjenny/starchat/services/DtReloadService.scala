@@ -44,6 +44,7 @@ object DtReloadService extends AbstractDataService {
 
     val updateReq = new UpdateRequest()
       .index(indexName)
+      .`type`(elasticClient.systemRefreshDtIndexSuffix)
       .doc(builder)
       .id(dtIndexName)
       .docAsUpsert(true)

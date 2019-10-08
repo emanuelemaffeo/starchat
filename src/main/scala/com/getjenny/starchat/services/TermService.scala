@@ -256,7 +256,7 @@ object TermService extends AbstractDataService {
       val multiGetReq = new MultiGetRequest()
 
       termsRequest.ids.foreach{id => multiGetReq.add(
-        new MultiGetRequest.Item(Index.indexName(indexName, elasticClient.indexSuffix), id))
+        new MultiGetRequest.Item(Index.indexName(indexName, elasticClient.indexSuffix), elasticClient.indexSuffix, id))
       }
 
       val response: MultiGetResponse = client.mget(multiGetReq, RequestOptions.DEFAULT)

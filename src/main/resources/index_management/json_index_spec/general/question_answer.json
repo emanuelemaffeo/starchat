@@ -1,381 +1,383 @@
 {
   "mappings": {
-    "properties": {
-      "question": {
-        "type": "text",
-        "store": true,
-        "fields": {
-          "freq": {
-            "type": "text",
-            "analyzer": "jenny_base_analyzer",
-            "similarity": "scripted_term_freq"
-          },
-          "raw": {
-            "type": "keyword",
-            "ignore_above": 10922
-          },
-          "space_punctuation": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_space_punctuation_analyzer"
-          },
-          "base": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_base_analyzer"
-          },
-          "raw_nolc": {
-            "type": "text",
-            "analyzer": "jenny_raw_nolc_analyzer"
-          },
-          "space_punctuation_nolc": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_space_punctuation_nolc_analyzer"
-          },
-          "base_nolc": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_base_nolc_analyzer"
-          },
-          "base_length": {
-            "type": "token_count",
-            "analyzer": "jenny_base_analyzer"
-          },
-          "stop": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_stop_analyzer"
-          },
-          "stop_length": {
-            "type": "token_count",
-            "analyzer": "jenny_stop_analyzer"
-          },
-          "stem": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_stem_analyzer"
-          },
-          "stem_length": {
-            "type": "token_count",
-            "analyzer": "jenny_stem_analyzer"
-          },
-          "shingles_2": {
-            "type": "text",
-            "analyzer": "jenny_shingles_2_analyzer"
-          },
-          "stemmed_shingles_2": {
-            "type": "text",
-            "analyzer": "jenny_stemmed_shingles_2_analyzer"
-          },
-          "shingles_3": {
-            "type": "text",
-            "analyzer": "jenny_shingles_3_analyzer"
-          },
-          "stemmed_shingles_3": {
-            "type": "text",
-            "analyzer": "jenny_stemmed_shingles_3_analyzer"
-          },
-          "shingles_4": {
-            "type": "text",
-            "analyzer": "jenny_shingles_4_analyzer"
-          },
-          "stemmed_shingles_4": {
-            "type": "text",
-            "analyzer": "jenny_stemmed_shingles_4_analyzer"
+    "question_answer": {
+      "properties": {
+        "question": {
+          "type": "text",
+          "store": true,
+          "fields": {
+            "freq": {
+              "type": "text",
+              "analyzer": "jenny_base_analyzer",
+              "similarity": "scripted_term_freq"
+            },
+            "raw": {
+              "type": "keyword",
+              "ignore_above": 10922
+            },
+            "space_punctuation": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_space_punctuation_analyzer"
+            },
+            "base": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_base_analyzer"
+            },
+            "raw_nolc": {
+              "type": "text",
+              "analyzer": "jenny_raw_nolc_analyzer"
+            },
+            "space_punctuation_nolc": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_space_punctuation_nolc_analyzer"
+            },
+            "base_nolc": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_base_nolc_analyzer"
+            },
+            "base_length": {
+              "type": "token_count",
+              "analyzer": "jenny_base_analyzer"
+            },
+            "stop": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_stop_analyzer"
+            },
+            "stop_length": {
+              "type": "token_count",
+              "analyzer": "jenny_stop_analyzer"
+            },
+            "stem": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_stem_analyzer"
+            },
+            "stem_length": {
+              "type": "token_count",
+              "analyzer": "jenny_stem_analyzer"
+            },
+            "shingles_2": {
+              "type": "text",
+              "analyzer": "jenny_shingles_2_analyzer"
+            },
+            "stemmed_shingles_2": {
+              "type": "text",
+              "analyzer": "jenny_stemmed_shingles_2_analyzer"
+            },
+            "shingles_3": {
+              "type": "text",
+              "analyzer": "jenny_shingles_3_analyzer"
+            },
+            "stemmed_shingles_3": {
+              "type": "text",
+              "analyzer": "jenny_stemmed_shingles_3_analyzer"
+            },
+            "shingles_4": {
+              "type": "text",
+              "analyzer": "jenny_shingles_4_analyzer"
+            },
+            "stemmed_shingles_4": {
+              "type": "text",
+              "analyzer": "jenny_stemmed_shingles_4_analyzer"
+            }
           }
-        }
-      },
-      "question_negative": {
-        "type": "nested",
-        "properties": {
-          "query": {
-            "type": "text",
-            "store": true,
-            "fields": {
-              "freq": {
-                "type": "text",
-                "analyzer": "jenny_base_analyzer",
-                "similarity": "scripted_term_freq"
-              },
-              "raw": {
-                "type": "keyword",
-                "ignore_above": 10922
-              },
-              "space_punctuation": {
-                "type": "text",
-                "fielddata": true,
-                "term_vector": "with_positions_offsets",
-                "analyzer": "jenny_space_punctuation_analyzer"
-              },
-              "base": {
-                "type": "text",
-                "fielddata": true,
-                "term_vector": "with_positions_offsets",
-                "analyzer": "jenny_base_analyzer"
-              },
-              "raw_nolc": {
-                "type": "text",
-                "analyzer": "jenny_raw_nolc_analyzer"
-              },
-              "space_punctuation_nolc": {
-                "type": "text",
-                "fielddata": true,
-                "term_vector": "with_positions_offsets",
-                "analyzer": "jenny_space_punctuation_nolc_analyzer"
-              },
-              "base_nolc": {
-                "type": "text",
-                "fielddata": true,
-                "term_vector": "with_positions_offsets",
-                "analyzer": "jenny_base_nolc_analyzer"
-              },
-              "base_length": {
-                "type": "token_count",
-                "analyzer": "jenny_base_analyzer"
-              },
-              "stop": {
-                "type": "text",
-                "fielddata": true,
-                "term_vector": "with_positions_offsets",
-                "analyzer": "jenny_stop_analyzer"
-              },
-              "stop_length": {
-                "type": "token_count",
-                "analyzer": "jenny_stop_analyzer"
-              },
-              "stem": {
-                "type": "text",
-                "fielddata": true,
-                "term_vector": "with_positions_offsets",
-                "analyzer": "jenny_stem_analyzer"
-              },
-              "stem_length": {
-                "type": "token_count",
-                "analyzer": "jenny_stem_analyzer"
-              },
-              "shingles_2": {
-                "type": "text",
-                "analyzer": "jenny_shingles_2_analyzer"
-              },
-              "stemmed_shingles_2": {
-                "type": "text",
-                "analyzer": "jenny_stemmed_shingles_2_analyzer"
-              },
-              "shingles_3": {
-                "type": "text",
-                "analyzer": "jenny_shingles_3_analyzer"
-              },
-              "stemmed_shingles_3": {
-                "type": "text",
-                "analyzer": "jenny_stemmed_shingles_3_analyzer"
-              },
-              "shingles_4": {
-                "type": "text",
-                "analyzer": "jenny_shingles_4_analyzer"
-              },
-              "stemmed_shingles_4": {
-                "type": "text",
-                "analyzer": "jenny_stemmed_shingles_4_analyzer"
+        },
+        "question_negative": {
+          "type": "nested",
+          "properties": {
+            "query": {
+              "type": "text",
+              "store": true,
+              "fields": {
+                "freq": {
+                  "type": "text",
+                  "analyzer": "jenny_base_analyzer",
+                  "similarity": "scripted_term_freq"
+                },
+                "raw": {
+                  "type": "keyword",
+                  "ignore_above": 10922
+                },
+                "space_punctuation": {
+                  "type": "text",
+                  "fielddata": true,
+                  "term_vector": "with_positions_offsets",
+                  "analyzer": "jenny_space_punctuation_analyzer"
+                },
+                "base": {
+                  "type": "text",
+                  "fielddata": true,
+                  "term_vector": "with_positions_offsets",
+                  "analyzer": "jenny_base_analyzer"
+                },
+                "raw_nolc": {
+                  "type": "text",
+                  "analyzer": "jenny_raw_nolc_analyzer"
+                },
+                "space_punctuation_nolc": {
+                  "type": "text",
+                  "fielddata": true,
+                  "term_vector": "with_positions_offsets",
+                  "analyzer": "jenny_space_punctuation_nolc_analyzer"
+                },
+                "base_nolc": {
+                  "type": "text",
+                  "fielddata": true,
+                  "term_vector": "with_positions_offsets",
+                  "analyzer": "jenny_base_nolc_analyzer"
+                },
+                "base_length": {
+                  "type": "token_count",
+                  "analyzer": "jenny_base_analyzer"
+                },
+                "stop": {
+                  "type": "text",
+                  "fielddata": true,
+                  "term_vector": "with_positions_offsets",
+                  "analyzer": "jenny_stop_analyzer"
+                },
+                "stop_length": {
+                  "type": "token_count",
+                  "analyzer": "jenny_stop_analyzer"
+                },
+                "stem": {
+                  "type": "text",
+                  "fielddata": true,
+                  "term_vector": "with_positions_offsets",
+                  "analyzer": "jenny_stem_analyzer"
+                },
+                "stem_length": {
+                  "type": "token_count",
+                  "analyzer": "jenny_stem_analyzer"
+                },
+                "shingles_2": {
+                  "type": "text",
+                  "analyzer": "jenny_shingles_2_analyzer"
+                },
+                "stemmed_shingles_2": {
+                  "type": "text",
+                  "analyzer": "jenny_stemmed_shingles_2_analyzer"
+                },
+                "shingles_3": {
+                  "type": "text",
+                  "analyzer": "jenny_shingles_3_analyzer"
+                },
+                "stemmed_shingles_3": {
+                  "type": "text",
+                  "analyzer": "jenny_stemmed_shingles_3_analyzer"
+                },
+                "shingles_4": {
+                  "type": "text",
+                  "analyzer": "jenny_shingles_4_analyzer"
+                },
+                "stemmed_shingles_4": {
+                  "type": "text",
+                  "analyzer": "jenny_stemmed_shingles_4_analyzer"
+                }
               }
             }
           }
-        }
-      },
-      "question_scored_terms": {
-        "type": "nested",
-        "properties": {
-          "term": {
-            "store": true,
-            "type": "text"
-          },
-          "score": {
-            "store": true,
-            "type": "double"
+        },
+        "question_scored_terms": {
+          "type": "nested",
+          "properties": {
+            "term": {
+              "store": true,
+              "type": "text"
+            },
+            "score": {
+              "store": true,
+              "type": "double"
+            }
           }
-        }
-      },
-      "question_vector": {
-        "type": "text",
-        "term_vector": "with_positions_offsets",
-        "analyzer": "jenny_delimited_double"
-      },
-      "answer": {
-        "type": "text",
-        "store": true,
-        "fields": {
-          "freq": {
-            "type": "text",
-            "analyzer": "jenny_base_analyzer",
-            "similarity": "scripted_term_freq"
-          },
-          "raw": {
-            "type": "keyword",
-            "ignore_above": 10922
-          },
-          "space_punctuation": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_space_punctuation_analyzer"
-          },
-          "base": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_base_analyzer"
-          },
-          "raw_nolc": {
-            "type": "text",
-            "analyzer": "jenny_raw_nolc_analyzer"
-          },
-          "space_punctuation_nolc": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_space_punctuation_nolc_analyzer"
-          },
-          "base_nolc": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_base_nolc_analyzer"
-          },
-          "base_length": {
-            "type": "token_count",
-            "analyzer": "jenny_base_analyzer"
-          },
-          "stop": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_stop_analyzer"
-          },
-          "stop_length": {
-            "type": "token_count",
-            "analyzer": "jenny_stop_analyzer"
-          },
-          "stem": {
-            "type": "text",
-            "fielddata": true,
-            "term_vector": "with_positions_offsets",
-            "analyzer": "jenny_stem_analyzer"
-          },
-          "stem_length": {
-            "type": "token_count",
-            "analyzer": "jenny_stem_analyzer"
-          },
-          "shingles_2": {
-            "type": "text",
-            "analyzer": "jenny_shingles_2_analyzer"
-          },
-          "stemmed_shingles_2": {
-            "type": "text",
-            "analyzer": "jenny_stemmed_shingles_2_analyzer"
-          },
-          "shingles_3": {
-            "type": "text",
-            "analyzer": "jenny_shingles_3_analyzer"
-          },
-          "stemmed_shingles_3": {
-            "type": "text",
-            "analyzer": "jenny_stemmed_shingles_3_analyzer"
-          },
-          "shingles_4": {
-            "type": "text",
-            "analyzer": "jenny_shingles_4_analyzer"
-          },
-          "stemmed_shingles_4": {
-            "type": "text",
-            "analyzer": "jenny_stemmed_shingles_4_analyzer"
+        },
+        "question_vector": {
+          "type": "text",
+          "term_vector": "with_positions_offsets",
+          "analyzer": "jenny_delimited_double"
+        },
+        "answer": {
+          "type": "text",
+          "store": true,
+          "fields": {
+            "freq": {
+              "type": "text",
+              "analyzer": "jenny_base_analyzer",
+              "similarity": "scripted_term_freq"
+            },
+            "raw": {
+              "type": "keyword",
+              "ignore_above": 10922
+            },
+            "space_punctuation": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_space_punctuation_analyzer"
+            },
+            "base": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_base_analyzer"
+            },
+            "raw_nolc": {
+              "type": "text",
+              "analyzer": "jenny_raw_nolc_analyzer"
+            },
+            "space_punctuation_nolc": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_space_punctuation_nolc_analyzer"
+            },
+            "base_nolc": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_base_nolc_analyzer"
+            },
+            "base_length": {
+              "type": "token_count",
+              "analyzer": "jenny_base_analyzer"
+            },
+            "stop": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_stop_analyzer"
+            },
+            "stop_length": {
+              "type": "token_count",
+              "analyzer": "jenny_stop_analyzer"
+            },
+            "stem": {
+              "type": "text",
+              "fielddata": true,
+              "term_vector": "with_positions_offsets",
+              "analyzer": "jenny_stem_analyzer"
+            },
+            "stem_length": {
+              "type": "token_count",
+              "analyzer": "jenny_stem_analyzer"
+            },
+            "shingles_2": {
+              "type": "text",
+              "analyzer": "jenny_shingles_2_analyzer"
+            },
+            "stemmed_shingles_2": {
+              "type": "text",
+              "analyzer": "jenny_stemmed_shingles_2_analyzer"
+            },
+            "shingles_3": {
+              "type": "text",
+              "analyzer": "jenny_shingles_3_analyzer"
+            },
+            "stemmed_shingles_3": {
+              "type": "text",
+              "analyzer": "jenny_stemmed_shingles_3_analyzer"
+            },
+            "shingles_4": {
+              "type": "text",
+              "analyzer": "jenny_shingles_4_analyzer"
+            },
+            "stemmed_shingles_4": {
+              "type": "text",
+              "analyzer": "jenny_stemmed_shingles_4_analyzer"
+            }
           }
-        }
-      },
-      "answer_scored_terms": {
-        "type": "nested",
-        "properties": {
-          "term": {
-            "store": true,
-            "type": "text"
-          },
-          "score": {
-            "store": true,
-            "type": "double"
+        },
+        "answer_scored_terms": {
+          "type": "nested",
+          "properties": {
+            "term": {
+              "store": true,
+              "type": "text"
+            },
+            "score": {
+              "store": true,
+              "type": "double"
+            }
           }
-        }
-      },
-      "answer_vector": {
-        "type": "text",
-        "term_vector": "with_positions_offsets",
-        "analyzer": "jenny_delimited_double"
-      },
-      "topics": {
-        "type": "text",
-        "store": true,
-        "fields": {
-          "base": {
-            "type": "text",
-            "fielddata": true,
-            "analyzer": "jenny_base_analyzer"
+        },
+        "answer_vector": {
+          "type": "text",
+          "term_vector": "with_positions_offsets",
+          "analyzer": "jenny_delimited_double"
+        },
+        "topics": {
+          "type": "text",
+          "store": true,
+          "fields": {
+            "base": {
+              "type": "text",
+              "fielddata": true,
+              "analyzer": "jenny_base_analyzer"
+            }
           }
+        },
+        "verified": {
+          "type": "boolean",
+          "store": true,
+          "null_value": false,
+          "index": true
+        },
+        "done": {
+          "type": "boolean",
+          "store": true,
+          "null_value": false,
+          "index": true
+        },
+        "class": {
+          "type": "text",
+          "index": true,
+          "store": true,
+          "analyzer": "jenny_base_analyzer"
+        },
+        "doctype": {
+          "type": "keyword",
+          "store": true,
+          "index": true,
+          "null_value": "NORMAL"
+        },
+        "state": {
+          "type": "keyword",
+          "store": true,
+          "index": true,
+          "null_value": ""
+        },
+        "conversation": {
+          "type": "keyword",
+          "index": true,
+          "store": true
+        },
+        "index_in_conversation": {
+          "type": "integer",
+          "store": true,
+          "null_value": -1
+        },
+        "status": {
+          "type": "integer",
+          "store": true,
+          "null_value": 0
+        },
+        "timestamp": {
+          "type": "date",
+          "format": "epoch_millis",
+          "store": true,
+          "index": true
         }
-      },
-      "verified": {
-        "type": "boolean",
-        "store": true,
-        "null_value": false,
-        "index": true
-      },
-      "done": {
-        "type": "boolean",
-        "store": true,
-        "null_value": false,
-        "index": true
-      },
-      "class": {
-        "type": "text",
-        "index": true,
-        "store": true,
-        "analyzer": "jenny_base_analyzer"
-      },
-      "doctype": {
-        "type": "keyword",
-        "store": true,
-        "index": true,
-        "null_value": "NORMAL"
-      },
-      "state": {
-        "type": "keyword",
-        "store": true,
-        "index": true,
-        "null_value": ""
-      },
-      "conversation": {
-        "type": "keyword",
-        "index": true,
-        "store": true
-      },
-      "index_in_conversation": {
-        "type": "integer",
-        "store": true,
-        "null_value": -1
-      },
-      "status": {
-        "type": "integer",
-        "store": true,
-        "null_value": 0
-      },
-      "timestamp": {
-        "type": "date",
-        "format": "epoch_millis",
-        "store": true,
-        "index": true
       }
     }
   }

@@ -47,6 +47,7 @@ object ClusterNodesService extends AbstractDataService {
 
     val updateReq = new UpdateRequest()
       .index(indexName)
+      .`type`(elasticClient.systemClusterNodesIndexSuffix)
       .doc(builder)
       .id(uuid)
       .docAsUpsert(true)

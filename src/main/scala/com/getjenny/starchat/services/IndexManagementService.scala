@@ -7,15 +7,23 @@ package com.getjenny.starchat.services
 import java.io._
 
 import com.getjenny.starchat.entities._
+import org.elasticsearch.action.admin.indices.mapping.put.PutMappingRequest
 import com.getjenny.starchat.services.esclient.IndexManagementElasticClient
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.action.admin.indices.close.CloseIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
+import org.elasticsearch.action.admin.indices.mapping.get.GetMappingsRequest
 import org.elasticsearch.action.admin.indices.open.{OpenIndexRequest, OpenIndexResponse}
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest
 import org.elasticsearch.action.support.master.AcknowledgedResponse
-import org.elasticsearch.client.indices._
 import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
+import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
+import org.elasticsearch.action.admin.indices.create.CreateIndexResponse
+import org.elasticsearch.client.RestClientBuilder
+import org.elasticsearch.client.RestClient
+import org.elasticsearch.client.Request
+import org.elasticsearch.client.Response
+import org.elasticsearch.rest.RestRequest
 import org.elasticsearch.common.settings._
 import org.elasticsearch.common.xcontent.XContentType
 import scalaz.Scalaz._
@@ -204,14 +212,15 @@ object IndexManagementService extends AbstractDataService {
     }.map{item =>
       val fullIndexName = Index.indexName(indexName, item.indexSuffix)
 
-      val getMappingsReq: GetMappingsRequest = new GetMappingsRequest()
-        .indices(fullIndexName)
-
-      Try(client.indices.getMapping(getMappingsReq, RequestOptions.DEFAULT)) match {
+      val request: Request = new Request(
+        "GET",
+        "/" + fullIndexName + "/_mapping")
+      Try(client.getLowLevelClient.performRequest(request)) match {
         case Success(mappingsRes) =>
-          val check = mappingsRes.mappings.containsKey(fullIndexName)
+          val check = true
           (item.indexSuffix + "(" + fullIndexName + ", " + check + ")", check)
-        case Failure(exception) => (item.indexSuffix + "(" + fullIndexName + ", false)", false)
+        case Failure(exception) =>
+          (item.indexSuffix + "(" + fullIndexName + ", false)", false)
       }
     }
 

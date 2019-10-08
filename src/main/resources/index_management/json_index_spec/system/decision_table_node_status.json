@@ -1,23 +1,24 @@
 {
   "mappings": {
-    "properties": {
-      "uuid": {
-        "type": "keyword",
-        "store": true,
-        "index": true
-      },
-      "index": {
-        "type": "keyword",
-        "store": true,
-        "index": true
-      },
-      "timestamp": {
-        "type": "date",
-        "format": "epoch_millis",
-        "store": true,
-        "index": true
+    "decision_table_node_status": {
+      "properties": {
+        "uuid": {
+          "type": "keyword",
+          "store": true,
+          "index": true
+        },
+        "index": {
+          "type": "keyword",
+          "store": true,
+          "index": true
+        },
+        "timestamp": {
+          "type": "date",
+          "format": "epoch_millis",
+          "store": true,
+          "index": true
+        }
       }
     }
   }
-}
 }

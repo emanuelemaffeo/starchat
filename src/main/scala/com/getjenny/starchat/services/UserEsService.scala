@@ -66,6 +66,7 @@ class UserEsService extends AbstractUserService {
 
     val indexReq = new IndexRequest()
       .index(indexName)
+      .`type`(elasticClient.userIndexSuffix)
       .create(true)
       .id(user.id)
       .source(builder)
@@ -124,6 +125,7 @@ class UserEsService extends AbstractUserService {
 
     val updateReq = new UpdateRequest()
       .index(indexName)
+      .`type`(elasticClient.userIndexSuffix)
       .doc(builder)
       .id(id)
 

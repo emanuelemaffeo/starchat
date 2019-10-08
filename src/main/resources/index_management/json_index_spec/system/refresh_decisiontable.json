@@ -1,11 +1,13 @@
 {
   "mappings": {
-    "properties": {
-      "timestamp": {
-        "type": "date",
-        "format": "epoch_millis",
-        "store": true,
-        "index": true
+    "refresh_decisiontable": {
+      "properties": {
+        "timestamp": {
+          "type": "date",
+          "format": "epoch_millis",
+          "store": true,
+          "index": true
+        }
       }
     }
   }

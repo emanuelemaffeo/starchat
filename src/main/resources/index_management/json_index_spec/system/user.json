@@ -1,5 +1,6 @@
 {
   "mappings": {
+    "user": {
       "properties": {
         "id": {
           "type": "keyword",
@@ -26,6 +27,7 @@
             }
           }
         }
+      }
     }
   }
 }

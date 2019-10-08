@@ -13,8 +13,8 @@ import javax.net.ssl._
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder
 import org.apache.http.message.BasicHeader
 import org.apache.http.{Header, HttpHost}
+import org.elasticsearch.action.admin.indices.get.GetIndexRequest
 import org.elasticsearch.action.admin.indices.refresh.{RefreshRequest, RefreshResponse}
-import org.elasticsearch.client.indices._
 import org.elasticsearch.client.{RequestOptions, RestClient, RestClientBuilder, RestHighLevelClient}
 import scalaz.Scalaz._
 
@@ -65,10 +65,15 @@ trait ElasticClient {
   }
 
   def buildClient(hostProto: String): RestClientBuilder = {
-    val headerValues: Array[(String, String)] = Array(("Authorization", "Basic " + elasticsearchAuthentication))
-    val defaultHeaders: Array[Header] = headerValues.map { case (key, value) =>
-      new BasicHeader(key, value)
+    val defaultHeaders: Array[Header] = if (elasticsearchAuthentication =/= "") {
+      val headerValues = Array(("Authorization", "Basic " + elasticsearchAuthentication))
+      headerValues.map { case (key, value) =>
+        new BasicHeader(key, value)
+      }
+    } else {
+      Array.empty[Header]
     }
+
     if (hostProto === "http") {
       RestClient.builder(inetAddresses: _*)
     } else {
@@ -115,7 +120,7 @@ trait ElasticClient {
   }
 
   def existsIndices(indices: List[String]): Boolean = {
-    val request = new GetIndexRequest(indices:_*)
+    val request = new GetIndexRequest().indices(indices:_*)
     request.local(false)
     request.humanReadable(true)
     request.includeDefaults(false)

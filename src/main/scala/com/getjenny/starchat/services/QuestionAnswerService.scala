@@ -298,7 +298,7 @@ trait QuestionAnswerService extends AbstractDataService {
       documents.getOrElse(List.empty[SearchKBDocument])
 
     val maxScore : Float = searchResp.getHits.getMaxScore
-    val totalHits = searchResp.getHits.getTotalHits.value
+    val totalHits = searchResp.getHits.getTotalHits
     val searchResults : SearchKBDocumentsResults = SearchKBDocumentsResults(
       total = totalHits,
       max_score = maxScore,
@@ -377,6 +377,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val indexReq = new IndexRequest()
       .index(Index.indexName(indexName, elasticClient.indexSuffix))
+      .`type`(elasticClient.indexSuffix)
       .id(document.id)
       .source(builder)
 
@@ -487,6 +488,7 @@ trait QuestionAnswerService extends AbstractDataService {
     val bulkRequest = new BulkRequest
     val updateReq = new UpdateRequest()
       .index(Index.indexName(indexName, elasticClient.indexSuffix))
+      .`type`(elasticClient.userIndexSuffix)
       .doc(builder)
       .id(id)
     bulkRequest.add(updateReq)
@@ -519,7 +521,7 @@ trait QuestionAnswerService extends AbstractDataService {
     ids.foreach{ id =>
       multigetReq.add(
         new MultiGetRequest.Item(Index
-          .indexName(indexName, elasticClient.indexSuffix), id)
+          .indexName(indexName, elasticClient.indexSuffix), elasticClient.indexSuffix, id)
       )
     }
 

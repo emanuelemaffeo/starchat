@@ -541,6 +541,7 @@ object DecisionTableService extends AbstractDataService {
 
     val indexReq = new IndexRequest()
       .index(Index.indexName(indexName, elasticClient.indexSuffix))
+      .`type`(elasticClient.indexSuffix)
       .id(document.state)
       .source(builder)
 
@@ -630,6 +631,7 @@ object DecisionTableService extends AbstractDataService {
 
     val updateReq = new UpdateRequest()
       .index(Index.indexName(indexName, elasticClient.indexSuffix))
+      .`type`(elasticClient.indexSuffix)
       .doc(builder)
       .id(id)
 
@@ -756,7 +758,7 @@ object DecisionTableService extends AbstractDataService {
     // a list of specific ids was requested
     ids.foreach{id =>
       multiGetReq.add(
-        new MultiGetRequest.Item(Index.indexName(indexName, elasticClient.indexSuffix), id)
+        new MultiGetRequest.Item(Index.indexName(indexName, elasticClient.indexSuffix), elasticClient.indexSuffix, id)
       )
     }
 

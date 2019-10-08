@@ -55,6 +55,7 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
     val updateReq = new UpdateRequest()
       .index(indexName)
+      .`type`(elasticClient.systemDtNodesStatusIndexSuffix)
       .doc(builder)
       .id(id)
       .docAsUpsert(true)
