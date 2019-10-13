@@ -1,0 +1,33 @@
+{
+  "mappings": {
+    "properties": {
+      "index_name": {
+        "type": "keyword",
+        "store": true,
+        "index": true
+      },
+      "state": {
+        "type": "keyword",
+        "store": true,
+        "index": true
+      },
+      "total_wq_matched": {
+        "type": "integer",
+        "store": true
+      },
+      "total_wq_of_state_matched": {
+        "type": "integer",
+        "store": true
+      },
+      "last_refresh_ts": {
+        "type": "date",
+        "format": "epoch_millis",
+        "store": true
+      },
+      "valid": {
+        "type": "boolean",
+        "store": true
+      }
+    }
+  }
+}

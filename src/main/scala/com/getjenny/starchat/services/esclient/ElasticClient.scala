@@ -140,6 +140,7 @@ trait ElasticClient {
   val systemRefreshDtIndexSuffix: String = config.getString("es.system_refresh_dt_index_suffix")
   val systemClusterNodesIndexSuffix: String = "cluster_nodes"
   val systemDtNodesStatusIndexSuffix: String = "decision_table_node_status"
+  val systemBayesOperatorCacheIndexSuffix: String = "bayes_operator_cache"
 
   val enableDeleteIndex: Boolean = config.getBoolean("es.enable_delete_application_index")
   val enableDeleteSystemIndex: Boolean = config.getBoolean("es.enable_delete_system_index")

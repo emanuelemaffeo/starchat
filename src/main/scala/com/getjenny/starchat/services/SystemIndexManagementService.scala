@@ -65,6 +65,11 @@ object SystemIndexManagementService extends AbstractDataService {
       updatePath = "/index_management/json_index_spec/system/update/decision_table_node_status.json",
       indexSuffix = elasticClient.systemDtNodesStatusIndexSuffix,
       numberOfShards = elasticClient.numberOfShards,
+      numberOfReplicas = elasticClient.numberOfReplicas),
+    JsonMappingAnalyzersIndexFiles(path = "/index_management/json_index_spec/system/bayes_operator_cache.json",
+      updatePath = "/index_management/json_index_spec/system/update/bayes_operator_cache",
+      indexSuffix = elasticClient.systemBayesOperatorCacheIndexSuffix,
+      numberOfShards = elasticClient.numberOfShards,
       numberOfReplicas = elasticClient.numberOfReplicas)
   )
 
