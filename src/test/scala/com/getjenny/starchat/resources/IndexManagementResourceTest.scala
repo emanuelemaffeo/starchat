@@ -54,14 +54,14 @@ class IndexManagementResourceTest extends TestEnglishBase {
   }
 
 
-  it should {
+  /*it should {
     "return an HTTP code 200 updating the index" in {
       Put(s"/index_getjenny_english_0/english/index_management") ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[IndexManagementResponse]
       }
     }
-  }
+  }*/
 
 
   it should {
