@@ -27,7 +27,7 @@ trait AnalyzersPlaygroundResource extends StarChatResource {
                 Set(Permissions.read, Permissions.write, Permissions.read))) {
               entity(as[AnalyzerEvaluateRequest]) { request =>
                 val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                onCompleteWithBreaker(breaker)(analyzerService.evaluateAnalyzer(indexName, request)) {
+                onCompleteWithBreakerFuture(breaker)(analyzerService.evaluateAnalyzer(indexName, request)) {
                   case Success(value) =>
                     completeResponse(StatusCodes.OK, StatusCodes.BadRequest, value)
                   case Failure(e) =>

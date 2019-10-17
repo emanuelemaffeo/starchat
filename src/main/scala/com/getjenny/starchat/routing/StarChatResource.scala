@@ -8,7 +8,8 @@ import akka.http.scaladsl.marshalling.ToEntityMarshaller
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server.directives.FileInfo
-import akka.http.scaladsl.server.{Directives, ExceptionHandler, Route}
+import akka.http.scaladsl.server.{Directive1, Directives, ExceptionHandler, Route}
+import akka.pattern.CircuitBreaker
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.serializers.JsonSupport
 import com.getjenny.starchat.services.UserEsServiceException
@@ -17,7 +18,8 @@ import com.getjenny.starchat.utils.Index
 import com.typesafe.config.{Config, ConfigFactory}
 import org.elasticsearch.index.IndexNotFoundException
 
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.Try
 import scala.util.control.NonFatal
 import scala.util.matching.Regex
 
@@ -110,4 +112,7 @@ trait StarChatResource extends Directives with JsonSupport {
     }
   }
 
+  protected[this] def onCompleteWithBreakerFuture[A](breaker: CircuitBreaker)(fun: => A): Directive1[Try[A]] = {
+    super.onCompleteWithBreaker(breaker)(Future{fun})
+  }
 }

@@ -143,8 +143,7 @@ object TermService extends AbstractDataService {
     * @param refresh whether to call an index update on ElasticSearch or not
     * @return a return message with the number of successfully and failed indexing operations
     */
-  def indexDefaultSynonyms(indexName: String,
-                           refresh: Int = 0) : Future[UpdateDocumentsResult] = {
+  def indexDefaultSynonyms(indexName: String, refresh: Int = 0) : UpdateDocumentsResult = {
     val (_, language, _) = Index.patternsFromIndexName(indexName)
     val synonymsPath: String = "/index_management/json_index_spec/" + language + "/synonyms.csv"
     val synonymsResource: URL = getClass.getResource(synonymsPath)
@@ -160,22 +159,10 @@ object TermService extends AbstractDataService {
     * @param separator a separator, usually the comma character
     * @return the IndexDocumentListResult with the indexing result
     */
-  def indexSynonymsFromCsvFile(indexName: String, file: File, skipLines: Int = 0, separator: Char = ','):
-  Future[UpdateDocumentsResult] = Future {
+  def indexSynonymsFromCsvFile(indexName: String, file: File, skipLines: Int = 0, separator: Char = ','): UpdateDocumentsResult = {
     val documents = FileToDocuments.getTermsDocumentsFromCSV(log = log,
       file = file, skipLines = skipLines, separator = separator).toList
     updateTerm(indexName, Terms(terms = documents), 0)
-  }
-
-  /** index terms on Elasticsearch
-    *
-    * @param indexName the index name
-    * @param terms the terms
-    * @param refresh whether to call an index update on ElasticSearch or not
-    * @return list of indexing responses
-    */
-  def indexTermFuture(indexName: String, terms: Terms, refresh: Int) : Future[IndexDocumentListResult] = Future {
-    indexTerm(indexName, terms, refresh)
   }
 
   /** index terms on Elasticsearch
@@ -352,17 +339,6 @@ object TermService extends AbstractDataService {
     Terms(terms=documents)
   }
 
-  /** fetch one or more terms from Elasticsearch
-    *
-    * @param indexName the index name
-    * @param termsRequest the ids of the terms to be fetched
-    * @return fetched terms
-    */
-  def getTermsByIdFuture(indexName: String,
-                         termsRequest: DocsIds) : Future[Terms] = Future {
-    termsById(indexName, termsRequest)
-  }
-
   /** update terms using a Future
     *
     * @param indexName index name
@@ -460,7 +436,7 @@ object TermService extends AbstractDataService {
     * @param termsReq list of terms
     * @return the distance between terms
     */
-  def termsDistance(indexName: String, termsReq: DocsIds): Future[List[TermsDistanceRes]] = Future {
+  def termsDistance(indexName: String, termsReq: DocsIds): List[TermsDistanceRes] = {
     val extractedTerms = termsById(indexName, DocsIds(ids = termsReq.ids))
     val retrievedTerms = extractedTerms.terms.map{ t => (t.term, t) }.toMap
 
@@ -630,18 +606,6 @@ object TermService extends AbstractDataService {
 
     val maxScore : Float = searchResponse.getHits.getMaxScore
     TermsResults(total = terms.terms.length, maxScore = maxScore, hits = terms)
-  }
-
-  /** given a text, return all the matching terms
-    *
-    * @param indexName index term
-    * @param query input text or SearchTerm entity
-    * @param analyzer the analyzer name to be used for text tokenization
-    * @return the terms found
-    */
-  def searchFuture[T: StringOrSearchTerm](indexName: String, query: T,
-                                          analyzer: String = "space_punctuation"): Future[TermsResults] = Future {
-    search(indexName, query, analyzer)
   }
 
   /** tokenize a text

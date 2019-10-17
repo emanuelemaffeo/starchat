@@ -137,10 +137,6 @@ trait QuestionAnswerService extends AbstractDataService {
     }
   }
 
-  def dictSizeFuture(indexName: String, stale: Long = cacheStealTimeMillis): Future[DictSize] = Future {
-    dictSize(indexName = indexName, stale = stale)
-  }
-
   /** Calculate the total number of terms in the fields question and answer, including duplicates.
     *
     * @param indexName the index name
@@ -298,11 +294,6 @@ trait QuestionAnswerService extends AbstractDataService {
         countTermCache.update(key, (Time.timestampMillis, result))
         result
     }
-  }
-
-  def termCountFuture(indexName: String, field: TermCountFields.Value, term: String,
-                      stale: Long = cacheStealTimeMillis): Future[TermCount] = Future {
-    termCount(indexName, field, term, stale)
   }
 
   /** set the number of terms counter's cached entries

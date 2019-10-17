@@ -28,7 +28,7 @@ trait SpellcheckResource extends StarChatResource {
                 authenticator.hasPermissions(user, indexName, Permissions.read)) {
                 entity(as[SpellcheckTermsRequest]) { request =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                  onCompleteWithBreaker(breaker)(spellcheckService.termsSuggester(indexName, request)) {
+                  onCompleteWithBreakerFuture(breaker)(spellcheckService.termsSuggester(indexName, request)) {
                     case Success(t) =>
                       completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                     case Failure(e) =>

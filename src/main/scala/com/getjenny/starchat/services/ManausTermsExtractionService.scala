@@ -207,11 +207,6 @@ object ManausTermsExtractionService extends AbstractDataService {
     )
   }
 
-  def termFrequencyFuture(indexName: String, extractionRequest: TermsExtractionRequest):
-  Future[TokenFrequency] = Future {
-    termFrequency(indexName, extractionRequest)
-  }
-
   def textTerms(indexName: String,
                 extractionRequest: TermsExtractionRequest
                ): (TokenizerResponse, Map[String, Double]) = {

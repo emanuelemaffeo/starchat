@@ -21,9 +21,7 @@ trait RootAPIResource extends StarChatResource {
         get {
           val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker(maxFailure = 5,
             callTimeout = 5.second)
-          onCompleteWithBreaker(breaker)(Future {
-            None
-          }) {
+          onCompleteWithBreakerFuture(breaker)(None) {
             case Success(_) =>
               completeResponse(StatusCodes.OK)
             case Failure(e) =>

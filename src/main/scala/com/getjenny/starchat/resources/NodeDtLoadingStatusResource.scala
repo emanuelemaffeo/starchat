@@ -29,9 +29,7 @@ trait NodeDtLoadingStatusResource extends StarChatResource {
             parameters("strict".as[Boolean] ? false) { strict =>
               extractMethod { method =>
                 val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                onCompleteWithBreaker(breaker)(Future {
-                  nodeDtLoadingStatusService.loadingStatus(indexName, strict)
-                }) {
+                onCompleteWithBreakerFuture(breaker)(nodeDtLoadingStatusService.loadingStatus(indexName, strict)) {
                   case Success(t) =>
                     completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                   case Failure(e) =>
@@ -60,10 +58,7 @@ trait NodeDtLoadingStatusResource extends StarChatResource {
                 authenticator.hasPermissions(user, "admin", Permissions.admin)) {
                 parameters("verbose".as[Boolean] ? false, "strict".as[Boolean] ? false) { (verbose, strict) =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                  onCompleteWithBreaker(breaker)(Future {
-                    nodeDtLoadingStatusService.nodeLoadingStatusAll(verbose, strict)
-                  }
-                  ) {
+                  onCompleteWithBreakerFuture(breaker)(nodeDtLoadingStatusService.nodeLoadingStatusAll(verbose, strict)) {
                     case Success(t) =>
                       completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                     case Failure(e) =>
@@ -90,9 +85,7 @@ trait NodeDtLoadingStatusResource extends StarChatResource {
                   extractMethod { method =>
                     entity(as[NodeDtLoadingStatus]) { document =>
                       val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                      onCompleteWithBreaker(breaker)(Future {
-                        nodeDtLoadingStatusService.update(document)
-                      }) {
+                      onCompleteWithBreakerFuture(breaker)(nodeDtLoadingStatusService.update(document)) {
                         case Success(_) =>
                           completeResponse(StatusCodes.OK)
                         case Failure(e) =>
@@ -116,9 +109,7 @@ trait NodeDtLoadingStatusResource extends StarChatResource {
                   authenticator.hasPermissions(user, "admin", Permissions.read)) {
                   extractMethod { method =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                    onCompleteWithBreaker(breaker)(Future {
-                      nodeDtLoadingStatusService.cleanDeadNodesRecords
-                    }) {
+                    onCompleteWithBreakerFuture(breaker)(nodeDtLoadingStatusService.cleanDeadNodesRecords) {
                       case Success(t) =>
                         completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                       case Failure(e) =>

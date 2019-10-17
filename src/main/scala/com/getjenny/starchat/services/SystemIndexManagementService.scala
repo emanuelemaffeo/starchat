@@ -214,7 +214,7 @@ object SystemIndexManagementService extends AbstractDataService {
     }
   }
 
-  def indices: Future[List[String]] = Future {
+  def indices: List[String] = {
     val clusterHealthReq = new ClusterHealthRequest()
     clusterHealthReq.level(ClusterHealthRequest.Level.INDICES)
     val clusterHealthRes = elasticClient.httpClient.cluster().health(clusterHealthReq, RequestOptions.DEFAULT)

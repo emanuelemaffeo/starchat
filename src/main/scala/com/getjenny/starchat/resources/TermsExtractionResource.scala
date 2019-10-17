@@ -29,8 +29,8 @@ trait TermsExtractionResource extends StarChatResource {
                 extractRequest { request =>
                   entity(as[TermsExtractionRequest]) { extractionRequest =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                    onCompleteWithBreaker(breaker)(
-                      spellcheckService.termFrequencyFuture(indexName = indexName,
+                    onCompleteWithBreakerFuture(breaker)(
+                      spellcheckService.termFrequency(indexName = indexName,
                         extractionRequest = extractionRequest)
                     ) {
                       case Success(t) =>

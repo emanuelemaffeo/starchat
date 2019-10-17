@@ -56,7 +56,7 @@ trait TermResource extends StarChatResource {
                   parameters("refresh".as[Int] ? 0) { refresh =>
                     entity(as[Terms]) { request_data =>
                       val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                      onCompleteWithBreaker(breaker)(termService.indexTermFuture(indexName, request_data, refresh)) {
+                      onCompleteWithBreakerFuture(breaker)(termService.indexTerm(indexName, request_data, refresh)) {
                         case Success(t) =>
                           completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                         case Failure(e) =>
@@ -78,7 +78,7 @@ trait TermResource extends StarChatResource {
                   authenticator.hasPermissions(user, indexName, Permissions.read)) {
                   entity(as[DocsIds]) { requestData =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                    onCompleteWithBreaker(breaker)(
+                    onCompleteWithBreakerFuture(breaker)(
                       termService.termsDistance( indexName = indexName, termsReq = requestData)
                     ) {
                       case Success(t) =>
@@ -104,7 +104,7 @@ trait TermResource extends StarChatResource {
                       val breaker: CircuitBreaker =
                         StarChatCircuitBreaker.getCircuitBreaker(maxFailure = 5, callTimeout = 120.seconds,
                           resetTimeout = 120.seconds)
-                      onCompleteWithBreaker(breaker)(
+                      onCompleteWithBreakerFuture(breaker)(
                         termService.indexDefaultSynonyms(indexName = indexName, refresh = refresh)) {
                         case Success(t) =>
                           completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
@@ -131,7 +131,7 @@ trait TermResource extends StarChatResource {
                         val breaker: CircuitBreaker =
                           StarChatCircuitBreaker.getCircuitBreaker(maxFailure = 5,
                             callTimeout = 120.seconds, resetTimeout = 120.seconds)
-                        onCompleteWithBreaker(breaker)(termService.indexSynonymsFromCsvFile(indexName, file)) {
+                        onCompleteWithBreakerFuture(breaker)(termService.indexSynonymsFromCsvFile(indexName, file)) {
                           case Success(t) =>
                             file.delete()
                             completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
@@ -159,10 +159,8 @@ trait TermResource extends StarChatResource {
                   authenticator.hasPermissions(user, indexName, Permissions.read)) {
                   entity(as[DocsIds]) { requestData =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                    onCompleteWithBreaker(breaker)(
-                      termService.getTermsByIdFuture(
-                        indexName = indexName,
-                        termsRequest = requestData)
+                    onCompleteWithBreakerFuture(breaker)(
+                      termService.termsById(indexName = indexName, termsRequest = requestData)
                     ) {
                       case Success(t) =>
                         completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
@@ -186,9 +184,7 @@ trait TermResource extends StarChatResource {
                     entity(as[DocsIds]) { requestData =>
                       if (requestData.ids.nonEmpty) {
                         val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                        onCompleteWithBreaker(breaker)(
-                          Future { termService.delete(indexName, requestData.ids, refresh) }
-                        ) {
+                        onCompleteWithBreakerFuture(breaker)(termService.delete(indexName, requestData.ids, refresh)) {
                           case Success(t) =>
                             completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                           case Failure(e) =>
@@ -200,9 +196,7 @@ trait TermResource extends StarChatResource {
                         }
                       } else {
                         val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                        onCompleteWithBreaker(breaker)(
-                          Future { termService.deleteAll(indexName) }
-                        ) {
+                        onCompleteWithBreakerFuture(breaker)(termService.deleteAll(indexName)) {
                           case Success(t) =>
                             completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                           case Failure(e) =>
@@ -224,8 +218,8 @@ trait TermResource extends StarChatResource {
                   entity(as[SearchTerm]) { requestData =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
                     parameters("analyzer".as[String] ? "space_punctuation") { analyzer =>
-                      onCompleteWithBreaker(breaker)(
-                        termService.searchFuture(indexName = indexName, query = requestData, analyzer = analyzer)
+                      onCompleteWithBreakerFuture(breaker)(
+                        termService.search(indexName = indexName, query = requestData, analyzer = analyzer)
                       ) {
                         case Success(t) =>
                           completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
@@ -248,8 +242,8 @@ trait TermResource extends StarChatResource {
                   entity(as[String]) { requestData =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
                     parameters("analyzer".as[String] ? "space_punctuation") { analyzer =>
-                      onCompleteWithBreaker(breaker)(
-                        termService.searchFuture(indexName = indexName, query = requestData, analyzer = analyzer)
+                      onCompleteWithBreakerFuture(breaker)(
+                        termService.search(indexName = indexName, query = requestData, analyzer = analyzer)
                       ) {
                         case Success(t) =>
                           completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)

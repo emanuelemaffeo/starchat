@@ -32,7 +32,7 @@ class QAResource(questionAnswerService: QuestionAnswerService, routeName: String
                 parameters("field".as[TermCountFields.Value] ?
                   TermCountFields.question, "term".as[String], "stale".as[Long] ? 0) { (field, term, stale) =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                  onCompleteWithBreaker(breaker)(questionAnswerService.termCountFuture(indexName, field, term, stale)) {
+                  onCompleteWithBreakerFuture(breaker)(questionAnswerService.termCount(indexName, field, term, stale)) {
                     case Success(t) =>
                       completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
                         t
@@ -64,7 +64,7 @@ class QAResource(questionAnswerService: QuestionAnswerService, routeName: String
               extractRequest { request =>
                 parameters("stale".as[Long] ? 0) { stale =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                  onCompleteWithBreaker(breaker)(questionAnswerService.dictSizeFuture(indexName, stale)) {
+                  onCompleteWithBreakerFuture(breaker)(questionAnswerService.dictSize(indexName, stale)) {
                     case Success(t) =>
                       completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
                         t

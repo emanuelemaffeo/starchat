@@ -26,7 +26,7 @@ trait SystemIndexManagementResource extends StarChatResource {
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, "admin", Permissions.read)) {
               val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-              onCompleteWithBreaker(breaker)(systemIndexManagementService.indices) {
+              onCompleteWithBreakerFuture(breaker)(systemIndexManagementService.indices) {
                 case Success(t) =>
                   completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
                     t

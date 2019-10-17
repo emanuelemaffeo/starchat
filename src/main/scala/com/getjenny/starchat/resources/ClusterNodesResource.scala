@@ -28,9 +28,7 @@ trait ClusterNodesResource extends StarChatResource {
               authenticator.hasPermissions(user, "admin", Permissions.read)) {
               extractMethod { method =>
                 val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                onCompleteWithBreaker(breaker)(Future {
-                  clusterNodesService.aliveNodes
-                }) {
+                onCompleteWithBreakerFuture(breaker)(clusterNodesService.aliveNodes) {
                   case Success(t) =>
                     completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                   case Failure(e) =>
@@ -55,9 +53,7 @@ trait ClusterNodesResource extends StarChatResource {
                 authenticator.hasPermissions(user, "admin", Permissions.read)) {
                 extractMethod { method =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                  onCompleteWithBreaker(breaker)(Future {
-                    clusterNodesService.isAlive(uuid)
-                  }) {
+                  onCompleteWithBreakerFuture(breaker)(clusterNodesService.isAlive(uuid)) {
                     case Success(t) =>
                       completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                     case Failure(e) =>
@@ -78,9 +74,7 @@ trait ClusterNodesResource extends StarChatResource {
                 authenticator.hasPermissions(user, "admin", Permissions.read)) {
                 extractMethod { method =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                  onCompleteWithBreaker(breaker)(Future {
-                    clusterNodesService.alive()
-                  }) {
+                  onCompleteWithBreakerFuture(breaker)(clusterNodesService.alive()) {
                     case Success(t) =>
                       completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                     case Failure(e) =>
@@ -101,9 +95,7 @@ trait ClusterNodesResource extends StarChatResource {
                 authenticator.hasPermissions(user, "admin", Permissions.read)) {
                 extractMethod { method =>
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                  onCompleteWithBreaker(breaker)(Future {
-                    clusterNodesService.cleanDeadNodes
-                  }) {
+                  onCompleteWithBreakerFuture(breaker)(clusterNodesService.cleanDeadNodes) {
                     case Success(t) =>
                       completeResponse(StatusCodes.OK, StatusCodes.BadRequest, t)
                     case Failure(e) =>
