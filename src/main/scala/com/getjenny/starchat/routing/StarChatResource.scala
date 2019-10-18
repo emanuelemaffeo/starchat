@@ -11,6 +11,7 @@ import akka.http.scaladsl.server.directives.FileInfo
 import akka.http.scaladsl.server.{Directive1, Directives, ExceptionHandler, Route}
 import akka.pattern.CircuitBreaker
 import com.getjenny.starchat.SCActorSystem
+import com.getjenny.starchat.entities.User
 import com.getjenny.starchat.serializers.JsonSupport
 import com.getjenny.starchat.services.UserEsServiceException
 import com.getjenny.starchat.services.auth.{AbstractStarChatAuthenticator, StarChatAuthenticator}
@@ -39,6 +40,11 @@ trait StarChatResource extends Directives with JsonSupport {
     log.info("Uploaded file(" + file.getAbsolutePath + ") contentType(" + fileInfo.contentType +
       ") fieldName(" + fileInfo.fieldName + ")")
     file
+  }
+
+  protected def logTemplate(user: String, indexName: String, route: String, method: HttpMethod,
+                            uri: Uri, message: String = ""): String = {
+    s"user=$user index=$indexName route=$route method=${method.value} uri=${uri.toString()} $message"
   }
 
   protected[this] val routesExceptionHandler = ExceptionHandler {

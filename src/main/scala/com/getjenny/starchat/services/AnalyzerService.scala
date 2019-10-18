@@ -171,9 +171,8 @@ object AnalyzerService extends AbstractDataService {
           val inPlaceAnalyzer: DecisionTableRuntimeItem =
             inPlaceIndexAnalyzers.analyzerMap.getOrElse(stateId, DecisionTableRuntimeItem())
           if (incremental && inPlaceAnalyzer.version > 0 && inPlaceAnalyzer.version === version) {
-            val msg = "Analyzer already built index(" + indexName + ") state(" + stateId +
-              ") version(" + version + ":" + inPlaceAnalyzer.version + ")"
-            log.debug(msg)
+            log.debug("Analyzer already built index({}) state({}) version({}:{})",
+              indexName, stateId, version, inPlaceAnalyzer.version)
             BuildAnalyzerResult(analyzer = inPlaceAnalyzer.analyzer.analyzer,
               version = version, message = "Analyzer already built: " + stateId,
               build = inPlaceAnalyzer.analyzer.build)
@@ -234,25 +233,18 @@ object AnalyzerService extends AbstractDataService {
     val nodeDtLoadingTimestamp = System.currentTimeMillis()
     if (propagate) {
       Try(dtReloadService.updateDTReloadTimestamp(indexName, nodeDtLoadingTimestamp, refresh = 1)) match {
-        case Success(reloadTsFuture) =>
-          reloadTsFuture.onComplete {
-            case Success(dtReloadTimestamp) =>
-              val ts = dtReloadTimestamp
-                .getOrElse(DtReloadTimestamp(indexName, dtReloadService.DT_RELOAD_TIMESTAMP_DEFAULT))
-              log.debug("setting dt reload timestamp to: " + ts.timestamp)
-              activeAnalyzers.lastReloadingTimestamp = ts.timestamp
-            case Failure(e) =>
-              val message = "unable to set dt reload timestamp" + e.getMessage
-              log.error(message)
-              throw AnalyzerServiceException(message)
-          }
+        case Success(dtReloadTimestamp) =>
+          val ts = dtReloadTimestamp
+            .getOrElse(DtReloadTimestamp(indexName, dtReloadService.DT_RELOAD_TIMESTAMP_DEFAULT))
+          log.debug("setting dt reload timestamp to: {}", ts.timestamp)
+          activeAnalyzers.lastReloadingTimestamp = ts.timestamp
         case Failure(e) =>
           val message = "unable to set dt reload timestamp" + e.getMessage
           log.error(message)
           throw AnalyzerServiceException(message)
       }
     }
-    log.debug("updating: " + nodeDtLoadingStatusService.clusterNodesService.uuid + " : " + nodeDtLoadingTimestamp)
+    log.debug("updating: {} : {}", nodeDtLoadingStatusService.clusterNodesService.uuid, nodeDtLoadingTimestamp)
     nodeDtLoadingStatusService.update(dtNodeStatus =
       NodeDtLoadingStatus(index = indexName, timestamp = Some {
         nodeDtLoadingTimestamp
@@ -261,7 +253,7 @@ object AnalyzerService extends AbstractDataService {
     dtAnalyzerLoad
   }
 
-  def getDTAnalyzerMap(indexName: String): Future[DTAnalyzerMap] = Future {
+  def getDTAnalyzerMap(indexName: String): DTAnalyzerMap = {
     DTAnalyzerMap(AnalyzerService.analyzersMap(indexName).analyzerMap
       .map {
         case (stateName, dtRuntimeItem) =>

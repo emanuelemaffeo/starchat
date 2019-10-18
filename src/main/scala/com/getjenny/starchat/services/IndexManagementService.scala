@@ -188,7 +188,7 @@ object IndexManagementService extends AbstractDataService {
   }
 
   def remove(indexName: String,
-             indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
+             indexSuffix: Option[String] = None): IndexManagementResponse = {
     val client: RestHighLevelClient = elasticClient.httpClient
 
     if (!elasticClient.enableDeleteIndex) {

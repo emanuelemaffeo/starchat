@@ -339,17 +339,6 @@ object TermService extends AbstractDataService {
     Terms(terms=documents)
   }
 
-  /** update terms using a Future
-    *
-    * @param indexName index name
-    * @param terms terms to update
-    * @param refresh whether to call an index update on ElasticSearch or not
-    * @return result of the update operations
-    */
-  def updateTermFuture(indexName: String, terms: Terms, refresh: Int) : Future[UpdateDocumentsResult] = Future {
-    updateTerm(indexName, terms, refresh)
-  }
-
   /** update terms, synchronous function
     *
     * @param indexName index name
@@ -357,7 +346,7 @@ object TermService extends AbstractDataService {
     * @param refresh whether to call an index update on ElasticSearch or not
     * @return result of the update operations
     */
-  private[this] def updateTerm(indexName: String, terms: Terms, refresh: Int) : UpdateDocumentsResult = {
+  def updateTerm(indexName: String, terms: Terms, refresh: Int) : UpdateDocumentsResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
 
     val bulkReq : BulkRequest = new BulkRequest()

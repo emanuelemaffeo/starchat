@@ -23,7 +23,7 @@ object CronReloadDTService extends CronService {
         val startUpdateTimestamp: Long = System.currentTimeMillis
         val maxItemsIndexesToUpdate: Long = math.max(analyzerService.dtMaxTables, analyzerService.analyzersMap.size)
 
-        log.debug("Start DT reloading session: " + startUpdateTimestamp + " items(" + maxItemsIndexesToUpdate + ")")
+        log.debug("Start DT reloading session: {} items({})", startUpdateTimestamp, maxItemsIndexesToUpdate)
 
         val indexCheck: List[(String, Boolean)] =
           dtReloadService.allDTReloadTimestamp(Some(updateTimestamp), Some(maxItemsIndexesToUpdate))
@@ -47,8 +47,8 @@ object CronReloadDTService extends CronService {
                       .lastReloadingTimestamp = dtReloadEntry.timestamp
                     (dtReloadEntry.indexName, true)
                   case Failure(e) =>
-                    log.debug("unable to load analyzers for index(" + dtReloadEntry +
-                      "), timestamp(" + startUpdateTimestamp + "), cron job" + e.getMessage)
+                    log.error("unable to load analyzers for index({}), timestamp({}), cron job: ",
+                      dtReloadEntry, startUpdateTimestamp, e)
                     (dtReloadEntry.indexName, false)
                 }
               } else {

@@ -132,8 +132,8 @@ object ResponseService extends AbstractDataService {
           )
           Try(starchatAnalyzer.evaluate(userText, data = analyzersDataInternal)) match {
             case Success(evalRes) =>
-              log.debug("ResponseService: Evaluation of State(" +
-                stateName + ") Query(" + userText + ") Score(" + evalRes.toString + ")")
+              log.debug("ResponseService: Evaluation of State({}) Query({}) Score({})",
+                stateName, userText, evalRes.toString)
               evalRes
             case Failure(e) =>
               val message = "ResponseService: Evaluation of State(" + stateName + ") : " + e.getMessage
@@ -141,8 +141,7 @@ object ResponseService extends AbstractDataService {
               throw AnalyzerEvaluationException(message, e)
           }
         case _ =>
-          val message = "ResponseService: analyzer is None (" + stateName + ")"
-          log.debug(message)
+          log.debug("ResponseService: analyzer is None ({})", stateName)
           val score = if (reqState) threshold else 0.0 // if requested the threshold is matched by default
           Result(score = score, data = searchResAnalyzers)
       }

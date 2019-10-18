@@ -116,9 +116,7 @@ trait UserResource extends StarChatResource {
               authenticator.hasPermissions(user, "admin", Permissions.admin)) {
               entity(as[UserUpdate]) { userEntity =>
                 val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                onCompleteWithBreaker(breaker)(Future {
-                  userService.genUser(userEntity, authenticator)
-                }) {
+                onCompleteWithBreakerFuture(breaker)(userService.genUser(userEntity, authenticator)) {
                   case Success(t) => completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Some(t))
                   case Failure(e) => handleFailure(e)
                 }

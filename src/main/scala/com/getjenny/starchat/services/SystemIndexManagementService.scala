@@ -68,7 +68,7 @@ object SystemIndexManagementService extends AbstractDataService {
       numberOfReplicas = elasticClient.numberOfReplicas)
   )
 
-  def create(indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
+  def create(indexSuffix: Option[String] = None): IndexManagementResponse = {
     val client: RestHighLevelClient = elasticClient.httpClient
 
     val operationsMessage: List[(String, Boolean)] = schemaFiles.filter(item => {
@@ -106,7 +106,7 @@ object SystemIndexManagementService extends AbstractDataService {
     IndexManagementResponse(message = message, check = operationsMessage.forall{case(_, ck) => ck})
   }
 
-  def remove(indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
+  def remove(indexSuffix: Option[String] = None): IndexManagementResponse = {
     val client: RestHighLevelClient = elasticClient.httpClient
 
     if (!elasticClient.enableDeleteSystemIndex) {
@@ -134,7 +134,7 @@ object SystemIndexManagementService extends AbstractDataService {
     IndexManagementResponse(message = message, check = operationsMessage.forall{case(_, ck) => ck})
   }
 
-  def check(indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
+  def check(indexSuffix: Option[String] = None): IndexManagementResponse = {
     val client: RestHighLevelClient = elasticClient.httpClient
 
     val operationsMessage: List[(String, Boolean)] = schemaFiles.filter(item => {
@@ -157,7 +157,7 @@ object SystemIndexManagementService extends AbstractDataService {
     IndexManagementResponse(message = message, check = operationsMessage.forall{case(_, ck) => ck})
   }
 
-  def update(indexSuffix: Option[String] = None): Future[IndexManagementResponse] = Future {
+  def update(indexSuffix: Option[String] = None): IndexManagementResponse = {
     val client: RestHighLevelClient = elasticClient.httpClient
 
     val operationsMessage: List[(String, Boolean)] = schemaFiles.filter(item => {
@@ -192,7 +192,7 @@ object SystemIndexManagementService extends AbstractDataService {
     IndexManagementResponse(message = message, check = operationsMessage.forall{case(_, ck) => ck})
   }
 
-  def refresh(indexSuffix: Option[String] = None): Future[Option[RefreshIndexResults]] = Future {
+  def refresh(indexSuffix: Option[String] = None): Option[RefreshIndexResults] = {
     val operationsResults: List[RefreshIndexResult] = schemaFiles.filter(item => {
       indexSuffix match {
         case Some(t) => t === item.indexSuffix
