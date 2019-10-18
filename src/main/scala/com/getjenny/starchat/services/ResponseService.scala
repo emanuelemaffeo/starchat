@@ -206,13 +206,13 @@ object ResponseService extends AbstractDataService {
 
   }
 
-  private def replaceBubble(inputBubble: String, values: Map[String, String]): String = {
+  private[this] def replaceBubble(inputBubble: String, values: Map[String, String]): String = {
     values.foldLeft(inputBubble) {
       case (b, (k, v)) => b.replaceAll("%" + k + "%", v)
     }
   }
 
-  private def replaceActionInput(actionInput: Map[String, String], values: Map[String, String]): Map[String, String] = {
+  private[this] def replaceActionInput(actionInput: Map[String, String], values: Map[String, String]): Map[String, String] = {
     values.foldLeft(actionInput) {
       case (acc, (key, value)) => acc.mapValues(_.replaceAll("%" + key + "%", value))
     }
