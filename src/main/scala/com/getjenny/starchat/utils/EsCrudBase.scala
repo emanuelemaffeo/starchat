@@ -9,6 +9,7 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder
 import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilder, QueryBuilders}
+import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryRequest}
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 
@@ -58,12 +59,15 @@ class EsCrudBase(client: ElasticClient, index: String) {
     client.httpClient.update(updateReq, RequestOptions.DEFAULT)
   }
 
-  def deleteById(instance: String, id: String): Unit = {
+  def deleteByQuery(instance: String, query: BoolQueryBuilder): BulkByScrollResponse = {
+    val finalQuery = query.filter(QueryBuilders.termsQuery("instance", instance))
 
-  }
+    val request: DeleteByQueryRequest =
+      new DeleteByQueryRequest(completeIndexName)
+    request.setConflicts("proceed")
+    request.setQuery(finalQuery)
 
-  def deleteByQuery(instance: String, query: String): Unit = {
-
+    client.httpClient.deleteByQuery(request, RequestOptions.DEFAULT)
   }
 
 }

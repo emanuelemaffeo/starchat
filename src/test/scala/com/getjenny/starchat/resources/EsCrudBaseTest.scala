@@ -52,12 +52,23 @@ class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with
   test("find test") {
     Thread.sleep(1000)
 
-    val boolQueryBuilder2: BoolQueryBuilder = QueryBuilders.boolQuery()
+    val boolQueryBuilder = QueryBuilders.boolQuery()
       .filter(QueryBuilders.termQuery("message", "ciao"))
 
-    val res = esCrudBase.find("prova", boolQueryBuilder2, "message")
+    val res = esCrudBase.find("prova", boolQueryBuilder, "message")
 
     res.getHits.forEach(println)
+  }
+
+  test("delete test") {
+    Thread.sleep(1000)
+
+    val boolQueryBuilder = QueryBuilders.boolQuery()
+      .filter(QueryBuilders.matchAllQuery())
+
+    val res = esCrudBase.deleteByQuery("prova", boolQueryBuilder)
+
+    println(res.getDeleted)
   }
 
   override protected def afterAll(): Unit = {
