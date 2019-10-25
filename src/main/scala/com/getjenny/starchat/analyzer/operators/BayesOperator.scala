@@ -26,7 +26,7 @@ class BayesOperator(children: List[Expression]) extends AbstractOperator(childre
   def add(e: Expression, level: Int = 0): AbstractOperator = {
 
     // Unary operator check
-    if (level == 0 && children.nonEmpty) throw OperatorException(operatorName + "Operator: should have only one argument")
+    if (level === 0 && children.nonEmpty) throw OperatorException(operatorName + "Operator: should have only one argument")
 
     if (level === 0) new BayesOperator(e :: children)
     else {
@@ -82,7 +82,7 @@ class BayesOperator(children: List[Expression]) extends AbstractOperator(childre
                 if (triggerResult.score === 1.0d) {
                   val totalTriggered = cnt2.nTotalQueriesTriggered + 1
                   val totalTriggeredInState = {
-                    if (currentStateName == stateName) {
+                    if (currentStateName === stateName) {
                       cnt2.nQueriesOfStateTriggered + 1
                     }
                     else {
@@ -100,7 +100,7 @@ class BayesOperator(children: List[Expression]) extends AbstractOperator(childre
 
         val bayesScore = counters.nTotalQueriesTriggered.toDouble match {
           case v: Double if v > 0 => counters.nQueriesOfStateTriggered.toDouble / v
-          case v: Double if v == 0 => 1.0d
+          case v: Double if v === 0 => 1.0d
           case _ => throw ExceptionAtomic(operatorName + "Operator:totalQueries = 0 not expected here")
         }
 
