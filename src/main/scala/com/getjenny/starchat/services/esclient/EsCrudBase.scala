@@ -134,7 +134,7 @@ class EsCrudBase private(client: ElasticClient, index: String) {
     client.refresh(index)
   }
 
-  private[this] def builderFromMap(instance: String, fields: Map[String, String]) = {
+  private[this] def builderFromMap(instance: String, fields: Map[String, String]): XContentBuilder = {
     val builder = jsonBuilder().startObject()
     fields.foreach { case (k, v) => builder.field(k, v) }
     builder.field(Instance, instance)
