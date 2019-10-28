@@ -80,10 +80,9 @@ class BayesOperator(children: List[Expression]) extends AbstractOperator(childre
       val nQueries = currentState.queries.length
 
       if (nQueries > 0) {
-        val counters = activeAnalyzeMap.foldLeft(new BayesCounters()) {
-          (cnt, elem) => {
-            val stateName = elem._1
-            val queries = elem._2.queries
+        val counters = activeAnalyzeMap.foldLeft(BayesCounters()) {
+          case (cnt, (stateName, decisionTable)) => {
+            val queries = decisionTable.queries
             queries.foldLeft(cnt) {
               (cnt2, whispererQuery) => {
                 // count queries that satisfy trigger condition totally and per state
@@ -98,7 +97,7 @@ class BayesOperator(children: List[Expression]) extends AbstractOperator(childre
                       cnt2.nQueriesOfStateTriggered
                     }
                   }
-                  new BayesCounters(totalTriggeredInState, totalTriggered)
+                  BayesCounters(totalTriggeredInState, totalTriggered)
                 }
                 else
                   cnt2
