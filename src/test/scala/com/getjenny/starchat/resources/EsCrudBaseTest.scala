@@ -2,31 +2,30 @@ package com.getjenny.starchat.resources
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import com.getjenny.starchat.serializers.JsonSupport
-import com.getjenny.starchat.services.esclient.IndexManagementElasticClient
-import com.getjenny.starchat.utils.EsCrudBase
+import com.getjenny.starchat.services.esclient.{EsCrudBase, IndexManagementElasticClient}
+import com.getjenny.starchat.utils.Index
+import org.elasticsearch.action.DocWriteResponse.Result
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
-import org.elasticsearch.action.search.SearchRequest
-import org.elasticsearch.action.support.master.AcknowledgedResponse
+import org.elasticsearch.action.get.MultiGetResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.common.settings.Settings
-import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentType
-import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders}
-import org.elasticsearch.search.builder.SearchSourceBuilder
+import org.elasticsearch.index.query.QueryBuilders
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
+
 import scala.collection.JavaConverters._
 
 class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with JsonSupport with BeforeAndAfterAll {
 
   val client = IndexManagementElasticClient
 
-  val indexName = "test_index"
-
-  val esCrudBase = new EsCrudBase(client, indexName)
+  val indexName = "index_getjenny_test_0"
+  val esSystemIndexName = Index.esSystemIndexName(indexName, client.indexSuffix)
+  val esCrudBase = EsCrudBase(client, indexName)
 
   override protected def beforeAll(): Unit = {
-    val request = new CreateIndexRequest(indexName)
+    val request = new CreateIndexRequest(esSystemIndexName)
     request.settings(Settings.builder()
       .put("index.number_of_shards", 1)
       .put("index.number_of_replicas", 1)
@@ -43,38 +42,88 @@ class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with
     client.httpClient.indices.create(request, RequestOptions.DEFAULT)
   }
 
-  test("upsert test") {
-    val res = esCrudBase.update("prova", "asasd3f", Map("message" -> "ciao"))
+  test("insert test") {
+    val res = esCrudBase.index("instance", "1", Map("message" -> "ciao"))
+    val res2 = esCrudBase.index("instance2", "2", Map("message" -> "aaaaa"))
 
-    println(res.status())
+    esCrudBase.refresh()
+
+    assert(res.getResult === Result.CREATED)
+    assert(res2.getResult === Result.CREATED)
+
   }
 
-  test("find test") {
-    Thread.sleep(1000)
+  test("find with match test") {
 
     val boolQueryBuilder = QueryBuilders.boolQuery()
-      .filter(QueryBuilders.termQuery("message", "ciao"))
+      .must(QueryBuilders.matchQuery("message", "ciao"))
 
-    val res = esCrudBase.find("prova", boolQueryBuilder, "message")
+    val findResponse = esCrudBase.find("instance", boolQueryBuilder)
+    findResponse.getHits.forEach(println)
 
-    res.getHits.forEach(println)
+    val message = findResponse.getHits.getHits
+      .flatMap(x => x.getSourceAsMap.asScala.get("message"))
+      .map(_.asInstanceOf[String])
+      .filter(x => x.equals("ciao"))
+
+    assert(message.nonEmpty)
+    assert(message.length == 1)
+    assert(message.head.equals("ciao"))
   }
 
-  test("delete test") {
-    Thread.sleep(1000)
+  test("find with match all test"){
+    val query = QueryBuilders.matchAllQuery
+    val findResponse = esCrudBase.find("instance2", query)
+    findResponse.getHits.forEach(println)
+
+    val message = findResponse.getHits.getHits
+      .flatMap(x => x.getSourceAsMap.asScala.get("message"))
+      .map(_.asInstanceOf[String])
+
+    assert(message.nonEmpty)
+    assert(message.length == 1)
+    assert(message.head.equals("aaaaa"))
+  }
+
+  test("find all test") {
+    val res: MultiGetResponse = esCrudBase.findAll(List("1", "2"))
+
+    res.getResponses.map(_.getResponse.getSource).foreach(println)
+  }
+
+  /*test("delete test") {
 
     val boolQueryBuilder = QueryBuilders.boolQuery()
-      .filter(QueryBuilders.matchAllQuery())
 
-    val res = esCrudBase.deleteByQuery("prova", boolQueryBuilder)
+    val findResponse1 = esCrudBase.find("instance2", boolQueryBuilder)
+    val delete = esCrudBase.deleteByQuery("instance2", boolQueryBuilder)
+    esCrudBase.refresh()
+    Thread.sleep(1000)
+    val findResponse2 = esCrudBase.find("instance", boolQueryBuilder)
 
-    println(res.getDeleted)
-  }
+    findResponse1.getHits.forEach(println)
+    println("-----------")
+    findResponse2.getHits.forEach(println)
+
+
+    val delete2 = esCrudBase.deleteByQuery("instance2", boolQueryBuilder)
+
+    val findResponse3 = esCrudBase.find("instance2", boolQueryBuilder)
+    val findResponse4 = esCrudBase.find("instance", boolQueryBuilder)
+
+    findResponse3.getHits.forEach(println)
+    findResponse4.getHits.forEach(println)
+
+    esCrudBase.refresh()
+
+    assert(delete.getDeleted === 1L)
+    assert(delete2.getDeleted === 1L)
+  }*/
 
   override protected def afterAll(): Unit = {
-     val deleteIndexReq = new DeleteIndexRequest(indexName)
+    val deleteIndexReq = new DeleteIndexRequest(esSystemIndexName)
 
-     client.httpClient.indices.delete(deleteIndexReq, RequestOptions.DEFAULT)
-   }
+    client.httpClient.indices.delete(deleteIndexReq, RequestOptions.DEFAULT)
+  }
 
 }

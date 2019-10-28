@@ -11,22 +11,16 @@ import com.getjenny.analyzer.expressions.{AnalyzersData, AnalyzersDataInternal, 
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.analyzers.StarChatAnalyzer
 import com.getjenny.starchat.entities._
-import com.getjenny.starchat.services.esclient.DecisionTableElasticClient
-import com.getjenny.starchat.utils.Index
-import org.elasticsearch.action.search.{SearchRequest, SearchResponse}
-import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
-import org.elasticsearch.common.unit._
+import com.getjenny.starchat.services.esclient.{DecisionTableElasticClient, EsCrudBase}
+import com.getjenny.starchat.utils.{Base64, Index}
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.SearchHit
-import org.elasticsearch.search.builder.SearchSourceBuilder
 import scalaz.Scalaz._
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
 import scala.collection.{concurrent, mutable}
-import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
-import com.getjenny.starchat.utils.Base64
 
 case class AnalyzerServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -65,21 +59,18 @@ object AnalyzerService extends AbstractDataService {
   val dtMaxTables: Long = elasticClient.config.getLong("es.dt_max_tables")
 
   def getAnalyzers(indexName: String): mutable.LinkedHashMap[String, DecisionTableRuntimeItem] = {
-    val client: RestHighLevelClient = elasticClient.httpClient
-    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
-      .query(QueryBuilders.matchAllQuery)
-      .fetchSource(Array("state", "execution_order", "max_state_counter",
-        "analyzer", "queries", "evaluation_class"), Array.empty[String])
-      .size(10000)
-      .version(true)
+    val instance = Index.instanceName(indexName)
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val query = QueryBuilders.matchAllQuery
+    val scrollResp = esCrudBase.find(instance, query,
+      maxItems = Option(10000),
+      version = Option(true),
+      fetchSource = Option(Array("state", "execution_order", "max_state_counter",
+        "analyzer", "queries", "evaluation_class")),
+      scroll = true
+    )
 
-    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
-      .source(sourceReq)
-      .scroll(new TimeValue(60000))
-
-    var scrollResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
-
-    val refreshIndex = elasticClient.refresh(Index.indexName(indexName, elasticClient.indexSuffix))
+    val refreshIndex = esCrudBase.refresh()
     if (refreshIndex.failedShardsN > 0) {
       throw AnalyzerServiceException("DecisionTable : index refresh failed: (" + indexName + ")")
     }

@@ -1,6 +1,7 @@
 package com.getjenny.starchat.utils
 
 import com.getjenny.starchat.entities.CommonOrSpecificSearch
+import com.getjenny.starchat.services.DecisionTableService.elasticClient
 import com.getjenny.starchat.services.TermService
 
 import scala.util.matching.Regex
@@ -21,8 +22,7 @@ object Index {
   val systemIndexMatchRegex: Regex = "(starchat_system_[a-z0-9\\-]{1,256})".r
   val systemIndexMatchRegexDelimited: Regex = ("^" + systemIndexMatchRegex + "$").r
 
-  val indexMatchRegex: Regex = ("(index_(?:" +
-    orgNameRegex + ")_(?:" + langRegex + ")_(?:" + arbitraryPatternRegex + "))").r
+  val indexMatchRegex: Regex = ("((?:" + langRegex + ")_(?:" + arbitraryPatternRegex + "))").r
   val indexMatchRegexDelimited: Regex = ("^" + indexMatchRegex + "$").r
 
   val indexExtractFieldsRegex: Regex = ("""(?:index_(""" +
@@ -53,6 +53,16 @@ object Index {
     if(suffix.nonEmpty) {
       indexName + "." + suffix
     } else indexName
+  }
+
+  def instanceName(indexName: String): String = {
+    val (org, language, arbitraryPattern) = patternsFromIndexName(indexName: String)
+    s"${org}_${language}_$arbitraryPattern"
+  }
+
+  def esSystemIndexName(indexName: String, suffix: String = elasticClient.indexSuffix): String = {
+    val (_, language, _) = Index.patternsFromIndexName(indexName: String)
+    Index.indexName(s"index_$language", suffix)
   }
 
   /** Extract the name of the common index

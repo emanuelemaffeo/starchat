@@ -39,7 +39,10 @@ object NodeDtLoadingStatusService extends AbstractDataService {
   val indexName: String = Index.indexName(elasticClient.indexName, elasticClient.systemDtNodesStatusIndexSuffix)
 
   private[this] def calcUuid(uuid: String = ""): String = if (uuid === "") clusterNodesService.uuid else uuid
-  private[this] def calcId(dtIndexName: String, uuid: String): String = dtIndexName + "." + calcUuid(uuid)
+  private[this] def calcId(dtIndexName: String, uuid: String): String = {
+    val esSystemIndexName = Index.esSystemIndexName(dtIndexName, elasticClient.indexSuffix)
+    esSystemIndexName + "." + calcUuid(uuid)
+  }
 
   def update(dtNodeStatus: NodeDtLoadingStatus, refresh: Int = 0): Unit = {
     val client: RestHighLevelClient = elasticClient.httpClient
@@ -74,9 +77,9 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
   def dtUpdateStatusByIndex(dtIndexName: String = "", minTs: Long = 0): List[NodeDtLoadingStatus] = {
     val client: RestHighLevelClient = elasticClient.httpClient
-
+    val esSystemIndex = if(dtIndexName.nonEmpty) Index.esSystemIndexName(dtIndexName) else ""
     val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
-    if(dtIndexName =/= "") boolQueryBuilder.filter(QueryBuilders.termQuery("index", dtIndexName))
+    if(esSystemIndex =/= "") boolQueryBuilder.filter(QueryBuilders.termQuery("index", esSystemIndex))
     if(minTs > 0) boolQueryBuilder.filter(QueryBuilders.rangeQuery("timestamp").gte(minTs))
 
     val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
@@ -96,17 +99,17 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
       val uuid: String = source.get("uuid") match {
         case Some(t) => t.asInstanceOf[String]
-        case _ => throw NodeDtLoadingStatusServiceException("Failed to get uuid for the index: " + dtIndexName)
+        case _ => throw NodeDtLoadingStatusServiceException("Failed to get uuid for the index: " + esSystemIndex)
       }
 
       val index : String = source.get("index") match {
         case Some(t) => t.asInstanceOf[String]
-        case _ => throw NodeDtLoadingStatusServiceException("Failed to get index name: " + dtIndexName)
+        case _ => throw NodeDtLoadingStatusServiceException("Failed to get index name: " + esSystemIndex)
       }
 
       val timestamp : Long = source.get("timestamp") match {
         case Some(t) => t.asInstanceOf[Long]
-        case _ => throw NodeDtLoadingStatusServiceException("Failed to get timestamp for the index: " + dtIndexName)
+        case _ => throw NodeDtLoadingStatusServiceException("Failed to get timestamp for the index: " + esSystemIndex)
       }
 
       NodeDtLoadingStatus(uuid = Some{uuid}, index = index, timestamp = Some{timestamp})

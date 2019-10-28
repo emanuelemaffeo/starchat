@@ -8,7 +8,7 @@ import org.elasticsearch.action.bulk.{BulkRequest, BulkResponse}
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
 import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.index.reindex.DeleteByQueryRequest
+import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryAction, DeleteByQueryRequest, DeleteByQueryRequestBuilder}
 import org.elasticsearch.rest.RestStatus
 import scalaz.Scalaz._
 
@@ -30,15 +30,33 @@ trait AbstractDataService {
     */
   def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
-
+    val esSystemIndexName = Index.esSystemIndexName(indexName, elasticClient.indexSuffix)
     val request: DeleteByQueryRequest =
-      new DeleteByQueryRequest(Index.indexName(indexName, elasticClient.indexSuffix))
+      new DeleteByQueryRequest(esSystemIndexName)
     request.setConflicts("proceed")
     request.setQuery(QueryBuilders.matchAllQuery)
 
     val bulkResponse = client.deleteByQuery(request, RequestOptions.DEFAULT)
 
     DeleteDocumentsSummaryResult(message = "delete", deleted = bulkResponse.getTotal)
+  }
+
+  /**
+    *
+    * @param instance
+    * @return DeleteDocumentListResult with the result of instance delete operations
+    */
+  def deleteInstance(instance: String): List[DeleteDocumentsSummaryResult] = {
+    val mainIndexes = List("question_answer, state, term")
+    val client: RestHighLevelClient = elasticClient.httpClient
+
+    mainIndexes.map { idx =>
+      val req = new DeleteByQueryRequest(Index.indexName(idx, elasticClient.indexSuffix))
+      req.setQuery(QueryBuilders.matchQuery("name", instance))
+      req.setConflicts("proceed")
+      val bulkResponse = client.deleteByQuery(req, RequestOptions.DEFAULT)
+      DeleteDocumentsSummaryResult(message = "delete", deleted = bulkResponse.getTotal)
+    }
   }
 
   /** delete one or more terms
@@ -50,12 +68,12 @@ trait AbstractDataService {
     */
   def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
-
-    val bulkReq : BulkRequest = new BulkRequest()
+    val esSystemIndexName = Index.esSystemIndexName(indexName, elasticClient.indexSuffix)
+    val bulkReq: BulkRequest = new BulkRequest()
 
     ids.foreach( id => {
       val deleteReq = new DeleteRequest()
-        .index(Index.indexName(indexName, elasticClient.indexSuffix))
+        .index(esSystemIndexName)
         .id(id)
       bulkReq.add(deleteReq)
     })
@@ -64,7 +82,7 @@ trait AbstractDataService {
 
     if (refresh =/= 0) {
       val refreshIndex = elasticClient
-        .refresh(Index.indexName(indexName, elasticClient.indexSuffix))
+        .refresh(esSystemIndexName)
       if(refreshIndex.failedShardsN > 0) {
         throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
       }

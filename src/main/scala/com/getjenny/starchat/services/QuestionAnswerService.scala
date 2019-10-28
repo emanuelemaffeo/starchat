@@ -4,41 +4,35 @@ package com.getjenny.starchat.services
   * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
   */
 
-import java.time.{ZoneId, ZoneOffset}
+import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
 
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.util.{RandomNumbers, Time}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.{LabelCountHistogramItem, _}
-import com.getjenny.starchat.services.esclient.QuestionAnswerElasticClient
+import com.getjenny.starchat.services.esclient.{EsCrudBase, QuestionAnswerElasticClient}
 import com.getjenny.starchat.utils.Index
 import org.apache.lucene.search.join._
-import org.elasticsearch.action.bulk.BulkRequest
-import org.elasticsearch.action.get.{GetResponse, MultiGetItemResponse, MultiGetRequest}
-import org.elasticsearch.action.index.{IndexRequest, IndexResponse}
-import org.elasticsearch.action.search.{SearchRequest, SearchResponse, SearchScrollRequest, SearchType}
-import org.elasticsearch.action.update.UpdateRequest
-import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
-import org.elasticsearch.common.unit.TimeValue
+import org.elasticsearch.action.index.IndexResponse
+import org.elasticsearch.action.search.{SearchScrollRequest, SearchType}
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.index.query.functionscore._
 import org.elasticsearch.index.query.{BoolQueryBuilder, InnerHitBuilder, QueryBuilder, QueryBuilders}
 import org.elasticsearch.rest.RestStatus
 import org.elasticsearch.script._
-import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.bucket.filter.ParsedFilter
 import org.elasticsearch.search.aggregations.bucket.histogram.{DateHistogramInterval, Histogram, ParsedDateHistogram}
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms
 import org.elasticsearch.search.aggregations.metrics.{Avg, Cardinality, Sum}
-import org.elasticsearch.search.builder.SearchSourceBuilder
+import org.elasticsearch.search.aggregations.{AggregationBuilder, AggregationBuilders}
 import org.elasticsearch.search.sort.{FieldSortBuilder, ScoreSortBuilder, SortOrder}
 import scalaz.Scalaz._
-import java.time.ZonedDateTime
+
 import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
-import scala.concurrent.Future
+import scala.collection.mutable.ListBuffer
 
 case class QuestionAnswerServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -57,42 +51,34 @@ trait QuestionAnswerService extends AbstractDataService {
   var cacheStealTimeMillis: Int
 
   /** Calculate the dictionary size for one index i.e. the number of unique terms
-    *   in the fields question, answer and in the union of both the fields
+    * in the fields question, answer and in the union of both the fields
+    *
     * @param indexName the index name
     * @return a data structure with the unique terms counts
     */
   private[this] def calcDictSize(indexName: String): DictSize = {
-    val client: RestHighLevelClient = elasticClient.httpClient
+    val instance = Index.instanceName(indexName)
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
 
     val questionAgg = AggregationBuilders.cardinality("question_term_count").field("question.base")
     val answerAgg = AggregationBuilders.cardinality("answer_term_count").field("answer.base")
-
     val scriptBody = "def qnList = new ArrayList(doc[\"question.base\"]) ; " +
       "List anList = doc[\"answer.base\"] ; qnList.addAll(anList) ; return qnList ;"
-    val script: Script = new Script(scriptBody)
-    val totalAgg = AggregationBuilders.cardinality("total_term_count").script(script)
+    val totalAgg = AggregationBuilders.cardinality("total_term_count").script(new Script(scriptBody))
 
-    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
-      .query(QueryBuilders.matchAllQuery)
-      .size(0)
-      .aggregation(questionAgg)
-      .aggregation(answerAgg)
-      .aggregation(totalAgg)
+    val query = QueryBuilders.matchAllQuery
 
-    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
-      .source(sourceReq)
-      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
-      .requestCache(true)
-
-    val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
-
-    val totalHits = searchResp.getHits.getTotalHits.value
+    val searchResp = esCrudBase.find(instance, query,
+      aggregation = List(questionAgg, answerAgg, totalAgg),
+      searchType = SearchType.DFS_QUERY_THEN_FETCH,
+      maxItems = Option(0),
+      requestCache = Option(true))
 
     val questionAggRes: Cardinality = searchResp.getAggregations.get("question_term_count")
     val answerAggRes: Cardinality = searchResp.getAggregations.get("answer_term_count")
     val totalAggRes: Cardinality = searchResp.getAggregations.get("total_term_count")
 
-    DictSize(numDocs = totalHits,
+    DictSize(numDocs = searchResp.getHits.getTotalHits.value,
       question = questionAggRes.getValue,
       answer = answerAggRes.getValue,
       total = totalAggRes.getValue
@@ -104,24 +90,26 @@ trait QuestionAnswerService extends AbstractDataService {
     mutable.LinkedHashMap[String, (Long, DictSize)]()
 
   /** Return the the dictionary size for one index i.e. the number of unique terms
-    *   in the fields question, answer and in the union of both the fields
+    * in the fields question, answer and in the union of both the fields
     * The function returns cached results.
     *
     * @param indexName the index name
-    * @param stale the max cache age in milliseconds
+    * @param stale     the max cache age in milliseconds
     * @return a data structure with the unique terms counts
     */
   def dictSize(indexName: String, stale: Long = cacheStealTimeMillis): DictSize = {
     val key = indexName
     dictSizeCache.get(key) match {
-      case Some((lastUpdateTs,dictSize)) =>
+      case Some((lastUpdateTs, dictSize)) =>
         val cacheStaleTime = math.abs(Time.timestampMillis - lastUpdateTs)
-        if(cacheStaleTime < stale) {
+        if (cacheStaleTime < stale) {
           dictSize
         } else {
           val result = calcDictSize(indexName = indexName)
           if (dictSizeCache.size >= dictSizeCacheMaxSize) {
-            dictSizeCache.head match { case (oldestTerm, (_, _)) => dictSizeCache -= oldestTerm}
+            dictSizeCache.head match {
+              case (oldestTerm, (_, _)) => dictSizeCache -= oldestTerm
+            }
           }
           dictSizeCache.remove(key)
           dictSizeCache.update(key, (Time.timestampMillis, result))
@@ -130,7 +118,9 @@ trait QuestionAnswerService extends AbstractDataService {
       case _ =>
         val result = calcDictSize(indexName = indexName)
         if (dictSizeCache.size >= dictSizeCacheMaxSize) {
-          dictSizeCache.head match { case (oldestTerm, (_, _)) => dictSizeCache -= oldestTerm}
+          dictSizeCache.head match {
+            case (oldestTerm, (_, _)) => dictSizeCache -= oldestTerm
+          }
         }
         dictSizeCache.update(key, (Time.timestampMillis, result))
         result
@@ -143,23 +133,18 @@ trait QuestionAnswerService extends AbstractDataService {
     * @return a data structure with the terms counting and the total number of documents
     */
   private[this] def calcTotalTerms(indexName: String): TotalTerms = {
-    val client: RestHighLevelClient = elasticClient.httpClient
+    val instance = Index.instanceName(indexName)
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
 
     val questionAgg = AggregationBuilders.sum("question_term_count").field("question.base_length")
     val answerAgg = AggregationBuilders.sum("answer_term_count").field("answer.base_length")
 
-    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
-      .query(QueryBuilders.matchAllQuery)
-      .size(0)
-      .aggregation(questionAgg)
-      .aggregation(answerAgg)
+    val query = QueryBuilders.matchAllQuery
 
-    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
-      .source(sourceReq)
-      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
-      .requestCache(true)
-
-    val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
+    val searchResp = esCrudBase.find(instance, query, aggregation = List(questionAgg, answerAgg),
+      maxItems = Option(0),
+      searchType = SearchType.DFS_QUERY_THEN_FETCH,
+      requestCache = Option(true))
 
     val totalHits = searchResp.getHits.getTotalHits.value
 
@@ -178,20 +163,22 @@ trait QuestionAnswerService extends AbstractDataService {
   /** Returns the total number of terms in the fields question and answer, including duplicates.
     *
     * @param indexName the index name
-    * @param stale the max cache age in milliseconds
+    * @param stale     the max cache age in milliseconds
     * @return a data structure with the terms counting and the total number of documents
     */
   def totalTerms(indexName: String, stale: Long = cacheStealTimeMillis): TotalTerms = {
     val key = indexName
     totalTermsCache.get(key) match {
-      case Some((lastUpdateTs,dictSize)) =>
+      case Some((lastUpdateTs, dictSize)) =>
         val cacheStaleTime = math.abs(Time.timestampMillis - lastUpdateTs)
-        if(cacheStaleTime < stale) {
+        if (cacheStaleTime < stale) {
           dictSize
         } else {
           val result = calcTotalTerms(indexName = indexName)
           if (totalTermsCache.size >= totalTermsCacheMaxSize) {
-            totalTermsCache.head match { case (oldestTerm, (_, _)) => totalTermsCache -= oldestTerm}
+            totalTermsCache.head match {
+              case (oldestTerm, (_, _)) => totalTermsCache -= oldestTerm
+            }
           }
           totalTermsCache.remove(key)
           totalTermsCache.update(key, (Time.timestampMillis, result))
@@ -200,7 +187,9 @@ trait QuestionAnswerService extends AbstractDataService {
       case _ =>
         val result = calcTotalTerms(indexName = indexName)
         if (totalTermsCache.size >= totalTermsCacheMaxSize) {
-          totalTermsCache.head match { case (oldestTerm, (_, _)) => totalTermsCache -= oldestTerm}
+          totalTermsCache.head match {
+            case (oldestTerm, (_, _)) => totalTermsCache -= oldestTerm
+          }
         }
         totalTermsCache.update(key, (Time.timestampMillis, result))
         result
@@ -208,47 +197,35 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   /** calculate the occurrence of a term in the document fields questions or answer and the number of document
-    *   in which the term occur
+    * in which the term occur
     *
     * @param indexName index name
-    * @param field the field: question, answer or all for both
-    * @param term the term to search
+    * @param field     the field: question, answer or all for both
+    * @param term      the term to search
     * @return the occurrence of term in the documents and the number of documents
     */
   def calcTermCount(indexName: String,
                     field: TermCountFields.Value = TermCountFields.question, term: String): TermCount = {
-    val client: RestHighLevelClient = elasticClient.httpClient
+    val instance = Index.instanceName(indexName)
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
 
-    val script: Script = new Script("_score")
-
-    val agg = AggregationBuilders.sum("countTerms").script(script)
+    val agg = AggregationBuilders.sum("countTerms")
+      .script(new Script("_score"))
 
     val esFieldName: String = field match {
       case TermCountFields.question => "question.freq"
       case TermCountFields.answer => "answer.freq"
     }
 
-    val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
-      .must(QueryBuilders.matchQuery(esFieldName, term))
+    val query = QueryBuilders.matchQuery(esFieldName, term)
 
-    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
-      .query(boolQueryBuilder)
-      .size(0)
-      .aggregation(agg)
-
-    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
-      .source(sourceReq)
-      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
-      .requestCache(true)
-
-    val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
+    val searchResp = esCrudBase.find(instance, query, aggregation = List(agg),
+      searchType = SearchType.DFS_QUERY_THEN_FETCH, requestCache = Option(true))
 
     val totalHits = searchResp.getHits.getTotalHits.value
-
     val aggRes: Sum = searchResp.getAggregations.get("countTerms")
 
-    TermCount(numDocs = totalHits,
-      count = aggRes.getValue.toLong)
+    TermCount(numDocs = totalHits, count = aggRes.getValue.toLong)
   }
 
   var countTermCacheMaxSize: Int
@@ -256,40 +233,32 @@ trait QuestionAnswerService extends AbstractDataService {
     mutable.LinkedHashMap[String, (Long, TermCount)]()
 
   /** Return the occurrence of a term in the document fields questions or answer and the number of document
-    *   in which the term occur
-    *
+    * in which the term occur
     *
     * @param indexName index name
-    * @param field the field: question, answer or all for both
-    * @param term the term to search
-    * @param stale the max cache age in milliseconds
+    * @param field     the field: question, answer or all for both
+    * @param term      the term to search
+    * @param stale     the max cache age in milliseconds
     * @return the occurrence of term in the documents and the number of documents
     */
   def termCount(indexName: String, field: TermCountFields.Value, term: String,
                 stale: Long = cacheStealTimeMillis): TermCount = {
     val key = indexName + field + term
-    countTermCache.get(key) match {
-      case Some((lastUpdateTs,dictSize)) =>
-        val cacheStaleTime = math.abs(Time.timestampMillis - lastUpdateTs)
-        if(cacheStaleTime < stale) {
-          dictSize
-        } else {
-          val result = calcTermCount(indexName = indexName, field = field, term = term)
-          if (countTermCache.size > countTermCacheMaxSize) {
-            countTermCache.head match { case (oldestTerm, (_, _)) => countTermCache -= oldestTerm}
-          }
-          countTermCache.remove(key)
-          countTermCache.update(key, (Time.timestampMillis, result))
-          result
-        }
-      case _ =>
+
+    countTermCache.get(key)
+      .filter { case (lastUpdateTs, _) => math.abs(Time.timestampMillis - lastUpdateTs) < stale }
+      .map { case (_, dictSize) => dictSize }
+      .getOrElse {
         val result = calcTermCount(indexName = indexName, field = field, term = term)
         if (countTermCache.size > countTermCacheMaxSize) {
-          countTermCache.head match { case (oldestTerm, (_, _)) => countTermCache -= oldestTerm}
+          countTermCache.head match {
+            case (oldestTerm, (_, _)) => countTermCache -= oldestTerm
+          }
         }
+        countTermCache.remove(key)
         countTermCache.update(key, (Time.timestampMillis, result))
         result
-    }
+      }
   }
 
   /** set the number of terms counter's cached entries
@@ -348,40 +317,44 @@ trait QuestionAnswerService extends AbstractDataService {
     countersCacheParameters
   }
 
-  def documentFromMap(indexName: String, id: String, source : Map[String, Any]): QADocument = {
-    val conversation : String = source.get("conversation") match {
+  def documentFromMap(indexName: String, id: String, source: Map[String, Any]): QADocument = {
+    val conversation: String = source.get("conversation") match {
       case Some(t) => t.asInstanceOf[String]
       case _ => throw QuestionAnswerServiceException("Missing conversation ID for " +
-        "index:docId(" + indexName + ":"  + id + ")")
+        "index:docId(" + indexName + ":" + id + ")")
     }
 
-    val indexInConversation : Int = source.get("index_in_conversation") match {
+    val indexInConversation: Int = source.get("index_in_conversation") match {
       case Some(t) => t.asInstanceOf[Int]
       case _ => throw QuestionAnswerServiceException("Missing index in conversation for " +
-        "index:docId(" + indexName + ":"  + id + ")")
+        "index:docId(" + indexName + ":" + id + ")")
     }
 
-    val status : Option[Int] = source.get("status") match {
+    val status: Option[Int] = source.get("status") match {
       case Some(t) => Some(t.asInstanceOf[Int])
       case _ => Some(0)
     }
 
-    val timestamp : Option[Long] = source.get("timestamp") match {
-      case Some(t) => Option { t.asInstanceOf[Long] }
-      case _ => None : Option[Long]
+    val timestamp: Option[Long] = source.get("timestamp") match {
+      case Some(t) => Option {
+        t.asInstanceOf[Long]
+      }
+      case _ => None: Option[Long]
     }
 
     // begin core data
-    val question : Option[String] = source.get("question") match {
+    val question: Option[String] = source.get("question") match {
       case Some(t) => Some(t.asInstanceOf[String])
       case _ => None
     }
 
-    val questionNegative : Option[List[String]] = source.get("question_negative") match {
+    val questionNegative: Option[List[String]] = source.get("question_negative") match {
       case Some(t) =>
         val res = t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, String]]]
           .asScala.map(_.asScala.get("query")).filter(_.nonEmpty).map(_.get).toList
-        Option { res }
+        Option {
+          res
+        }
       case _ => None: Option[List[String]]
     }
 
@@ -393,10 +366,10 @@ trait QuestionAnswerService extends AbstractDataService {
               pair.getOrDefault("score", 0.0).asInstanceOf[Double]))
           .toList
       }
-      case _ => None : Option[List[(String, Double)]]
+      case _ => None: Option[List[(String, Double)]]
     }
 
-    val answer : Option[String] = source.get("answer") match {
+    val answer: Option[String] = source.get("answer") match {
       case Some(t) => Some(t.asInstanceOf[String])
       case _ => None
     }
@@ -409,20 +382,22 @@ trait QuestionAnswerService extends AbstractDataService {
               pair.getOrDefault("score", 0.0).asInstanceOf[Double]))
           .toList
       }
-      case _ => None : Option[List[(String, Double)]]
+      case _ => None: Option[List[(String, Double)]]
     }
 
-    val topics : Option[String] = source.get("topics") match {
-      case Some(t) => Option { t.asInstanceOf[String] }
-      case _ => None : Option[String]
+    val topics: Option[String] = source.get("topics") match {
+      case Some(t) => Option {
+        t.asInstanceOf[String]
+      }
+      case _ => None: Option[String]
     }
 
-    val verified : Option[Boolean] = source.get("verified") match {
+    val verified: Option[Boolean] = source.get("verified") match {
       case Some(t) => Some(t.asInstanceOf[Boolean])
       case _ => Some(false)
     }
 
-    val done : Option[Boolean] = source.get("done") match {
+    val done: Option[Boolean] = source.get("done") match {
       case Some(t) => Some(t.asInstanceOf[Boolean])
       case _ => Some(false)
     }
@@ -442,77 +417,97 @@ trait QuestionAnswerService extends AbstractDataService {
     // begin core data
 
     // begin annotations
-    val dclass : Option[String] = source.get("dclass") match {
-      case Some(t) => Option { t.asInstanceOf[String] }
-      case _ => None : Option[String]
+    val dclass: Option[String] = source.get("dclass") match {
+      case Some(t) => Option {
+        t.asInstanceOf[String]
+      }
+      case _ => None: Option[String]
     }
 
-    val doctype : Option[Doctypes.Value] = source.get("doctype") match {
-      case Some(t) => Some{Doctypes.value(t.asInstanceOf[String])}
-      case _ => Some{Doctypes.NORMAL}
+    val doctype: Option[Doctypes.Value] = source.get("doctype") match {
+      case Some(t) => Some {
+        Doctypes.value(t.asInstanceOf[String])
+      }
+      case _ => Some {
+        Doctypes.NORMAL
+      }
     }
 
-    val state : Option[String] = source.get("state") match {
-      case Some(t) => Option { t.asInstanceOf[String] }
-      case _ => None : Option[String]
+    val state: Option[String] = source.get("state") match {
+      case Some(t) => Option {
+        t.asInstanceOf[String]
+      }
+      case _ => None: Option[String]
     }
 
-    val agent : Option[Agent.Value] = source.get("agent") match {
+    val agent: Option[Agent.Value] = source.get("agent") match {
       case Some(t) => Some(Agent.value(t.asInstanceOf[String]))
       case _ => Some(Agent.STARCHAT)
     }
 
-    val escalated : Option[Escalated.Value] = source.get("escalated") match {
+    val escalated: Option[Escalated.Value] = source.get("escalated") match {
       case Some(t) => Some(Escalated.value(t.asInstanceOf[String]))
       case _ => Some(Escalated.UNSPECIFIED)
     }
 
-    val answered : Option[Answered.Value] = source.get("answered") match {
+    val answered: Option[Answered.Value] = source.get("answered") match {
       case Some(t) => Some(Answered.value(t.asInstanceOf[String]))
       case _ => Some(Answered.ANSWERED)
     }
 
-    val triggered : Option[Triggered.Value] = source.get("triggered") match {
+    val triggered: Option[Triggered.Value] = source.get("triggered") match {
       case Some(t) => Some(Triggered.value(t.asInstanceOf[String]))
       case _ => Some(Triggered.UNSPECIFIED)
     }
 
-    val followup : Option[Followup.Value] = source.get("followup") match {
+    val followup: Option[Followup.Value] = source.get("followup") match {
       case Some(t) => Some(Followup.value(t.asInstanceOf[String]))
       case _ => Some(Followup.UNSPECIFIED)
     }
 
-    val feedbackConv : Option[String] = source.get("feedbackConv") match {
-      case Some(t) => Option { t.asInstanceOf[String] }
-      case _ => None : Option[String]
+    val feedbackConv: Option[String] = source.get("feedbackConv") match {
+      case Some(t) => Option {
+        t.asInstanceOf[String]
+      }
+      case _ => None: Option[String]
     }
 
-    val feedbackConvScore : Option[Double] = source.get("feedbackConvScore") match {
-      case Some(t) => Option { t.asInstanceOf[Double] }
-      case _ => None : Option[Double]
+    val feedbackConvScore: Option[Double] = source.get("feedbackConvScore") match {
+      case Some(t) => Option {
+        t.asInstanceOf[Double]
+      }
+      case _ => None: Option[Double]
     }
 
-    val algorithmConvScore : Option[Double] = source.get("algorithmConvScore") match {
-      case Some(t) => Option { t.asInstanceOf[Double] }
-      case _ => None : Option[Double]
+    val algorithmConvScore: Option[Double] = source.get("algorithmConvScore") match {
+      case Some(t) => Option {
+        t.asInstanceOf[Double]
+      }
+      case _ => None: Option[Double]
     }
 
-    val feedbackAnswerScore : Option[Double] = source.get("feedbackAnswerScore") match {
-      case Some(t) => Option { t.asInstanceOf[Double] }
-      case _ => None : Option[Double]
+    val feedbackAnswerScore: Option[Double] = source.get("feedbackAnswerScore") match {
+      case Some(t) => Option {
+        t.asInstanceOf[Double]
+      }
+      case _ => None: Option[Double]
     }
 
-    val algorithmAnswerScore : Option[Double] = source.get("algorithmAnswerScore") match {
-      case Some(t) => Option { t.asInstanceOf[Double] }
-      case _ => None : Option[Double]
+    val algorithmAnswerScore: Option[Double] = source.get("algorithmAnswerScore") match {
+      case Some(t) => Option {
+        t.asInstanceOf[Double]
+      }
+      case _ => None: Option[Double]
     }
 
-    val responseScore : Option[Double] = source.get("responseScore") match {
-      case Some(t) => Option { t.asInstanceOf[Double] }
-      case _ => None : Option[Double]
+    val responseScore: Option[Double] = source.get("responseScore") match {
+      case Some(t) => Option {
+        t.asInstanceOf[Double]
+      }
+      case _ => None: Option[Double]
     }
 
-    val start : Option[Boolean] = source.get("start") match {
+    val start: Option[Boolean] = source.get("start") match {
       case Some(t) => Some(t.asInstanceOf[Boolean])
       case _ => Some(false)
     }
@@ -550,7 +545,7 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   private[this] def queryBuilder(documentSearch: QADocumentSearch): BoolQueryBuilder = {
-    val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
+    val boolQueryBuilder: BoolQueryBuilder = QueryBuilders.boolQuery()
 
     documentSearch.conversation match {
       case Some(convIds) =>
@@ -833,51 +828,41 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   def search(indexName: String, documentSearch: QADocumentSearch): Option[SearchQADocumentsResults] = {
-    val client: RestHighLevelClient = elasticClient.httpClient
+    val instance = Index.instanceName(indexName)
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
 
-    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
-      .from(documentSearch.from.getOrElse(0))
-      .size(documentSearch.size.getOrElse(10))
-      .minScore(documentSearch.minScore.getOrElse(Option{elasticClient.queryMinThreshold}.getOrElse(0.0f)))
-
-    documentSearch.sortByConvIdIdx match {
-      case Some(true) =>
-        sourceReq.sort(new FieldSortBuilder("conversation").order(SortOrder.DESC))
-          .sort(new FieldSortBuilder("index_in_conversation").order(SortOrder.DESC))
-          .sort(new FieldSortBuilder("timestamp").order(SortOrder.DESC))
-      case _ => sourceReq.sort(new ScoreSortBuilder().order(SortOrder.DESC))
+    val sort = documentSearch.sortByConvIdIdx match {
+      case Some(true) => List(new FieldSortBuilder("conversation").order(SortOrder.DESC),
+        new FieldSortBuilder("index_in_conversation").order(SortOrder.DESC),
+        new FieldSortBuilder("timestamp").order(SortOrder.DESC))
+      case _ => List(new ScoreSortBuilder().order(SortOrder.DESC))
     }
 
-    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
-      .source(sourceReq)
-      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
+    val query = queryBuilder(documentSearch)
+    val searchResp = esCrudBase.find(instance, query,
+      from = documentSearch.from,
+      maxItems = documentSearch.size.orElse(Option(10)),
+      minScore = documentSearch.minScore.orElse(Option(elasticClient.queryMinThreshold)),
+      sort = sort,
+      searchType = SearchType.DFS_QUERY_THEN_FETCH)
 
-    val boolQueryBuilder : BoolQueryBuilder = queryBuilder(documentSearch)
-
-    sourceReq.query(boolQueryBuilder)
-
-    val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
-
-    val documents : Option[List[SearchQADocument]] = Option {
+    val documents: Option[List[SearchQADocument]] = Option {
       searchResp.getHits.getHits.toList.map { item =>
-        val id : String = item.getId
-
-        val source : Map[String, Any] = item.getSourceAsMap.asScala.toMap
-
+        val id: String = item.getId
+        val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
         val document = documentFromMap(indexName, id, source)
-
-        val searchDocument : SearchQADocument = SearchQADocument(score = item.getScore, document = document)
+        val searchDocument: SearchQADocument = SearchQADocument(score = item.getScore, document = document)
         searchDocument
       }
     }
 
-    val filteredDoc : List[SearchQADocument] =
+    val filteredDoc: List[SearchQADocument] =
       documents.getOrElse(List.empty[SearchQADocument])
 
-    val maxScore : Float = searchResp.getHits.getMaxScore
+    val maxScore: Float = searchResp.getHits.getMaxScore
     val totalHits = searchResp.getHits.getTotalHits.value
-    val total : Int = filteredDoc.length
-    val searchResults : SearchQADocumentsResults = SearchQADocumentsResults(totalHits = totalHits,
+    val total: Int = filteredDoc.length
+    val searchResults: SearchQADocumentsResults = SearchQADocumentsResults(totalHits = totalHits,
       hitsCount = total, maxScore = maxScore, hits = filteredDoc)
 
     Some(searchResults)
@@ -892,7 +877,7 @@ trait QuestionAnswerService extends AbstractDataService {
     search(indexName = indexName, documentSearch = documentSearch) match {
       case Some(searchRes) =>
         val conversations = searchRes.hits.groupBy(_.document.conversation)
-          .map { case(_: String, docs: List[SearchQADocument]) =>
+          .map { case (_: String, docs: List[SearchQADocument]) =>
             Conversation(
               count = docs.length,
               docs = docs.map((_: SearchQADocument).document)
@@ -905,21 +890,13 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   def analytics(indexName: String, request: QAAggregatedAnalyticsRequest): QAAggregatedAnalytics = {
-    val client: RestHighLevelClient = elasticClient.httpClient
+    val instance = Index.instanceName(indexName)
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
+
     val firstIndexInConv: Long = 1
+    val query: BoolQueryBuilder = QueryBuilders.boolQuery()
 
-    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
-      .size(0)
-      .minScore(0.0f)
-
-    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
-      .source(sourceReq)
-      .searchType(SearchType.DFS_QUERY_THEN_FETCH)
-      .requestCache(true)
-
-    val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
-
-    val dateHistInterval = if(intervalRe.pattern.matcher(request.interval.getOrElse("1M")).matches()) {
+    val dateHistInterval = if (intervalRe.pattern.matcher(request.interval.getOrElse("1M")).matches()) {
       new DateHistogramInterval(request.interval.getOrElse("1M"))
     } else throw QuestionAnswerServiceException("time interval is not well formed")
 
@@ -930,7 +907,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     request.timestampGte match {
       case Some(ts) =>
-        boolQueryBuilder.filter(
+        query.filter(
           QueryBuilders.rangeQuery("timestamp")
             .gte(ts))
       case _ => ;
@@ -938,281 +915,22 @@ trait QuestionAnswerService extends AbstractDataService {
 
     request.timestampLte match {
       case Some(ts) =>
-        boolQueryBuilder.filter(
+        query.filter(
           QueryBuilders.rangeQuery("timestamp")
             .lte(ts))
       case _ => ;
     }
 
-    sourceReq.query(boolQueryBuilder)
+    val aggregationList = createAggregations(request, firstIndexInConv, dateHistInterval, minDocInBuckets)
 
-    sourceReq.aggregation(AggregationBuilders.cardinality("totalDocuments")
-      .field("_id").precisionThreshold(40000))
-
-    sourceReq.aggregation(AggregationBuilders.cardinality("totalConversations")
-      .field("conversation").precisionThreshold(4000))
-
-    val dateHistTimezone = request.timezone match {
-      case Some(tz) => ZoneId.ofOffset("UTC", ZoneOffset.of(tz))
-      case _ => ZoneId.ofOffset("UTC", ZoneOffset.of("+00:00"))
-    }
-
-    request.aggregations match {
-      case Some(aggregationsReq) =>
-        val reqAggs = aggregationsReq.toSet
-        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackConvScore)) {
-          sourceReq.aggregation(
-            AggregationBuilders.avg("avgFeedbackConvScore").field("feedbackConvScore"))
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScore)) {
-          sourceReq.aggregation(
-            AggregationBuilders.avg("avgFeedbackAnswerScore").field("feedbackAnswerScore"))
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScore)) {
-          sourceReq.aggregation(
-            AggregationBuilders.avg("avgAlgorithmConvScore").field("algorithmConvScore"))
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScore)) {
-          sourceReq.aggregation(
-            AggregationBuilders.avg("avgAlgorithmAnswerScore").field("algorithmAnswerScore"))
-        }
-        if (reqAggs.contains(QAAggregationsTypes.scoreHistogram)) {
-          sourceReq.aggregation(
-            AggregationBuilders
-              .histogram("scoreHistogram").field("feedbackConvScore")
-              .interval(1.0d).minDocCount(minDocInBuckets)
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.scoreHistogramNotTransferred)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("scoreHistogramNotTransferred",
-              QueryBuilders.boolQuery().mustNot(
-                QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString)
-              )
-            ).subAggregation(
-              AggregationBuilders
-                .histogram("scoreHistogramNotTransferred").field("feedbackConvScore")
-                .interval(1.0d).minDocCount(minDocInBuckets)
-            )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.scoreHistogramTransferred)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("scoreHistogramTransferred",
-              QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-            ).subAggregation(
-              AggregationBuilders
-                .histogram("scoreHistogramTransferred").field("feedbackConvScore")
-                .interval(1.0d).minDocCount(minDocInBuckets)
-            )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.conversationsHistogram)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("conversationsHistogram",
-              QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)).subAggregation(
-              AggregationBuilders
-                .dateHistogram("conversationsHistogram").field("timestamp")
-                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-            )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.conversationsNotTransferredHistogram)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("conversationsNotTransferredHistogram",
-              QueryBuilders.boolQuery()
-                .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-                .must(QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)))
-              .subAggregation(
-                AggregationBuilders
-                  .dateHistogram("conversationsNotTransferredHistogram").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.conversationsTransferredHistogram)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("conversationsTransferredHistogram",
-              QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-                .must(QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)))
-              .subAggregation(
-                AggregationBuilders
-                  .dateHistogram("conversationsTransferredHistogram").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.qaPairHistogram)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("qaPairHistogram",
-              QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-              .subAggregation(
-                AggregationBuilders
-                  .dateHistogram("qaPairHistogram").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.qaPairAnsweredHistogram)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("qaPairAnsweredHistogram",
-              QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("answered", Answered.ANSWERED.toString))
-                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-              .subAggregation(
-                AggregationBuilders
-                  .dateHistogram("qaPairAnsweredHistogram").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.qaPairUnansweredHistogram)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("qaPairUnansweredHistogram",
-              QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("answered", Answered.UNANSWERED.toString))
-                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-              .subAggregation(
-                AggregationBuilders
-                  .dateHistogram("qaPairUnansweredHistogram").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesHistogram)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("qaMatchedStatesHistogram",
-              QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-              .subAggregation(
-                AggregationBuilders.terms("qaMatchedStatesHistogram").field("state")
-              )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesWithScoreHistogram)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("qaMatchedStatesWithScoreHistogram",
-              QueryBuilders.boolQuery()
-                .must(QueryBuilders.rangeQuery("feedbackAnswerScore").gte(0.0))
-                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-              .subAggregation(
-                AggregationBuilders.terms("qaMatchedStatesWithScoreHistogram").field("state")
-              )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackNotTransferredConvScoreOverTime)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("avgFeedbackNotTransferredConvScoreOverTime",
-              QueryBuilders.boolQuery()
-                .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-            ).subAggregation(
-              AggregationBuilders
-                .dateHistogram("avgFeedbackNotTransferredConvScoreOverTime").field("timestamp")
-                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
-            )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackTransferredConvScoreOverTime)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("avgFeedbackTransferredConvScoreOverTime",
-              QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-            ).subAggregation(
-              AggregationBuilders
-                .dateHistogram("avgFeedbackTransferredConvScoreOverTime").field("timestamp")
-                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
-            )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmNotTransferredConvScoreOverTime)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("avgAlgorithmNotTransferredConvScoreOverTime",
-              QueryBuilders.boolQuery()
-                .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-            ).subAggregation(
-              AggregationBuilders
-                .dateHistogram("avgAlgorithmNotTransferredConvScoreOverTime").field("timestamp")
-                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
-            )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmTransferredConvScoreOverTime)) {
-          sourceReq.aggregation(
-            AggregationBuilders.filter("avgAlgorithmTransferredConvScoreOverTime",
-              QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-            ).subAggregation(
-              AggregationBuilders
-                .dateHistogram("avgAlgorithmTransferredConvScoreOverTime").field("timestamp")
-                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
-            )
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackConvScoreOverTime)) {
-          sourceReq.aggregation(
-            AggregationBuilders
-              .dateHistogram("avgFeedbackConvScoreOverTime").field("timestamp")
-              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScoreOverTime)) {
-          sourceReq.aggregation(
-            AggregationBuilders
-              .dateHistogram("avgAlgorithmAnswerScoreOverTime").field("timestamp")
-              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmAnswerScore"))
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScoreOverTime)) {
-          sourceReq.aggregation(
-            AggregationBuilders
-              .dateHistogram("avgFeedbackAnswerScoreOverTime").field("timestamp")
-              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackAnswerScore"))
-          )
-        }
-        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScoreOverTime)) {
-          sourceReq.aggregation(
-            AggregationBuilders
-              .dateHistogram("avgAlgorithmConvScoreOverTime").field("timestamp")
-              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
-          )
-        }
-      case _ => List.empty[QAAggregationsTypes.Value]
-    }
-
-    val searchResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
+    val searchResp = esCrudBase.find(instance, query,
+      searchType = SearchType.DFS_QUERY_THEN_FETCH,
+      requestCache = Some(true),
+      aggregation = aggregationList,
+      maxItems = Option(0),
+      minScore = Option(0.0f))
 
     val totalDocuments: Cardinality = searchResp.getAggregations.get("totalDocuments")
-
     val totalConversations: Cardinality = searchResp.getAggregations.get("totalConversations")
 
     val res = request.aggregations match {
@@ -1491,13 +1209,13 @@ trait QuestionAnswerService extends AbstractDataService {
         val labelCountHistograms: Map[String, List[LabelCountHistogramItem]] = Map(
           "qaMatchedStatesHistogram" -> qaMatchedStatesHistogram,
           "qaMatchedStatesWithScoreHistogram" -> qaMatchedStatesWithScoreHistogram,
-        ).filter{case (_, v) => v.nonEmpty}.map{case(k, v) => (k, v.get)}
+        ).filter { case (_, v) => v.nonEmpty }.map { case (k, v) => (k, v.get) }
 
         val scoreHistograms: Map[String, List[ScoreHistogramItem]] = Map(
           "scoreHistogram" -> scoreHistogram,
           "scoreHistogramNotTransferred" -> scoreHistogramNotTransferred,
           "scoreHistogramTransferred" -> scoreHistogramTransferred
-        ).filter{case (_, v) => v.nonEmpty}.map{case(k, v) => (k, v.get)}
+        ).filter { case (_, v) => v.nonEmpty }.map { case (k, v) => (k, v.get) }
 
         val countOverTimeHistograms: Map[String, List[CountOverTimeHistogramItem]] = Map(
           "conversationsHistogram" -> conversationsHistogram,
@@ -1506,7 +1224,7 @@ trait QuestionAnswerService extends AbstractDataService {
           "qaPairHistogram" -> qaPairHistogram,
           "qaPairAnsweredHistogram" -> qaPairAnsweredHistogram,
           "qaPairUnansweredHistogram" -> qaPairUnansweredHistogram
-        ).filter{case (_, v) => v.nonEmpty}.map{case(k, v) => (k, v.get)}
+        ).filter { case (_, v) => v.nonEmpty }.map { case (k, v) => (k, v.get) }
 
         val scoresOverTime: Map[String, List[AvgScoresHistogramItem]] = Map(
           "avgFeedbackNotTransferredConvScoreOverTime" -> avgFeedbackNotTransferredConvScoreOverTime,
@@ -1517,7 +1235,7 @@ trait QuestionAnswerService extends AbstractDataService {
           "avgAlgorithmAnswerScoreOverTime" -> avgAlgorithmAnswerScoreOverTime,
           "avgFeedbackAnswerScoreOverTime" -> avgFeedbackAnswerScoreOverTime,
           "avgAlgorithmConvScoreOverTime" -> avgAlgorithmConvScoreOverTime
-        ).filter{case (_, v) => v.nonEmpty}.map{case(k, v) => (k, v.get)}
+        ).filter { case (_, v) => v.nonEmpty }.map { case (k, v) => (k, v.get) }
 
         QAAggregatedAnalytics(totalDocuments = totalDocuments.getValue,
           totalConversations = totalConversations.getValue,
@@ -1525,10 +1243,10 @@ trait QuestionAnswerService extends AbstractDataService {
           avgFeedbackAnswerScore = avgFeedbackAnswerScore,
           avgAlgorithmConvScore = avgAlgorithmConvScore,
           avgAlgorithmAnswerScore = avgAlgorithmAnswerScore,
-          labelCountHistograms = if(labelCountHistograms.nonEmpty) Some(labelCountHistograms) else None,
-          scoreHistograms = if(scoreHistograms.nonEmpty) Some(scoreHistograms) else None,
-          countOverTimeHistograms = if(countOverTimeHistograms.nonEmpty) Some(countOverTimeHistograms) else None,
-          scoresOverTime = if(scoresOverTime.nonEmpty) Some(scoresOverTime) else None
+          labelCountHistograms = if (labelCountHistograms.nonEmpty) Some(labelCountHistograms) else None,
+          scoreHistograms = if (scoreHistograms.nonEmpty) Some(scoreHistograms) else None,
+          countOverTimeHistograms = if (countOverTimeHistograms.nonEmpty) Some(countOverTimeHistograms) else None,
+          scoresOverTime = if (scoresOverTime.nonEmpty) Some(scoresOverTime) else None
         )
       case _ =>
         QAAggregatedAnalytics(totalDocuments = totalDocuments.getValue,
@@ -1538,10 +1256,257 @@ trait QuestionAnswerService extends AbstractDataService {
     res
   }
 
+  private[this] def createAggregations(request: QAAggregatedAnalyticsRequest, firstIndexInConv: Long,
+                                       dateHistInterval: DateHistogramInterval, minDocInBuckets: Long): List[AggregationBuilder] = {
+    val aggregationBuilderList = new ListBuffer[AggregationBuilder]()
+    aggregationBuilderList += (AggregationBuilders.cardinality("totalDocuments")
+      .field("_id").precisionThreshold(40000),
+      AggregationBuilders.cardinality("totalConversations")
+        .field("conversation").precisionThreshold(4000))
+
+    val dateHistTimezone = request.timezone match {
+      case Some(tz) => ZoneId.ofOffset("UTC", ZoneOffset.of(tz))
+      case _ => ZoneId.ofOffset("UTC", ZoneOffset.of("+00:00"))
+    }
+
+    request.aggregations match {
+      case Some(aggregationsReq) =>
+        val reqAggs = aggregationsReq.toSet
+        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackConvScore)) {
+          aggregationBuilderList += AggregationBuilders
+            .avg("avgFeedbackConvScore").field("feedbackConvScore")
+
+          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScore)) {
+            aggregationBuilderList += AggregationBuilders
+              .avg("avgFeedbackAnswerScore").field("feedbackAnswerScore")
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScore)) {
+            aggregationBuilderList += AggregationBuilders
+              .avg("avgAlgorithmConvScore").field("algorithmConvScore")
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScore)) {
+            aggregationBuilderList += AggregationBuilders.avg("avgAlgorithmAnswerScore")
+              .field("algorithmAnswerScore")
+          }
+          if (reqAggs.contains(QAAggregationsTypes.scoreHistogram)) {
+            aggregationBuilderList += AggregationBuilders
+              .histogram("scoreHistogram").field("feedbackConvScore")
+              .interval(1.0d).minDocCount(minDocInBuckets)
+          }
+          if (reqAggs.contains(QAAggregationsTypes.scoreHistogramNotTransferred)) {
+            aggregationBuilderList += AggregationBuilders.filter("scoreHistogramNotTransferred",
+              QueryBuilders.boolQuery().mustNot(
+                QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString)
+              )
+            ).subAggregation(
+              AggregationBuilders
+                .histogram("scoreHistogramNotTransferred").field("feedbackConvScore")
+                .interval(1.0d).minDocCount(minDocInBuckets)
+            )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.scoreHistogramTransferred)) {
+            aggregationBuilderList += AggregationBuilders.filter("scoreHistogramTransferred",
+              QueryBuilders.boolQuery()
+                .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+            ).subAggregation(
+              AggregationBuilders
+                .histogram("scoreHistogramTransferred").field("feedbackConvScore")
+                .interval(1.0d).minDocCount(minDocInBuckets)
+            )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.conversationsHistogram)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("conversationsHistogram",
+                QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)).subAggregation(
+                AggregationBuilders
+                  .dateHistogram("conversationsHistogram").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+              )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.conversationsNotTransferredHistogram)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("conversationsNotTransferredHistogram",
+                QueryBuilders.boolQuery()
+                  .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+                  .must(QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)))
+                .subAggregation(
+                  AggregationBuilders
+                    .dateHistogram("conversationsNotTransferredHistogram").field("timestamp")
+                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.conversationsTransferredHistogram)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("conversationsTransferredHistogram",
+                QueryBuilders.boolQuery()
+                  .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+                  .must(QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)))
+                .subAggregation(
+                  AggregationBuilders
+                    .dateHistogram("conversationsTransferredHistogram").field("timestamp")
+                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.qaPairHistogram)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("qaPairHistogram",
+                QueryBuilders.boolQuery()
+                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+                .subAggregation(
+                  AggregationBuilders
+                    .dateHistogram("qaPairHistogram").field("timestamp")
+                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.qaPairAnsweredHistogram)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("qaPairAnsweredHistogram",
+                QueryBuilders.boolQuery()
+                  .must(QueryBuilders.termQuery("answered", Answered.ANSWERED.toString))
+                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+                .subAggregation(
+                  AggregationBuilders
+                    .dateHistogram("qaPairAnsweredHistogram").field("timestamp")
+                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.qaPairUnansweredHistogram)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("qaPairUnansweredHistogram",
+                QueryBuilders.boolQuery()
+                  .must(QueryBuilders.termQuery("answered", Answered.UNANSWERED.toString))
+                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+                .subAggregation(
+                  AggregationBuilders
+                    .dateHistogram("qaPairUnansweredHistogram").field("timestamp")
+                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesHistogram)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("qaMatchedStatesHistogram",
+                QueryBuilders.boolQuery()
+                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+                .subAggregation(
+                  AggregationBuilders.terms("qaMatchedStatesHistogram").field("state")
+                )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesWithScoreHistogram)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("qaMatchedStatesWithScoreHistogram",
+                QueryBuilders.boolQuery()
+                  .must(QueryBuilders.rangeQuery("feedbackAnswerScore").gte(0.0))
+                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+                .subAggregation(
+                  AggregationBuilders.terms("qaMatchedStatesWithScoreHistogram").field("state")
+                )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackNotTransferredConvScoreOverTime)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("avgFeedbackNotTransferredConvScoreOverTime",
+                QueryBuilders.boolQuery()
+                  .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+              ).subAggregation(
+                AggregationBuilders
+                  .dateHistogram("avgFeedbackNotTransferredConvScoreOverTime").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                  .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
+              )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackTransferredConvScoreOverTime)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("avgFeedbackTransferredConvScoreOverTime",
+                QueryBuilders.boolQuery()
+                  .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+              ).subAggregation(
+                AggregationBuilders
+                  .dateHistogram("avgFeedbackTransferredConvScoreOverTime").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                  .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
+              )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmNotTransferredConvScoreOverTime)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("avgAlgorithmNotTransferredConvScoreOverTime",
+                QueryBuilders.boolQuery()
+                  .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+              ).subAggregation(
+                AggregationBuilders
+                  .dateHistogram("avgAlgorithmNotTransferredConvScoreOverTime").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                  .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
+              )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmTransferredConvScoreOverTime)) {
+            aggregationBuilderList +=
+              AggregationBuilders.filter("avgAlgorithmTransferredConvScoreOverTime",
+                QueryBuilders.boolQuery()
+                  .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+              ).subAggregation(
+                AggregationBuilders
+                  .dateHistogram("avgAlgorithmTransferredConvScoreOverTime").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                  .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
+              )
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackConvScoreOverTime)) {
+            aggregationBuilderList +=
+              AggregationBuilders
+                .dateHistogram("avgFeedbackConvScoreOverTime").field("timestamp")
+                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScoreOverTime)) {
+            aggregationBuilderList += AggregationBuilders
+              .dateHistogram("avgAlgorithmAnswerScoreOverTime").field("timestamp")
+              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+              .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmAnswerScore"))
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScoreOverTime)) {
+            aggregationBuilderList += AggregationBuilders
+              .dateHistogram("avgFeedbackAnswerScoreOverTime").field("timestamp")
+              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+              .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackAnswerScore"))
+          }
+          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScoreOverTime)) {
+            aggregationBuilderList += AggregationBuilders
+              .dateHistogram("avgAlgorithmConvScoreOverTime").field("timestamp")
+              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+              .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
+          }
+        }
+      case _ => List.empty[QAAggregationsTypes.Value]
+    }
+    aggregationBuilderList.toList
+  }
+
   def create(indexName: String, document: QADocument, refresh: Int): Option[IndexDocumentResult] = {
+    val instance = Index.instanceName(indexName)
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
+
     val builder: XContentBuilder = jsonBuilder().startObject()
 
     builder.field("id", document.id)
+    builder.field("instance", instance)
     builder.field("conversation", document.conversation)
 
     if (document.indexInConversation <= 0) throw QuestionAnswerServiceException("indexInConversation cannot be < 1")
@@ -1634,15 +1599,15 @@ trait QuestionAnswerService extends AbstractDataService {
         }
         annotations.agent match {
           case Some(t) => builder.field("agent", t.toString)
-          case _ => builder.field("agent", "STARCHAT") ;
+          case _ => builder.field("agent", "STARCHAT");
         }
         annotations.escalated match {
           case Some(t) => builder.field("escalated", t.toString)
-          case _ => builder.field("escalated", "UNSPECIFIED") ;
+          case _ => builder.field("escalated", "UNSPECIFIED");
         }
         annotations.answered match {
           case Some(t) => builder.field("answered", t.toString)
-          case _ => builder.field("answered", "ANSWERED") ;
+          case _ => builder.field("answered", "ANSWERED");
         }
         annotations.triggered match {
           case Some(t) => builder.field("triggered", t.toString)
@@ -1686,21 +1651,9 @@ trait QuestionAnswerService extends AbstractDataService {
 
     builder.endObject()
 
-    val client: RestHighLevelClient = elasticClient.httpClient
+    val response: IndexResponse = esCrudBase.index(instance, document.id, builder)
 
-    val indexReq = new IndexRequest()
-      .index(Index.indexName(indexName, elasticClient.indexSuffix))
-      .id(document.id)
-      .source(builder)
-
-    val response: IndexResponse = client.index(indexReq, RequestOptions.DEFAULT)
-
-    if (refresh =/= 0) {
-      val refresh_index = elasticClient.refresh(Index.indexName(indexName, elasticClient.indexSuffix))
-      if(refresh_index.failedShardsN > 0) {
-        throw QuestionAnswerServiceException("index refresh failed: (" + indexName + ")")
-      }
-    }
+    refreshIndex(indexName, refresh, esCrudBase)
 
     val doc_result: IndexDocumentResult = IndexDocumentResult(index = response.getIndex,
       id = response.getId,
@@ -1708,11 +1661,15 @@ trait QuestionAnswerService extends AbstractDataService {
       created = response.status === RestStatus.CREATED
     )
 
-    Option {doc_result}
+    Option {
+      doc_result
+    }
   }
 
-  private[this] def updateBuilder(document: QADocumentUpdate): XContentBuilder = {
-    val builder : XContentBuilder = jsonBuilder().startObject()
+  private[this] def updateBuilder(document: QADocumentUpdate, instance: String): XContentBuilder = {
+    val builder: XContentBuilder = jsonBuilder().startObject()
+
+    builder.field("instance", instance)
 
     document.conversation match {
       case Some(t) => builder.field("conversation", t)
@@ -1755,7 +1712,7 @@ trait QuestionAnswerService extends AbstractDataService {
         coreData.questionScoredTerms match {
           case Some(t) =>
             val array = builder.startArray("question_scored_terms")
-            t.foreach{case(term, score) =>
+            t.foreach { case (term, score) =>
               array.startObject().field("term", term)
                 .field("score", score).endObject()
             }
@@ -1769,7 +1726,7 @@ trait QuestionAnswerService extends AbstractDataService {
         coreData.answerScoredTerms match {
           case Some(t) =>
             val array = builder.startArray("answer_scored_terms")
-            t.foreach{case(term, score) =>
+            t.foreach { case (term, score) =>
               array.startObject().field("term", term)
                 .field("score", score).endObject()
             }
@@ -1867,27 +1824,12 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   def update(indexName: String, document: QADocumentUpdate, refresh: Int): UpdateDocumentsResult = {
-    val builder = updateBuilder(document)
+    val instance = Index.instanceName(indexName)
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val builder = updateBuilder(document, instance)
+    val bulkResponse = esCrudBase.bulkUpdate(document.id.map(x => (x, builder)))
 
-    val client: RestHighLevelClient = elasticClient.httpClient
-
-    val bulkRequest = new BulkRequest
-    document.id.map { id =>
-      val updateReq = new UpdateRequest()
-        .index(Index.indexName(indexName, elasticClient.indexSuffix))
-        .doc(builder)
-        .id(id)
-      bulkRequest.add(updateReq)
-    }
-
-    val bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT)
-
-    if (refresh =/= 0) {
-      val refresh_index = elasticClient.refresh(Index.indexName(indexName, elasticClient.indexSuffix))
-      if(refresh_index.failedShardsN > 0) {
-        throw QuestionAnswerServiceException("index refresh failed: (" + indexName + ")")
-      }
-    }
+    refreshIndex(indexName, refresh, esCrudBase)
 
     val listOfDocRes: List[UpdateDocumentResult] = bulkResponse.getItems.map(response => {
       UpdateDocumentResult(index = response.getIndex,
@@ -1900,13 +1842,22 @@ trait QuestionAnswerService extends AbstractDataService {
     UpdateDocumentsResult(data = listOfDocRes)
   }
 
+  private[this] def refreshIndex(indexName: String, refresh: Int, esCrudBase: EsCrudBase): Unit = {
+    if (refresh =/= 0) {
+      val refresh_index = esCrudBase.refresh()
+      if (refresh_index.failedShardsN > 0) {
+        throw QuestionAnswerServiceException("index refresh failed: (" + indexName + ")")
+      }
+    }
+  }
+
   def updateByQuery(indexName: String, updateReq: UpdateQAByQueryReq, refresh: Int): UpdateDocumentsResult = {
     val searchRes: Option[SearchQADocumentsResults] =
       search(indexName = indexName, documentSearch = updateReq.documentSearch)
     searchRes match {
       case Some(r) =>
         val id = r.hits.map(_.document.id)
-        if(id.nonEmpty) {
+        if (id.nonEmpty) {
           val updateDoc = updateReq.document.copy(id = id)
           update(indexName = indexName, document = updateDoc, refresh = refresh)
         } else {
@@ -1917,73 +1868,44 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   def read(indexName: String, ids: List[String]): Option[SearchQADocumentsResults] = {
-    val client: RestHighLevelClient = elasticClient.httpClient
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
 
-    val multigetReq = new MultiGetRequest()
-    ids.foreach{ id =>
-      multigetReq.add(
-        new MultiGetRequest.Item(Index
-          .indexName(indexName, elasticClient.indexSuffix), id)
-      )
-    }
-
-    val documents : Option[List[SearchQADocument]] = Some {
-      client.mget(multigetReq, RequestOptions.DEFAULT).getResponses.toList
-        .filter((p: MultiGetItemResponse) => p.getResponse.isExists).map { e =>
-
-        val item: GetResponse = e.getResponse
-
-        val id : String = item.getId
-
-        val source : Map[String, Any] = item.getSource.asScala.toMap
-
-        val document = documentFromMap(indexName, id, source)
-
+    val response = esCrudBase.findAll(ids)
+    val filteredDoc = response.getResponses.toList
+      .filter(p => p.getResponse.isExists)
+      .map { e =>
+        val item = e.getResponse
+        val source = item.getSource.asScala.toMap
+        val document = documentFromMap(indexName, item.getId, source)
         SearchQADocument(score = .0f, document = document)
       }
-    }
 
-    val filteredDoc : List[SearchQADocument] = documents.getOrElse(List[SearchQADocument]())
-
-    val maxScore : Float = .0f
-    val total : Int = filteredDoc.length
-    val searchResults : SearchQADocumentsResults = SearchQADocumentsResults(totalHits = total, hitsCount = total, maxScore = maxScore,
+    val searchResults = SearchQADocumentsResults(totalHits = filteredDoc.length, hitsCount = filteredDoc.length,
       hits = filteredDoc)
 
-    val searchResultsOption : Option[SearchQADocumentsResults] = Option { searchResults }
-    searchResultsOption
+    Option {
+      searchResults
+    }
   }
 
   def allDocuments(indexName: String, keepAlive: Long = 60000, size: Int = 100): Iterator[QADocument] = {
-    val client: RestHighLevelClient = elasticClient.httpClient
+    val instance = Index.instanceName(indexName)
+    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val query = QueryBuilders.matchAllQuery
+    var scrollResp = esCrudBase.find(instance, query, maxItems = Option(size), scroll = true, scrollTime = keepAlive)
 
-    val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
-      .query(QueryBuilders.matchAllQuery)
-      .size(size)
-
-    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
-      .source(sourceReq)
-      .scroll(new TimeValue(keepAlive))
-
-    var scrollResp: SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
     val scrollId = scrollResp.getScrollId
 
-    val iterator = Iterator.continually{
+    Iterator.continually {
       val documents = scrollResp.getHits.getHits.toList.map { item =>
-        val id : String = item.getId
-
-        val source : Map[String, Any] = item.getSourceAsMap.asScala.toMap
-
+        val id: String = item.getId
+        val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
         documentFromMap(indexName, id, source)
       }
-
-      var scrollRequest: SearchScrollRequest = new SearchScrollRequest(scrollId)
-      scrollRequest.scroll(new TimeValue(keepAlive))
-      scrollResp = client.scroll(scrollRequest, RequestOptions.DEFAULT)
+      scrollResp = esCrudBase.scroll(new SearchScrollRequest(scrollId))
       (documents, documents.nonEmpty)
-    }.takeWhile{case (_, docNonEmpty) => docNonEmpty}
-    iterator
-      .flatMap{case (doc, _) => doc}
+    }.takeWhile { case (_, docNonEmpty) => docNonEmpty }
+      .flatMap { case (doc, _) => doc }
   }
 
   private[this] def extractionReq(text: String, er: UpdateQATermsRequest) = TermsExtractionRequest(text = text,
@@ -2000,22 +1922,19 @@ trait QuestionAnswerService extends AbstractDataService {
     activePotential = Some(true),
     totalInfo = Some(false))
 
-  def updateTextTerms(indexName: String,
-                      extractionRequest: UpdateQATermsRequest
-                     ): List[UpdateDocumentResult] = {
-
+  def updateTextTerms(indexName: String, extractionRequest: UpdateQATermsRequest): List[UpdateDocumentResult] = {
     val ids: List[String] = List(extractionRequest.id)
     val q = this.read(indexName, ids)
-    val hits = q.getOrElse(SearchQADocumentsResults())
-    hits.hits.filter(_.document.coreData.nonEmpty).map { hit =>
+    val documentResults = q.getOrElse(SearchQADocumentsResults())
+    documentResults.hits.filter(_.document.coreData.nonEmpty).map { hit =>
       hit.document.coreData match {
         case Some(coreData) =>
           val extractionReqQ = extractionReq(text = coreData.question.getOrElse(""), er = extractionRequest)
           val (_, termsQ) = manausTermsExtractionService
-            .textTerms(indexName = indexName ,extractionRequest = extractionReqQ)
+            .textTerms(indexName = indexName, extractionRequest = extractionReqQ)
           val extractionReqA = extractionReq(text = coreData.answer.getOrElse(""), er = extractionRequest)
           val (_, termsA) = manausTermsExtractionService
-            .textTerms(indexName = indexName ,extractionRequest = extractionReqA)
+            .textTerms(indexName = indexName, extractionRequest = extractionReqA)
           val scoredTermsUpdateReq = QADocumentUpdate(
             id = ids,
             coreData = Some(
@@ -2044,9 +1963,9 @@ trait QuestionAnswerService extends AbstractDataService {
           val extractionReqQ = extractionReq(text = coreData.question.getOrElse(""), er = extractionRequest)
           val extractionReqA = extractionReq(text = coreData.answer.getOrElse(""), er = extractionRequest)
           val (_, termsQ) = manausTermsExtractionService
-            .textTerms(indexName = indexName ,extractionRequest = extractionReqQ)
+            .textTerms(indexName = indexName, extractionRequest = extractionReqQ)
           val (_, termsA) = manausTermsExtractionService
-            .textTerms(indexName = indexName ,extractionRequest = extractionReqA)
+            .textTerms(indexName = indexName, extractionRequest = extractionReqA)
 
           val scoredTermsUpdateReq = QADocumentUpdate(
             id = List[String](item.id),

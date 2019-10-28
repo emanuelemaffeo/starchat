@@ -25,7 +25,7 @@ class IndexManagementResourceTest extends TestEnglishBase {
       Post(s"/index_getjenny_english_0/index_management/create") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.BadRequest
         val response = responseAs[IndexManagementResponse]
-        response.message should fullyMatch regex "Elasticsearch exception \\[type=resource_already_exists_exception, reason=index \\[index_getjenny_.*\\] already exists\\]"
+        response.message should fullyMatch regex "Elasticsearch exception \\[type=resource_already_exists_exception, reason=index \\[index_.*\\] already exists\\]"
       }
     }
   }

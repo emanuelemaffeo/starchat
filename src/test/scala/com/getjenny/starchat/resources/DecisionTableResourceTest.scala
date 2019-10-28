@@ -79,7 +79,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         val response = responseAs[IndexDocumentResult]
         response.created should be (true)
         response.id should be ("forgot_password")
-        response.index should be ("index_getjenny_english_0.state")
+        response.index should be ("index_english.state")
         response.version should be (1)
       }
       Post(s"/index_getjenny_english_0/decisiontable?refresh=1", decisionTableRequest2) ~> addCredentials(testUserCredentials) ~> routes ~> check {
@@ -87,7 +87,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         val response = responseAs[IndexDocumentResult]
         response.created should be (true)
         response.id should be ("dont_tell_password")
-        response.index should be ("index_getjenny_english_0.state")
+        response.index should be ("index_english.state")
         response.version should be (1)
       }
     }
@@ -118,7 +118,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         val response = responseAs[IndexDocumentResult]
         response.created should be (false)
         response.id should be ("forgot_password")
-        response.index should be ("index_getjenny_english_0.state")
+        response.index should be ("index_english.state")
         response.version should be (2)
       }
     }
@@ -150,7 +150,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         val response = responseAs[UpdateDocumentResult]
         response.created should be (false)
         response.id should be ("forgot_password")
-        response.index should be ("index_getjenny_english_0.state")
+        response.index should be ("index_english.state")
         response.version should be (3)
       }
     }
@@ -452,7 +452,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         status shouldEqual StatusCodes.OK
         val response = responseAs[DeleteDocumentsResult]
         val headDeleteDocumentResult = response.data.headOption.getOrElse(fail)
-        headDeleteDocumentResult.index should be ("index_getjenny_english_0.state")
+        headDeleteDocumentResult.index should be ("index_english.state")
         headDeleteDocumentResult.id should be ("forgot_password")
         headDeleteDocumentResult.found should be (true)
         headDeleteDocumentResult.version should be (4)

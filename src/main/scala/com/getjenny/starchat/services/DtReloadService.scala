@@ -24,10 +24,9 @@ import scalaz.Scalaz._
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Map
-import scala.concurrent.Future
 
 object DtReloadService extends AbstractDataService {
-  val DT_RELOAD_TIMESTAMP_DEFAULT : Long = 0
+  val DT_RELOAD_TIMESTAMP_DEFAULT: Long = 0
   override val elasticClient: SystemIndexManagementElasticClient.type = SystemIndexManagementElasticClient
   private[this] val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
   private[this] val indexName: String =
@@ -37,15 +36,16 @@ object DtReloadService extends AbstractDataService {
                               refresh: Int = 0): Option[DtReloadTimestamp] = {
     val client: RestHighLevelClient = elasticClient.httpClient
     val ts: Long = if (timestamp === DT_RELOAD_TIMESTAMP_DEFAULT) System.currentTimeMillis else timestamp
+    val esSystemIndexName = Index.esSystemIndexName(dtIndexName, elasticClient.indexSuffix)
 
-    val builder : XContentBuilder = jsonBuilder().startObject()
+    val builder: XContentBuilder = jsonBuilder().startObject()
     builder.field(elasticClient.dtReloadTimestampFieldName, ts)
     builder.endObject()
 
     val updateReq = new UpdateRequest()
       .index(indexName)
       .doc(builder)
-      .id(dtIndexName)
+      .id(esSystemIndexName)
       .docAsUpsert(true)
 
     val response: UpdateResponse = client.update(updateReq, RequestOptions.DEFAULT)
@@ -55,30 +55,32 @@ object DtReloadService extends AbstractDataService {
     if (refresh =/= 0) {
       val refreshIndex = elasticClient
         .refresh(indexName)
-      if(refreshIndex.failedShardsN > 0) {
-        throw new Exception("System: index refresh failed: (" + indexName + ", " + dtIndexName + ")")
+      if (refreshIndex.failedShardsN > 0) {
+        throw new Exception("System: index refresh failed: (" + indexName + ", " + esSystemIndexName + ")")
       }
     }
 
-    Option {DtReloadTimestamp(indexName = indexName, timestamp = ts)}
+    Option {
+      DtReloadTimestamp(indexName = indexName, timestamp = ts)
+    }
   }
 
-  def dTReloadTimestamp(dtIndexName: String) : DtReloadTimestamp = {
+  def dTReloadTimestamp(dtIndexName: String): DtReloadTimestamp = {
     val client: RestHighLevelClient = elasticClient.httpClient
-    val dtReloadDocId: String = dtIndexName
+    val esSystemIndexName = Index.esSystemIndexName(dtIndexName, elasticClient.indexSuffix)
 
     val getReq = new GetRequest()
       .index(indexName)
-      .id(dtReloadDocId)
+      .id(esSystemIndexName)
 
     val response: GetResponse = client.get(getReq, RequestOptions.DEFAULT)
 
-    val timestamp = if(! response.isExists || response.isSourceEmpty) {
+    val timestamp = if (!response.isExists || response.isSourceEmpty) {
       log.debug("dt reload timestamp field is empty or does not exists")
       DT_RELOAD_TIMESTAMP_DEFAULT
     } else {
-      val source : Map[String, Any] = response.getSource.asScala.toMap
-      val loadedTs : Long = source.get(elasticClient.dtReloadTimestampFieldName) match {
+      val source: Map[String, Any] = response.getSource.asScala.toMap
+      val loadedTs: Long = source.get(elasticClient.dtReloadTimestampFieldName) match {
         case Some(t) => t.asInstanceOf[Long]
         case None => DT_RELOAD_TIMESTAMP_DEFAULT
       }
@@ -115,12 +117,12 @@ object DtReloadService extends AbstractDataService {
 
     val scrollResp : SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
 
-    val dtReloadTimestamps : List[DtReloadTimestamp] = scrollResp.getHits.getHits.toList.map({ timestampEntry =>
+    val dtReloadTimestamps: List[DtReloadTimestamp] = scrollResp.getHits.getHits.toList.map({ timestampEntry =>
       val item: SearchHit = timestampEntry
-      val docId : String = item.getId // the id is the index name
-    val source : Map[String, Any] = item.getSourceAsMap.asScala.toMap
+      val docId: String = item.getId // the id is the index name
+      val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
 
-      val timestamp : Long = source.get(elasticClient.dtReloadTimestampFieldName) match {
+      val timestamp: Long = source.get(elasticClient.dtReloadTimestampFieldName) match {
         case Some(t) => t.asInstanceOf[Long]
         case None => DT_RELOAD_TIMESTAMP_DEFAULT
       }
