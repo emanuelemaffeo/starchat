@@ -19,6 +19,15 @@ case class BayesCounters(val nQueriesOfStateTriggered: Int = 0, val nTotalQuerie
    Bayes operator must have only one children
  */
 class BayesOperator(children: List[Expression]) extends AbstractOperator(children: List[Expression]) {
+
+  /** Bayes operator is an unary operator.
+    *
+    * We check at constructor level that arguments are <=1. No argument condition should be allowed because
+    * this situation happens during the filling of analyzer.
+    * Evaluate method will check that children are not empty
+    */
+  if (children.length > 1) throw OperatorException(operatorName + "Operator: should have only one argument")
+
   val operatorName: String = "Bayes"
 
   override def toString: String = operatorName + "Operator(" + children.mkString(", ") + ")"
