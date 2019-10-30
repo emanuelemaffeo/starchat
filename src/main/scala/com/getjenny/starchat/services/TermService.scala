@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 10/03/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 10/03/17.
+ */
 
 import java.io.File
 import java.net.URL
@@ -32,47 +32,47 @@ case class TermServiceException(message: String = "", cause: Throwable = None.or
   extends Exception(message, cause)
 
 /**
-  * Implements functions, eventually used by TermResource
-  */
+ * Implements functions, eventually used by TermResource
+ */
 object TermService extends AbstractDataService {
   override val elasticClient: TermElasticClient.type = TermElasticClient
   private[this] val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
   val defaultOrg: String = TermElasticClient.commonIndexDefaultOrgPattern
 
   /** fetch the index arbitrary pattern
-    *
-    * @return the index arbitrary pattern
-    */
+   *
+   * @return the index arbitrary pattern
+   */
   def commonIndexArbitraryPattern: String = elasticClient.commonIndexArbitraryPattern
 
   /** transform a vector of numerical values to a string payload which can be stored on Elasticsearch
-    *
-    * @param vector a vector of values
-    * @tparam T the type of the Vector
-    * @return a string with the payload <value index>|<value>
-    */
+   *
+   * @param vector a vector of values
+   * @tparam T the type of the Vector
+   * @return a string with the payload <value index>|<value>
+   */
   private[this] def payloadVectorToString[T](vector: Vector[T]): String = {
     vector.zipWithIndex.map { case (term, index) => index.toString + "|" + term.toString }.mkString(" ")
   }
 
   /** transform a Key,Value map to a string payload which can be stored on Elasticsearch
-    *
-    * @param payload the map of values
-    * @tparam T the type of the key
-    * @tparam U the type of the value
-    * @return a string with the payload <value index>|<value>
-    */
+   *
+   * @param payload the map of values
+   * @tparam T the type of the key
+   * @tparam U the type of the value
+   * @return a string with the payload <value index>|<value>
+   */
   private[this] def payloadMapToString[T, U](payload: Map[T, U]): String = {
     payload.map { case (e1, e2) => e1.toString + "|" + e2.toString }.mkString(" ")
   }
 
   /** transform a payload string (non sparse vector) to a Double vector
-    *
-    * @param payload the payload <value index>|<value>
-    * @return a double vector
-    */
+   *
+   * @param payload the payload <value index>|<value>
+   * @return a double vector
+   */
   private[this] def payloadStringToDoubleVector(payload: String): Vector[Double] = {
-    val vector: Vector[Double] = payload.split(" ").map(x => {
+    payload.split(" ").map(x => {
       val termTuple: Double = x.split("\\|") match {
         case Array(_, value) => value.toDouble
         case _ =>
@@ -80,16 +80,15 @@ object TermService extends AbstractDataService {
       }
       termTuple
     }).toVector
-    vector
   }
 
   /** transform a payload string (non sparse vector) to a key, value Map[String, Double]
-    *
-    * @param payload the payload <value index>|<value>
-    * @return a key, value map
-    */
+   *
+   * @param payload the payload <value index>|<value>
+   * @return a key, value map
+   */
   private[this] def payloadStringToMapStringDouble(payload: String): Map[String, Double] = {
-    val m: Map[String, Double] = payload.split(" ").map(x => {
+    payload.split(" ").map(x => {
       val termTuple = x.split("\\|") match {
         case Array(key, value) => (key, value.toDouble)
         case _ =>
@@ -97,14 +96,13 @@ object TermService extends AbstractDataService {
       }
       termTuple
     }).toMap
-    m
   }
 
   /** transform a payload string (non sparse vector) to a key, double value Map[Int, Double]
-    *
-    * @param payload the payload <value index>|<value>
-    * @return a key, value map
-    */
+   *
+   * @param payload the payload <value index>|<value>
+   * @return a key, value map
+   */
   private[this] def payloadStringToMapIntDouble(payload: String): Map[Int, Double] = {
     payload.split(" ").map(x => {
       val termTuple = x.split("\\|") match {
@@ -117,10 +115,10 @@ object TermService extends AbstractDataService {
   }
 
   /** transform a payload string (non sparse vector) to a key, value Map[String, String]
-    *
-    * @param payload the payload <value index>|<value>
-    * @return a key, value map
-    */
+   *
+   * @param payload the payload <value index>|<value>
+   * @return a key, value map
+   */
   private[this] def payloadStringToMapStringString(payload: String): Map[String, String] = {
     payload.split(" ").map(x => {
       val termTuple = x.split("\\|") match {
@@ -133,11 +131,11 @@ object TermService extends AbstractDataService {
   }
 
   /** Populate synonyms from resource file (a default synonyms list)
-    *
-    * @param indexName name of the index
-    * @param refresh whether to call an index update on ElasticSearch or not
-    * @return a return message with the number of successfully and failed indexing operations
-    */
+   *
+   * @param indexName name of the index
+   * @param refresh whether to call an index update on ElasticSearch or not
+   * @return a return message with the number of successfully and failed indexing operations
+   */
   def indexDefaultSynonyms(indexName: String, refresh: Int = 0): UpdateDocumentsResult = {
     val (_, language, _) = Index.patternsFromIndexName(indexName)
     val synonymsPath: String = "/index_management/json_index_spec/" + language + "/synonyms.csv"
@@ -147,13 +145,13 @@ object TermService extends AbstractDataService {
   }
 
   /** upload a file with Synonyms, it replace existing terms but does not remove synonyms for terms not in file.
-    *
-    * @param indexName the index name
-    * @param file a File object with the synonyms
-    * @param skipLines how many lines to skip
-    * @param separator a separator, usually the comma character
-    * @return the IndexDocumentListResult with the indexing result
-    */
+   *
+   * @param indexName the index name
+   * @param file a File object with the synonyms
+   * @param skipLines how many lines to skip
+   * @param separator a separator, usually the comma character
+   * @return the IndexDocumentListResult with the indexing result
+   */
   def indexSynonymsFromCsvFile(indexName: String, file: File, skipLines: Int = 0, separator: Char = ','): UpdateDocumentsResult = {
     val documents = FileToDocuments.getTermsDocumentsFromCSV(log = log,
       file = file, skipLines = skipLines, separator = separator).toList
@@ -161,12 +159,12 @@ object TermService extends AbstractDataService {
   }
 
   /** index terms on Elasticsearch
-    *
-    * @param indexName the index name
-    * @param terms the terms
-    * @param refresh whether to call an index update on ElasticSearch or not
-    * @return list of indexing responses
-    */
+   *
+   * @param indexName the index name
+   * @param terms the terms
+   * @param refresh whether to call an index update on ElasticSearch or not
+   * @return list of indexing responses
+   */
   def indexTerm(indexName: String, terms: Terms, refresh: Int): IndexDocumentListResult = {
     val instance = Index.instanceName(indexName)
     val esCrudBase = EsCrudBase(elasticClient, indexName)
@@ -231,11 +229,11 @@ object TermService extends AbstractDataService {
   }
 
   /** fetch one or more terms from Elasticsearch
-      *
-      * @param indexName the index name
-      * @param termsRequest the ids of the terms to be fetched
-      * @return fetched terms
-      */
+   *
+   * @param indexName the index name
+   * @param termsRequest the ids of the terms to be fetched
+   * @return fetched terms
+   */
   def termsById(indexName: String, termsRequest: DocsIds): Terms = {
     val documents: List[Term] = if (termsRequest.ids.nonEmpty) {
       val esCrudBase = EsCrudBase(elasticClient, indexName)
@@ -244,7 +242,7 @@ object TermService extends AbstractDataService {
       response.getResponses.toList
         .filter((p: MultiGetItemResponse) => p.getResponse.isExists)
         .map { e => extractTerms(e.getResponse.getSourceAsMap.asScala.toMap)
-      }
+        }
     } else {
       List.empty[Term]
     }
@@ -253,12 +251,12 @@ object TermService extends AbstractDataService {
   }
 
   /** update terms, synchronous function
-    *
-    * @param indexName index name
-    * @param terms terms to update
-    * @param refresh whether to call an index update on ElasticSearch or not
-    * @return result of the update operations
-    */
+   *
+   * @param indexName index name
+   * @param terms terms to update
+   * @param refresh whether to call an index update on ElasticSearch or not
+   * @return result of the update operations
+   */
   def updateTerm(indexName: String, terms: Terms, refresh: Int): UpdateDocumentsResult = {
     val instance = Index.instanceName(indexName)
     val esCrudBase = EsCrudBase(elasticClient, indexName)
@@ -281,11 +279,11 @@ object TermService extends AbstractDataService {
   }
 
   /** fetch two terms and calculate the distance between them
-    *
-    * @param indexName the index name
-    * @param termsReq list of terms
-    * @return the distance between terms
-    */
+   *
+   * @param indexName the index name
+   * @param termsReq list of terms
+   * @return the distance between terms
+   */
   def termsDistance(indexName: String, termsReq: DocsIds): List[TermsDistanceRes] = {
     val extractedTerms = termsById(indexName, DocsIds(ids = termsReq.ids))
     val retrievedTerms = extractedTerms.terms.map { t => (t.term, t) }.toMap
@@ -317,12 +315,12 @@ object TermService extends AbstractDataService {
   }
 
   /** given a text, return all the matching terms
-    *
-    * @param indexName index term
-    * @param query input text or SearchTerm entity
-    * @param analyzer the analyzer name to be used for text tokenization
-    * @return the terms found
-    */
+   *
+   * @param indexName index term
+   * @param query input text or SearchTerm entity
+   * @param analyzer the analyzer name to be used for text tokenization
+   * @return the terms found
+   */
   def search[T: StringOrSearchTerm](indexName: String, query: T,
                                     analyzer: String = "space_punctuation"): TermsResults = {
     val instance = Index.instanceName(indexName)
@@ -399,13 +397,13 @@ object TermService extends AbstractDataService {
   }
 
   /** tokenize a text
-    *
-    * @param indexName index name
-    * @param query a TokenizerQueryRequest with the text to tokenize
-    * @return a TokenizerResponse with the result of the tokenization
-    */
+   *
+   * @param indexName index name
+   * @param query a TokenizerQueryRequest with the text to tokenize
+   * @return a TokenizerResponse with the result of the tokenization
+   */
   def esTokenizer(indexName: String, query: TokenizerQueryRequest): TokenizerResponse = {
-    val esSystemIndexName = Index.esSystemIndexName(indexName, elasticClient.indexSuffix)
+    val esLangIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
     val analyzer = TokenizersDescription.analyzersMap.get(query.tokenizer) match {
       case Some((analyzerEsName, _)) => analyzerEsName
       case _ =>
@@ -415,7 +413,7 @@ object TermService extends AbstractDataService {
     val client: RestHighLevelClient = elasticClient.httpClient
 
     val analyzerReq = AnalyzeRequest.withIndexAnalyzer(
-      esSystemIndexName,
+      esLangIndexName,
       analyzer,
       query.text
     )
@@ -442,13 +440,13 @@ object TermService extends AbstractDataService {
   }
 
   /** tokenize a sentence and extract term vectors for each token
-    *
-    * @param indexName index name
-    * @param text input text
-    * @param analyzer analyzer name
-    * @param unique if true exclude from results duplicated terms
-    * @return the TextTerms
-    */
+   *
+   * @param indexName index name
+   * @param text input text
+   * @param analyzer analyzer name
+   * @param unique if true exclude from results duplicated terms
+   * @return the TextTerms
+   */
   def textToVectors(indexName: String, text: String, analyzer: String = "stop",
                     unique: Boolean = false): TextTerms = {
     val analyzerRequest = TokenizerQueryRequest(tokenizer = analyzer, text = text) // analyzer is checked by esTokenizer
@@ -468,11 +466,11 @@ object TermService extends AbstractDataService {
   }
 
   /** fetch all documents and serve them through an iterator
-    *
-    * @param indexName index name
-    * @param keepAlive the keep alive timeout for the ElasticSearch document scroller
-    * @return an iterator for Items
-    */
+   *
+   * @param indexName index name
+   * @param keepAlive the keep alive timeout for the ElasticSearch document scroller
+   * @return an iterator for Items
+   */
   def allDocuments(indexName: String, keepAlive: Long = 60000): Iterator[Term] = {
     val instance = Index.instanceName(indexName)
     val esCrudBase = EsCrudBase(elasticClient, indexName)

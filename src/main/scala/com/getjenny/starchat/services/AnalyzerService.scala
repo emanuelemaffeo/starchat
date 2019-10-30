@@ -105,9 +105,8 @@ object AnalyzerService extends AbstractDataService {
 
         val queries: List[String] = source.get("queries") match {
           case Some(t) =>
-            val queryArray = t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, String]]].asScala.toList
+            t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, String]]].asScala.toList
               .map(q_e => q_e.get("query"))
-            queryArray
           case None => List[String]()
         }
 

@@ -60,7 +60,7 @@ object Index {
     s"${org}_${language}_$arbitraryPattern"
   }
 
-  def esSystemIndexName(indexName: String, suffix: String = elasticClient.indexSuffix): String = {
+  def esLanguageFromIndexName(indexName: String, suffix: String = elasticClient.indexSuffix): String = {
     val (_, language, _) = Index.patternsFromIndexName(indexName: String)
     Index.indexName(s"index_$language", suffix)
   }

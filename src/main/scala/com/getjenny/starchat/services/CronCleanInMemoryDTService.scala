@@ -10,7 +10,10 @@ import com.getjenny.starchat.SCActorSystem
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-object CronCleanDTService extends CronService {
+/** Remove the decision tables with a lower evaluation counter
+  * from the memory if they exceed the max value in the configuration file
+  */
+object CronCleanInMemoryDTService extends CronService {
 
   class CleanDecisionTablesTickActor extends Actor {
     def receive: PartialFunction[Any, Unit] = {

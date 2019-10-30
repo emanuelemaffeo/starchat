@@ -36,7 +36,7 @@ object DtReloadService extends AbstractDataService {
                               refresh: Int = 0): Option[DtReloadTimestamp] = {
     val client: RestHighLevelClient = elasticClient.httpClient
     val ts: Long = if (timestamp === DT_RELOAD_TIMESTAMP_DEFAULT) System.currentTimeMillis else timestamp
-    val esSystemIndexName = Index.esSystemIndexName(dtIndexName, elasticClient.indexSuffix)
+    val esSystemIndexName = Index.esLanguageFromIndexName(dtIndexName, elasticClient.indexSuffix)
 
     val builder: XContentBuilder = jsonBuilder().startObject()
     builder.field(elasticClient.dtReloadTimestampFieldName, ts)
@@ -67,7 +67,7 @@ object DtReloadService extends AbstractDataService {
 
   def dTReloadTimestamp(dtIndexName: String): DtReloadTimestamp = {
     val client: RestHighLevelClient = elasticClient.httpClient
-    val esSystemIndexName = Index.esSystemIndexName(dtIndexName, elasticClient.indexSuffix)
+    val esSystemIndexName = Index.esLanguageFromIndexName(dtIndexName, elasticClient.indexSuffix)
 
     val getReq = new GetRequest()
       .index(indexName)

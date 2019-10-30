@@ -40,7 +40,7 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
   private[this] def calcUuid(uuid: String = ""): String = if (uuid === "") clusterNodesService.uuid else uuid
   private[this] def calcId(dtIndexName: String, uuid: String): String = {
-    val esSystemIndexName = Index.esSystemIndexName(dtIndexName, elasticClient.indexSuffix)
+    val esSystemIndexName = Index.esLanguageFromIndexName(dtIndexName, elasticClient.indexSuffix)
     esSystemIndexName + "." + calcUuid(uuid)
   }
 
@@ -52,9 +52,12 @@ object NodeDtLoadingStatusService extends AbstractDataService {
       System.currentTimeMillis else dtNodeStatus.timestamp.getOrElse(0: Long)
     val builder : XContentBuilder = jsonBuilder().startObject()
 
-    builder.field("uuid", uuid)
-    builder.field("index", dtNodeStatus.index)
-    builder.field("timestamp", timestamp)
+    List(
+      ("uuid", uuid),
+      ("index", dtNodeStatus.index),
+      ("timestamp", timestamp),
+    ).foreach{case (k,v) => builder.field(k, v)}
+
     builder.endObject()
 
     val updateReq = new UpdateRequest()
@@ -77,7 +80,7 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
   def dtUpdateStatusByIndex(dtIndexName: String = "", minTs: Long = 0): List[NodeDtLoadingStatus] = {
     val client: RestHighLevelClient = elasticClient.httpClient
-    val esSystemIndex = if(dtIndexName.nonEmpty) Index.esSystemIndexName(dtIndexName) else ""
+    val esSystemIndex = if(dtIndexName.nonEmpty) Index.esLanguageFromIndexName(dtIndexName) else ""
     val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
     if(esSystemIndex =/= "") boolQueryBuilder.filter(QueryBuilders.termQuery("index", esSystemIndex))
     if(minTs > 0) boolQueryBuilder.filter(QueryBuilders.rangeQuery("timestamp").gte(minTs))

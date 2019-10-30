@@ -177,7 +177,7 @@ class EsCrudBase private(client: ElasticClient, index: String) {
 
 object EsCrudBase {
   def apply(client: ElasticClient, index: String): EsCrudBase = {
-    val esSystemIndexName = Index.esSystemIndexName(index, client.indexSuffix)
+    val esSystemIndexName = Index.esLanguageFromIndexName(index, client.indexSuffix)
     new EsCrudBase(client, esSystemIndexName)
   }
 }

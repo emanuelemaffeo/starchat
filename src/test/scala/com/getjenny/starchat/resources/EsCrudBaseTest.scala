@@ -21,7 +21,7 @@ class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with
   val client = IndexManagementElasticClient
 
   val indexName = "index_getjenny_test_0"
-  val esSystemIndexName = Index.esSystemIndexName(indexName, client.indexSuffix)
+  val esSystemIndexName = Index.esLanguageFromIndexName(indexName, client.indexSuffix)
   val esCrudBase = EsCrudBase(client, indexName)
 
   override protected def beforeAll(): Unit = {

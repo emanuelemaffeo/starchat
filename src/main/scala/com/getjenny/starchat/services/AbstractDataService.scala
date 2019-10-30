@@ -30,7 +30,7 @@ trait AbstractDataService {
     */
   def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
-    val esSystemIndexName = Index.esSystemIndexName(indexName, elasticClient.indexSuffix)
+    val esSystemIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
     val request: DeleteByQueryRequest =
       new DeleteByQueryRequest(esSystemIndexName)
     request.setConflicts("proceed")
@@ -68,7 +68,7 @@ trait AbstractDataService {
     */
   def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
-    val esSystemIndexName = Index.esSystemIndexName(indexName, elasticClient.indexSuffix)
+    val esSystemIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
     val bulkReq: BulkRequest = new BulkRequest()
 
     ids.foreach( id => {

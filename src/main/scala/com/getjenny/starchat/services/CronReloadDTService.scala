@@ -7,11 +7,12 @@ package com.getjenny.starchat.services
 import akka.actor.{Actor, Props}
 import com.getjenny.starchat.SCActorSystem
 
-import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
+/** Download and update the decision tables from elasticsearch
+  */
 object CronReloadDTService extends CronService {
   protected[this] val indexManagementService: IndexManagementService.type = IndexManagementService
 
@@ -61,7 +62,7 @@ object CronReloadDTService extends CronService {
             log.error("Index exists but loading results in an error: " + indexMgmRes.message)
           } else {
             val r = dtReloadService.deleteEntry(ids = List(index))
-            log.debug("Deleted upadte record for the index: " + r)
+            log.debug("Deleted update record for the index: " + r)
           }
         }
     }
