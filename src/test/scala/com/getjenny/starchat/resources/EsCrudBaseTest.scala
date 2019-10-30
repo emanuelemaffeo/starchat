@@ -18,10 +18,11 @@ import scala.collection.JavaConverters._
 
 class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with JsonSupport with BeforeAndAfterAll {
 
-  val client = IndexManagementElasticClient
+  val client: IndexManagementElasticClient.type = IndexManagementElasticClient
 
-  val indexName = "index_getjenny_test_0"
-  val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, client.indexSuffix)
+  val indexName = "index_getjenny_english_test_0"
+  val esLanguageSpecificIndexName: String =
+    Index.esLanguageFromIndexName(indexName, client.indexSuffix)
   val esCrudBase = EsCrudBase(client, indexName)
 
   override protected def beforeAll(): Unit = {
@@ -29,7 +30,7 @@ class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with
     request.settings(Settings.builder()
       .put("index.number_of_shards", 1)
       .put("index.number_of_replicas", 1)
-    );
+    )
     request.mapping(
       """{
         "properties": {
@@ -37,7 +38,7 @@ class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with
             "instance": { "type": "keyword"}
             }
       }""",
-      XContentType.JSON);
+      XContentType.JSON)
     import org.elasticsearch.client.RequestOptions
     client.httpClient.indices.create(request, RequestOptions.DEFAULT)
   }
