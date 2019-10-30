@@ -70,11 +70,6 @@ object AnalyzerService extends AbstractDataService {
       scroll = true
     )
 
-    val refreshIndex = esCrudBase.refresh()
-    if (refreshIndex.failedShardsN > 0) {
-      throw AnalyzerServiceException("DecisionTable : index refresh failed: (" + indexName + ")")
-    }
-
     //get a map of stateId -> AnalyzerItem (only if there is smt in the field "analyzer")
     val analyzersLHM = mutable.LinkedHashMap.empty[String, DecisionTableRuntimeItem]
     val analyzersData: List[(String, DecisionTableRuntimeItem)] = scrollResp.getHits.getHits.toList.map {

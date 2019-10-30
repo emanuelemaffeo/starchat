@@ -172,12 +172,11 @@ class EsCrudBase private(client: ElasticClient, index: String) {
       ObjectPath.eval[String](Instance, parser.mapOrdered())
     }).nonEmpty
   }
-
 }
 
 object EsCrudBase {
   def apply(client: ElasticClient, index: String): EsCrudBase = {
-    val esSystemIndexName = Index.esLanguageFromIndexName(index, client.indexSuffix)
-    new EsCrudBase(client, esSystemIndexName)
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(index, client.indexSuffix)
+    new EsCrudBase(client, esLanguageSpecificIndexName)
   }
 }

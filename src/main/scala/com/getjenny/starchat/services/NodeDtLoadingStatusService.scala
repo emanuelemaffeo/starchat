@@ -40,8 +40,8 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
   private[this] def calcUuid(uuid: String = ""): String = if (uuid === "") clusterNodesService.uuid else uuid
   private[this] def calcId(dtIndexName: String, uuid: String): String = {
-    val esSystemIndexName = Index.esLanguageFromIndexName(dtIndexName, elasticClient.indexSuffix)
-    esSystemIndexName + "." + calcUuid(uuid)
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(dtIndexName, elasticClient.indexSuffix)
+    esLanguageSpecificIndexName + "." + calcUuid(uuid)
   }
 
   def update(dtNodeStatus: NodeDtLoadingStatus, refresh: Int = 0): Unit = {

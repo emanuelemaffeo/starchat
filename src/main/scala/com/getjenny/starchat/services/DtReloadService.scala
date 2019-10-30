@@ -36,7 +36,7 @@ object DtReloadService extends AbstractDataService {
                               refresh: Int = 0): Option[DtReloadTimestamp] = {
     val client: RestHighLevelClient = elasticClient.httpClient
     val ts: Long = if (timestamp === DT_RELOAD_TIMESTAMP_DEFAULT) System.currentTimeMillis else timestamp
-    val esSystemIndexName = Index.esLanguageFromIndexName(dtIndexName, elasticClient.indexSuffix)
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(dtIndexName, elasticClient.indexSuffix)
 
     val builder: XContentBuilder = jsonBuilder().startObject()
     builder.field(elasticClient.dtReloadTimestampFieldName, ts)
@@ -45,7 +45,7 @@ object DtReloadService extends AbstractDataService {
     val updateReq = new UpdateRequest()
       .index(indexName)
       .doc(builder)
-      .id(esSystemIndexName)
+      .id(esLanguageSpecificIndexName)
       .docAsUpsert(true)
 
     val response: UpdateResponse = client.update(updateReq, RequestOptions.DEFAULT)
@@ -56,7 +56,7 @@ object DtReloadService extends AbstractDataService {
       val refreshIndex = elasticClient
         .refresh(indexName)
       if (refreshIndex.failedShardsN > 0) {
-        throw new Exception("System: index refresh failed: (" + indexName + ", " + esSystemIndexName + ")")
+        throw new Exception("System: index refresh failed: (" + indexName + ", " + esLanguageSpecificIndexName + ")")
       }
     }
 
@@ -67,11 +67,11 @@ object DtReloadService extends AbstractDataService {
 
   def dTReloadTimestamp(dtIndexName: String): DtReloadTimestamp = {
     val client: RestHighLevelClient = elasticClient.httpClient
-    val esSystemIndexName = Index.esLanguageFromIndexName(dtIndexName, elasticClient.indexSuffix)
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(dtIndexName, elasticClient.indexSuffix)
 
     val getReq = new GetRequest()
       .index(indexName)
-      .id(esSystemIndexName)
+      .id(esLanguageSpecificIndexName)
 
     val response: GetResponse = client.get(getReq, RequestOptions.DEFAULT)
 

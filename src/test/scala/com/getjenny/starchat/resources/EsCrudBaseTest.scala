@@ -21,11 +21,11 @@ class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with
   val client = IndexManagementElasticClient
 
   val indexName = "index_getjenny_test_0"
-  val esSystemIndexName = Index.esLanguageFromIndexName(indexName, client.indexSuffix)
+  val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, client.indexSuffix)
   val esCrudBase = EsCrudBase(client, indexName)
 
   override protected def beforeAll(): Unit = {
-    val request = new CreateIndexRequest(esSystemIndexName)
+    val request = new CreateIndexRequest(esLanguageSpecificIndexName)
     request.settings(Settings.builder()
       .put("index.number_of_shards", 1)
       .put("index.number_of_replicas", 1)
@@ -121,7 +121,7 @@ class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with
   }*/
 
   override protected def afterAll(): Unit = {
-    val deleteIndexReq = new DeleteIndexRequest(esSystemIndexName)
+    val deleteIndexReq = new DeleteIndexRequest(esLanguageSpecificIndexName)
 
     client.httpClient.indices.delete(deleteIndexReq, RequestOptions.DEFAULT)
   }

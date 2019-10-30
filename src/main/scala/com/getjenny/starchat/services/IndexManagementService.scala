@@ -106,22 +106,22 @@ object IndexManagementService extends AbstractDataService {
       }
     }.filter { case (json, _) => json != "" }
 
-    val esSystemIndexName: String = Index.esLanguageFromIndexName(indexName, indexSuffix)
+    val esLanguageSpecificIndexName: String = Index.esLanguageFromIndexName(indexName, indexSuffix)
     resourcesJson.foreach { case (resJson, resType) =>
       resType match {
         case LangResourceType.STOPWORD | LangResourceType.STEMMER_OVERRIDE =>
           if (openCloseIndices) openClose(indexName, Some(indexSuffix), "close")
-          val updateIndexSettingsReq = new UpdateSettingsRequest().indices(esSystemIndexName)
+          val updateIndexSettingsReq = new UpdateSettingsRequest().indices(esLanguageSpecificIndexName)
             .settings(Settings.builder().loadFromSource(resJson, XContentType.JSON))
           val updateIndexSettingsRes: AcknowledgedResponse = client.indices
             .putSettings(updateIndexSettingsReq, RequestOptions.DEFAULT)
           if (!updateIndexSettingsRes.isAcknowledged) {
-            val message = "Failed to apply index settings (" + resType + ") for index: " + esSystemIndexName
+            val message = "Failed to apply index settings (" + resType + ") for index: " + esLanguageSpecificIndexName
             throw LangResourceException(message)
           }
           if (openCloseIndices) openClose(indexName, Some(indexSuffix), "open")
         case _ =>
-          val message = "Bad ResourceType(" + resType + ") for index: " + esSystemIndexName
+          val message = "Bad ResourceType(" + resType + ") for index: " + esLanguageSpecificIndexName
           throw LangResourceException(message)
       }
     }
@@ -161,9 +161,9 @@ object IndexManagementService extends AbstractDataService {
           throw new FileNotFoundException(message)
       }
 
-      val esSystemIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
+      val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
 
-      val createIndexReq = new CreateIndexRequest(esSystemIndexName).settings(
+      val createIndexReq = new CreateIndexRequest(esLanguageSpecificIndexName).settings(
         Settings.builder().loadFromSource(analyzerJson, XContentType.JSON)
           .put("index.number_of_shards", item.numberOfShards)
           .put("index.number_of_replicas", item.numberOfReplicas)
@@ -174,7 +174,7 @@ object IndexManagementService extends AbstractDataService {
       loadLangSpecificResources(indexName = indexName, indexSuffix = item.indexSuffix,
         language = language, openCloseIndices = true)
 
-      (item.indexSuffix + "(" + esSystemIndexName + ", " + createIndexRes.isAcknowledged + ")",
+      (item.indexSuffix + "(" + esLanguageSpecificIndexName + ", " + createIndexRes.isAcknowledged + ")",
         createIndexRes.isAcknowledged)
     })
 
@@ -201,13 +201,13 @@ object IndexManagementService extends AbstractDataService {
       }
     }).map(item => {
 
-      val esSystemIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
+      val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
 
-      val deleteIndexReq = new DeleteIndexRequest(esSystemIndexName)
+      val deleteIndexReq = new DeleteIndexRequest(esLanguageSpecificIndexName)
 
       val deleteIndexRes: AcknowledgedResponse = client.indices.delete(deleteIndexReq, RequestOptions.DEFAULT)
 
-      (item.indexSuffix + "(" + esSystemIndexName + ", " + deleteIndexRes.isAcknowledged + ")",
+      (item.indexSuffix + "(" + esLanguageSpecificIndexName + ", " + deleteIndexRes.isAcknowledged + ")",
         deleteIndexRes.isAcknowledged)
     })
 
@@ -226,17 +226,17 @@ object IndexManagementService extends AbstractDataService {
         case _ => true
       }
     }.map { item =>
-      val esSystemIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
+      val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
 
       val getMappingsReq: GetMappingsRequest = new GetMappingsRequest()
-        .indices(esSystemIndexName)
+        .indices(esLanguageSpecificIndexName)
 
       Try(client.indices.getMapping(getMappingsReq, RequestOptions.DEFAULT)) match {
         case Success(mappingsRes) =>
-          val check = mappingsRes.mappings.containsKey(esSystemIndexName)
-          (item.indexSuffix + "(" + esSystemIndexName + ", " + check + ")", check)
+          val check = mappingsRes.mappings.containsKey(esLanguageSpecificIndexName)
+          (item.indexSuffix + "(" + esLanguageSpecificIndexName + ", " + check + ")", check)
         case Failure(exception) =>
-          (item.indexSuffix + "(" + esSystemIndexName + ", false)", false)
+          (item.indexSuffix + "(" + esLanguageSpecificIndexName + ", false)", false)
       }
     }
 
@@ -254,17 +254,17 @@ object IndexManagementService extends AbstractDataService {
         case _ => true
       }
     }).map(item => {
-      val esSystemIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
+      val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
       operation match {
         case "close" =>
-          val closeIndexReq = new CloseIndexRequest(esSystemIndexName)
+          val closeIndexReq = new CloseIndexRequest(esLanguageSpecificIndexName)
           val closeIndexRes: AcknowledgedResponse = client.indices.close(closeIndexReq, RequestOptions.DEFAULT)
-          OpenCloseIndex(indexName = indexName, indexSuffix = item.indexSuffix, fullIndexName = esSystemIndexName,
+          OpenCloseIndex(indexName = indexName, indexSuffix = item.indexSuffix, fullIndexName = esLanguageSpecificIndexName,
             operation = operation, acknowledgement = closeIndexRes.isAcknowledged)
         case "open" =>
-          val openIndexReq = new OpenIndexRequest().indices(esSystemIndexName)
+          val openIndexReq = new OpenIndexRequest().indices(esLanguageSpecificIndexName)
           val openIndexRes: OpenIndexResponse = client.indices.open(openIndexReq, RequestOptions.DEFAULT)
-          OpenCloseIndex(indexName = indexName, indexSuffix = item.indexSuffix, fullIndexName = esSystemIndexName,
+          OpenCloseIndex(indexName = indexName, indexSuffix = item.indexSuffix, fullIndexName = esLanguageSpecificIndexName,
             operation = operation, acknowledgement = openIndexRes.isAcknowledged)
         case _ => throw IndexManagementServiceException("operation not supported on index: " + operation)
       }
@@ -294,9 +294,9 @@ object IndexManagementService extends AbstractDataService {
         case _ => true
       }
     }).map(item => {
-      val esSystemIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
+      val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
 
-      val updateIndexSettingsReq = new UpdateSettingsRequest().indices(esSystemIndexName)
+      val updateIndexSettingsReq = new UpdateSettingsRequest().indices(esLanguageSpecificIndexName)
         .settings(Settings.builder().loadFromSource(analyzerJson, XContentType.JSON))
 
       val updateIndexSettingsRes: AcknowledgedResponse = client.indices
@@ -304,7 +304,7 @@ object IndexManagementService extends AbstractDataService {
 
       loadLangSpecificResources(indexName, item.indexSuffix, language)
 
-      (item.indexSuffix + "(" + esSystemIndexName + ", " + updateIndexSettingsRes.isAcknowledged + ")",
+      (item.indexSuffix + "(" + esLanguageSpecificIndexName + ", " + updateIndexSettingsRes.isAcknowledged + ")",
         updateIndexSettingsRes.isAcknowledged)
     })
 
@@ -333,15 +333,15 @@ object IndexManagementService extends AbstractDataService {
           throw new FileNotFoundException(message)
       }
 
-      val esSystemIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
+      val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
 
-      val putMappingReq = new PutMappingRequest(esSystemIndexName)
+      val putMappingReq = new PutMappingRequest(esLanguageSpecificIndexName)
         .source(schemaJson, XContentType.JSON)
 
       val putMappingRes: AcknowledgedResponse = client.indices
         .putMapping(putMappingReq, RequestOptions.DEFAULT)
 
-      (item.indexSuffix + "(" + esSystemIndexName + ", " + putMappingRes.isAcknowledged + ")",
+      (item.indexSuffix + "(" + esLanguageSpecificIndexName + ", " + putMappingRes.isAcknowledged + ")",
         putMappingRes.isAcknowledged)
     })
 
@@ -357,10 +357,10 @@ object IndexManagementService extends AbstractDataService {
         case _ => true
       }
     }).map(item => {
-      val esSystemIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
-      val refreshIndexRes: RefreshIndexResult = elasticClient.refresh(esSystemIndexName)
+      val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, item.indexSuffix)
+      val refreshIndexRes: RefreshIndexResult = elasticClient.refresh(esLanguageSpecificIndexName)
       if (refreshIndexRes.failedShardsN > 0) {
-        val indexRefreshMessage = item.indexSuffix + "(" + esSystemIndexName + ", " +
+        val indexRefreshMessage = item.indexSuffix + "(" + esLanguageSpecificIndexName + ", " +
           refreshIndexRes.failedShardsN + ")"
         throw new Exception(indexRefreshMessage)
       }
