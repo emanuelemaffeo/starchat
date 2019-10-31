@@ -70,11 +70,6 @@ object AnalyzerService extends AbstractDataService {
       scroll = true
     )
 
-    val refreshIndex = indexLanguageCrud.refresh()
-    if (refreshIndex.failedShardsN > 0) {
-      throw AnalyzerServiceException("DecisionTable : index refresh failed: (" + indexName + ")")
-    }
-
     //get a map of stateId -> AnalyzerItem (only if there is smt in the field "analyzer")
     val analyzersLHM = mutable.LinkedHashMap.empty[String, DecisionTableRuntimeItem]
     val analyzersData: List[(String, DecisionTableRuntimeItem)] = scrollResp.getHits.getHits.toList.map {
@@ -105,9 +100,8 @@ object AnalyzerService extends AbstractDataService {
 
         val queries: List[String] = source.get("queries") match {
           case Some(t) =>
-            val queryArray = t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, String]]].asScala.toList
+            t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, String]]].asScala.toList
               .map(q_e => q_e.get("query"))
-            queryArray
           case None => List[String]()
         }
 

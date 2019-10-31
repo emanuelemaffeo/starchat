@@ -21,7 +21,7 @@ object SpellcheckService extends AbstractDataService {
 
   //TODO refactor with new dedicated index
   def termsSuggester(indexName: String, request: SpellcheckTermsRequest) : SpellcheckTermsResponse = {
-    val languageIndex = Index.esSystemIndexName(indexName, elasticClient.indexSuffix)
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
     val client: RestHighLevelClient = elasticClient.httpClient
 
     val suggestionBuilder: TermSuggestionBuilder = new TermSuggestionBuilder("question.base")
@@ -36,7 +36,7 @@ object SpellcheckService extends AbstractDataService {
     val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
       .suggest(suggestBuilder)
 
-    val searchReq = new SearchRequest(languageIndex)
+    val searchReq = new SearchRequest(esLanguageSpecificIndexName)
       .source(sourceReq)
 
     val searchResponse : SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
