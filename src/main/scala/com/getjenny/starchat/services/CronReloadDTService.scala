@@ -13,7 +13,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 object CronReloadDTService extends CronService {
-  protected[this] val indexManagementService: IndexManagementService.type = IndexManagementService
+  protected[this] val indexManagementService: LangaugeIndexManagementService.type = LangaugeIndexManagementService
 
   class ReloadAnalyzersTickActor extends Actor {
     protected[this] var updateTimestamp: Long = 0
@@ -26,13 +26,13 @@ object CronReloadDTService extends CronService {
         log.debug("Start DT reloading session: {} items({})", startUpdateTimestamp, maxItemsIndexesToUpdate)
 
         val indexCheck: List[(String, Boolean)] =
-          dtReloadService.allDTReloadTimestamp(Some(updateTimestamp), Some(maxItemsIndexesToUpdate))
+          instanceRegistryService.allInstanceTimestamp(Some(updateTimestamp), Some(maxItemsIndexesToUpdate))
             .map { dtReloadEntry =>
               val indexAnalyzers: Option[ActiveAnalyzers] =
                 analyzerService.analyzersMap.get(dtReloadEntry.indexName)
               val localReloadIndexTimestamp = indexAnalyzers match {
                 case Some(ts) => ts.lastReloadingTimestamp
-                case _ => dtReloadService.DT_RELOAD_TIMESTAMP_DEFAULT
+                case _ => InstanceRegistryDocument.InstanceRegistryTimestampDefault
               }
 
               if (dtReloadEntry.timestamp > 0 && localReloadIndexTimestamp < dtReloadEntry.timestamp) {
@@ -60,7 +60,7 @@ object CronReloadDTService extends CronService {
           if (indexMgmRes.check) {
             log.error("Index exists but loading results in an error: " + indexMgmRes.message)
           } else {
-            val r = dtReloadService.deleteEntry(ids = List(index))
+            val r = instanceRegistryService.deleteEntry(ids = List(index))
             log.debug("Deleted upadte record for the index: " + r)
           }
         }

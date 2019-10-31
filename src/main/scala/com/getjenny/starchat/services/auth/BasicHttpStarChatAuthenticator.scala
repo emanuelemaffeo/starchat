@@ -16,6 +16,7 @@ class BasicHttpStarChatAuthenticator(userService: AbstractUserService) extends A
   val admin: String = config.getString("starchat.basic_http_es.admin")
   val password: String = config.getString("starchat.basic_http_es.password")
   val salt: String = config.getString("starchat.basic_http_es.salt")
+  val instanceRegistryService = InstanceRegistryService
 
   def secret(password: String, salt: String): String = {
     password + "#" + salt
@@ -59,7 +60,9 @@ class BasicHttpStarChatAuthenticator(userService: AbstractUserService) extends A
         Future.successful(userPermissions.contains(Permissions.admin))
       case _ =>
         val userPermissions = user.permissions.getOrElse(index, Set.empty[Permissions.Value])
-        Future.successful((userPermissions & permissions).nonEmpty)
+        val indexEnabled = instanceRegistryService.getInstance(index).enabled.getOrElse(false)
+        val authorized = (userPermissions & permissions).nonEmpty && indexEnabled
+        Future.successful(authorized)
     }
   }
 }

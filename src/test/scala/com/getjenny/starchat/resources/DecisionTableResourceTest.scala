@@ -481,23 +481,6 @@ class DecisionTableResourceTest extends TestEnglishBase {
     }
   }
 
-  it should {
-    "return an HTTP code 200 when deleting an index" in {
-      Delete(s"/index_getjenny_english_0/index_management") ~>  addCredentials(testAdminCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.OK
-        val response = responseAs[IndexManagementResponse]
-      }
-    }
-  }
-
-  it should {
-    "return an HTTP code 200 when deleting an existing system index" in {
-      Delete(s"/system_index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.OK
-        val response = responseAs[IndexManagementResponse]
-      }
-    }
-  }
 }
 
 

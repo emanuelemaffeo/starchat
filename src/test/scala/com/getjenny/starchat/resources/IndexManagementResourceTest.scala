@@ -1,87 +1,57 @@
 package com.getjenny.starchat.resources
 
 import akka.http.scaladsl.model.StatusCodes
-import com.getjenny.starchat.entities._
-import com.getjenny.starchat.utils.Index
+import com.getjenny.starchat.entities.{CreateLanguageIndexRequest, IndexManagementResponse}
 
-class IndexManagementResourceTest extends TestEnglishBase {
+class IndexManagementResourceTest extends TestBase {
+
+  val createEnglishRequest = CreateLanguageIndexRequest(List("english"))
+
+  override protected def beforeAll(): Unit = {
+    super.beforeAll()
+    Post("/language_index_management", createEnglishRequest) ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+      true
+    }
+  }
 
   "StarChat" should {
-     "return an HTTP code 201 when creating a new user" in {
-      val user = User(
-        id = "test_user",
-        password = "3c98bf19cb962ac4cd0227142b3495ab1be46534061919f792254b80c0f3e566f7819cae73bdc616af0ff555f7460ac96d88d56338d659ebd93e2be858ce1cf9",
-        salt = "salt",
-        permissions = Map[String, Set[Permissions.Value]]("index_getjenny_english_0" -> Set(Permissions.read, Permissions.write))
-      )
-      Post(s"/user", user) ~> addCredentials(testAdminCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.Created
-      }
-    }
-  }
-
-  it should {
-    "return an HTTP code 400 when trying to create again the same index" in {
+    "return an HTTP code 200 when add instance" in {
       Post(s"/index_getjenny_english_0/index_management/create") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.BadRequest
-        val response = responseAs[IndexManagementResponse]
-        response.message should fullyMatch regex "Elasticsearch exception \\[type=resource_already_exists_exception, reason=index \\[index_.*\\] already exists\\]"
-      }
-    }
-  }
-
-  it should {
-    "return an HTTP code 200 when calling elasticsearch index refresh" in {
-      Post(s"/index_getjenny_english_0/index_management/refresh") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.OK
-      }
-    }
-  }
-
-  it should {
-    "return an HTTP code 200 when getting informations from the index" in {
-      Get(s"/index_getjenny_english_0/index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[IndexManagementResponse]
-        response.message should fullyMatch regex "IndexCheck: " +
-          "(?:[A-Za-z0-9_]+)\\(" + Index.indexMatchRegex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + Index.indexMatchRegex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + Index.indexMatchRegex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + Index.indexMatchRegex + "\\.(?:[A-Za-z0-9_]+), true\\) " +
-          "(?:[A-Za-z0-9_]+)\\(" + Index.indexMatchRegex + "\\.(?:[A-Za-z0-9_]+), true\\)".r
+        response.message shouldEqual "Created instance index_getjenny_english_0, operation status: CREATED"
       }
     }
-  }
 
-
-  /*it should {
-    "return an HTTP code 200 updating the index" in {
-      Put(s"/index_getjenny_english_0/english/index_management") ~> routes ~> check {
+    "return an HTTP code 200 when disable instance" in {
+      Post(s"/index_getjenny_english_0/index_management/disable") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[IndexManagementResponse]
+        response.message shouldEqual "Disabled instance index_getjenny_english_0, operation status: OK"
       }
     }
-  }*/
 
-
-  it should {
-    "return an HTTP code 200 when deleting an existing index" in {
-      Delete(s"/index_getjenny_english_0/index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+    "return an HTTP code 200 when mark delete instance" in {
+      Post(s"/index_getjenny_english_0/index_management/delete") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[IndexManagementResponse]
+        response.message shouldEqual "Mark Delete instance index_getjenny_english_0, operation status: OK"
       }
     }
+
+    "return an HTTP code 401 when trying to access to a service when instance is disabled" in {
+      Get("/index_getjenny_english_0/decisiontable?id=forgot_password&id=call_operator") ~> addCredentials(testUserCredentials) ~> routes ~> check {
+        status shouldEqual StatusCodes.Unauthorized
+      }
+    }
+
   }
 
-  it should {
-    "return an HTTP code 400 when deleting a non existing index" in {
-      Delete(s"/index_getjenny_english_0/index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.BadRequest
-        val response = responseAs[IndexManagementResponse]
-      }
+  override protected def afterAll(): Unit = {
+    super.afterAll()
+    Delete("/language_index_management?index=index_english") ~>  addCredentials(testAdminCredentials) ~> routes ~> check {
+      true
     }
   }
 
 }
-
-

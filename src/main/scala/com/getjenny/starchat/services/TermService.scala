@@ -12,7 +12,7 @@ import com.getjenny.analyzer.util.VectorUtils
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.utils.TextToVectorsTools
 import com.getjenny.starchat.entities._
-import com.getjenny.starchat.services.esclient.{EsCrudBase, TermElasticClient}
+import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, TermElasticClient}
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.action.get.MultiGetItemResponse
 import org.elasticsearch.action.search.{SearchResponse, SearchScrollRequest, SearchType}
@@ -169,11 +169,11 @@ object TermService extends AbstractDataService {
     */
   def indexTerm(indexName: String, terms: Terms, refresh: Int): IndexDocumentListResult = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val indexElems = createTermList(terms, instance)
 
-    val listOfDocRes = esCrudBase.bulkInsert(indexElems)
+    val listOfDocRes = indexLanguageCrud.bulkCreate(indexElems)
       .getItems
       .map { x =>
         IndexDocumentResult(x.getIndex, x.getId, x.getVersion, x.status === RestStatus.CREATED)
@@ -238,8 +238,8 @@ object TermService extends AbstractDataService {
       */
   def termsById(indexName: String, termsRequest: DocsIds): Terms = {
     val documents: List[Term] = if (termsRequest.ids.nonEmpty) {
-      val esCrudBase = EsCrudBase(elasticClient, indexName)
-      val response = esCrudBase.findAll(termsRequest.ids)
+      val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
+      val response = indexLanguageCrud.readAll(termsRequest.ids)
 
       response.getResponses.toList
         .filter((p: MultiGetItemResponse) => p.getResponse.isExists)
@@ -261,17 +261,17 @@ object TermService extends AbstractDataService {
     */
   def updateTerm(indexName: String, terms: Terms, refresh: Int): UpdateDocumentsResult = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val updateElems = createTermList(terms, instance)
 
-    val listOfDocRes = esCrudBase.bulkUpdate(updateElems, upsert = true)
+    val listOfDocRes = indexLanguageCrud.bulkUpdate(updateElems, upsert = true)
       .getItems.map { x =>
       UpdateDocumentResult(x.getIndex, x.getId, x.getVersion, x.status === RestStatus.CREATED)
     }.toList
 
     if (refresh =/= 0) {
-      val refreshIndex = esCrudBase.refresh()
+      val refreshIndex = indexLanguageCrud.refresh()
       if (refreshIndex.failedShardsN > 0) {
         throw TermServiceException("Term : index refresh failed: (" + indexName + ")")
       }
@@ -326,7 +326,7 @@ object TermService extends AbstractDataService {
   def search[T: StringOrSearchTerm](indexName: String, query: T,
                                     analyzer: String = "space_punctuation"): TermsResults = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val term_field_name = if (TokenizersDescription.analyzersMap.contains(analyzer)) {
       "term." + analyzer
@@ -385,7 +385,7 @@ object TermService extends AbstractDataService {
         throw TermServiceException("Unexpected query type for terms search")
     }
 
-    val searchResponse = esCrudBase.find(instance, boolQueryBuilder,
+    val searchResponse = indexLanguageCrud.read(instance, boolQueryBuilder,
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       version = Option(true))
 
@@ -405,7 +405,7 @@ object TermService extends AbstractDataService {
     * @return a TokenizerResponse with the result of the tokenization
     */
   def esTokenizer(indexName: String, query: TokenizerQueryRequest): TokenizerResponse = {
-    val esSystemIndexName = Index.esSystemIndexName(indexName, elasticClient.indexSuffix)
+    val languageIndex = Index.esSystemIndexName(indexName, elasticClient.indexSuffix)
     val analyzer = TokenizersDescription.analyzersMap.get(query.tokenizer) match {
       case Some((analyzerEsName, _)) => analyzerEsName
       case _ =>
@@ -415,7 +415,7 @@ object TermService extends AbstractDataService {
     val client: RestHighLevelClient = elasticClient.httpClient
 
     val analyzerReq = AnalyzeRequest.withIndexAnalyzer(
-      esSystemIndexName,
+      languageIndex,
       analyzer,
       query.text
     )
@@ -475,10 +475,10 @@ object TermService extends AbstractDataService {
     */
   def allDocuments(indexName: String, keepAlive: Long = 60000): Iterator[Term] = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val query = QueryBuilders.matchAllQuery
 
-    var scrollResp: SearchResponse = esCrudBase.find(instance, query, scroll = true,
+    var scrollResp: SearchResponse = indexLanguageCrud.read(instance, query, scroll = true,
       scrollTime = keepAlive, maxItems = Option(100))
 
     val scrollId = scrollResp.getScrollId
@@ -489,7 +489,7 @@ object TermService extends AbstractDataService {
       }
       val scrollRequest = new SearchScrollRequest(scrollId)
       scrollRequest.scroll(new TimeValue(keepAlive))
-      scrollResp = esCrudBase.scroll(scrollRequest)
+      scrollResp = indexLanguageCrud.scroll(scrollRequest)
       (documents, documents.nonEmpty)
     }.takeWhile { case (_, docNonEmpty) => docNonEmpty }
       .flatMap { case (doc, _) => doc }

@@ -50,9 +50,9 @@ object SystemIndexManagementService extends AbstractDataService {
       numberOfShards = elasticClient.numberOfShards,
       numberOfReplicas = elasticClient.numberOfReplicas
     ),
-    JsonMappingAnalyzersIndexFiles(path = "/index_management/json_index_spec/system/refresh_decisiontable.json",
-      updatePath = "/index_management/json_index_spec/system/update/refresh_decisiontable.json",
-      indexSuffix = elasticClient.systemRefreshDtIndexSuffix,
+    JsonMappingAnalyzersIndexFiles(path = "/index_management/json_index_spec/system/instance_registry.json",
+      updatePath = "/index_management/json_index_spec/system/update/instance_registry.json",
+      indexSuffix = elasticClient.systemInstanceRegistrySuffix,
       numberOfShards = elasticClient.numberOfShards,
       numberOfReplicas = elasticClient.numberOfReplicas
     ),

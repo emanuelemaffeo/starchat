@@ -26,7 +26,7 @@ trait DecisionTableResource extends StarChatResource {
   private[this] val decisionTableService: DecisionTableService.type = DecisionTableService
   private[this] val analyzerService: AnalyzerService.type = AnalyzerService
   private[this] val responseService: ResponseService.type = ResponseService
-  private[this] val dtReloadService: DtReloadService.type = DtReloadService
+  private[this] val dtReloadService: InstanceRegistryService.type = InstanceRegistryService
   private[this] val fileTypeRegex: Regex = "^(csv|json)$".r
 
   def decisionTableRoutesAllRoutes: Route = handleExceptions(routesExceptionHandler) {
@@ -113,7 +113,7 @@ trait DecisionTableResource extends StarChatResource {
               authenticator.hasPermissions(user, indexName, Permissions.write)) {
               extractRequest { request =>
                 val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                onCompleteWithBreakerFuture(breaker)(dtReloadService.updateDTReloadTimestamp(indexName, refresh = 1)) {
+                onCompleteWithBreakerFuture(breaker)(dtReloadService.updateTimestamp(indexName, refresh = 1)) {
                   case Success(t) =>
                     completeResponse(StatusCodes.Accepted, StatusCodes.BadRequest, Option {
                       t

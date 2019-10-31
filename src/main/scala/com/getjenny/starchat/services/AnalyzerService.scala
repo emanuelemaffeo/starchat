@@ -11,7 +11,7 @@ import com.getjenny.analyzer.expressions.{AnalyzersData, AnalyzersDataInternal, 
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.analyzers.StarChatAnalyzer
 import com.getjenny.starchat.entities._
-import com.getjenny.starchat.services.esclient.{DecisionTableElasticClient, EsCrudBase}
+import com.getjenny.starchat.services.esclient.{DecisionTableElasticClient, IndexLanguageCrud}
 import com.getjenny.starchat.utils.{Base64, Index}
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.SearchHit
@@ -54,15 +54,15 @@ object AnalyzerService extends AbstractDataService {
   val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
   private[this] val termService: TermService.type = TermService
   private[this] val decisionTableService: DecisionTableService.type = DecisionTableService
-  private[this] val dtReloadService: DtReloadService.type = DtReloadService
+  private[this] val dtReloadService: InstanceRegistryService.type = InstanceRegistryService
   private[this] val nodeDtLoadingStatusService: NodeDtLoadingStatusService.type = NodeDtLoadingStatusService
   val dtMaxTables: Long = elasticClient.config.getLong("es.dt_max_tables")
 
   def getAnalyzers(indexName: String): mutable.LinkedHashMap[String, DecisionTableRuntimeItem] = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val query = QueryBuilders.matchAllQuery
-    val scrollResp = esCrudBase.find(instance, query,
+    val scrollResp = indexLanguageCrud.read(instance, query,
       maxItems = Option(10000),
       version = Option(true),
       fetchSource = Option(Array("state", "execution_order", "max_state_counter",
@@ -70,7 +70,7 @@ object AnalyzerService extends AbstractDataService {
       scroll = true
     )
 
-    val refreshIndex = esCrudBase.refresh()
+    val refreshIndex = indexLanguageCrud.refresh()
     if (refreshIndex.failedShardsN > 0) {
       throw AnalyzerServiceException("DecisionTable : index refresh failed: (" + indexName + ")")
     }
@@ -223,10 +223,10 @@ object AnalyzerService extends AbstractDataService {
 
     val nodeDtLoadingTimestamp = System.currentTimeMillis()
     if (propagate) {
-      Try(dtReloadService.updateDTReloadTimestamp(indexName, nodeDtLoadingTimestamp, refresh = 1)) match {
+      Try(dtReloadService.updateTimestamp(indexName, nodeDtLoadingTimestamp, refresh = 1)) match {
         case Success(dtReloadTimestamp) =>
           val ts = dtReloadTimestamp
-            .getOrElse(DtReloadTimestamp(indexName, dtReloadService.DT_RELOAD_TIMESTAMP_DEFAULT))
+            .getOrElse(DtReloadTimestamp(indexName, InstanceRegistryDocument.InstanceRegistryTimestampDefault))
           log.debug("setting dt reload timestamp to: {}", ts.timestamp)
           activeAnalyzers.lastReloadingTimestamp = ts.timestamp
         case Failure(e) =>

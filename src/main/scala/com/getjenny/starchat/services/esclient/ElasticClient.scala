@@ -137,7 +137,7 @@ trait ElasticClient {
   val termIndexSuffix: String = config.getString("es.term_index_suffix")
 
   val userIndexSuffix: String = config.getString("es.user_index_suffix")
-  val systemRefreshDtIndexSuffix: String = config.getString("es.system_refresh_dt_index_suffix")
+  val systemInstanceRegistrySuffix: String = config.getString("es.system_instance_registry_suffix")
   val systemClusterNodesIndexSuffix: String = "cluster_nodes"
   val systemDtNodesStatusIndexSuffix: String = "decision_table_node_status"
 

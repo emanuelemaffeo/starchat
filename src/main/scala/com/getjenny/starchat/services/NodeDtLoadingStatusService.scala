@@ -7,7 +7,7 @@ package com.getjenny.starchat.services
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.{ClusterLoadingDtStatusIndex, DeleteDocumentsSummaryResult, NodeDtLoadingStatus, NodeLoadingAllDtStatus}
-import com.getjenny.starchat.services.DtReloadService.allDTReloadTimestamp
+import com.getjenny.starchat.services.InstanceRegistryService.allInstanceTimestamp
 import com.getjenny.starchat.services.esclient.SystemIndexManagementElasticClient
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.action.search.{SearchRequest, SearchResponse, SearchType}
@@ -33,15 +33,15 @@ object NodeDtLoadingStatusService extends AbstractDataService {
   val DT_NODES_STATUS_TIMESTAMP_DEFAULT : Long = -1
   override val elasticClient: SystemIndexManagementElasticClient.type = SystemIndexManagementElasticClient
   val clusterNodesService: ClusterNodesService.type = ClusterNodesService
-  private[this] val dtReloadService: DtReloadService.type = DtReloadService
+  private[this] val dtReloadService: InstanceRegistryService.type = InstanceRegistryService
   private[this] val analyzerService: AnalyzerService.type = AnalyzerService
   private[this] val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
   val indexName: String = Index.indexName(elasticClient.indexName, elasticClient.systemDtNodesStatusIndexSuffix)
 
   private[this] def calcUuid(uuid: String = ""): String = if (uuid === "") clusterNodesService.uuid else uuid
   private[this] def calcId(dtIndexName: String, uuid: String): String = {
-    val esSystemIndexName = Index.esSystemIndexName(dtIndexName, elasticClient.indexSuffix)
-    esSystemIndexName + "." + calcUuid(uuid)
+    val languageIndex = Index.esSystemIndexName(dtIndexName, elasticClient.indexSuffix)
+    languageIndex + "." + calcUuid(uuid)
   }
 
   def update(dtNodeStatus: NodeDtLoadingStatus, refresh: Int = 0): Unit = {
@@ -77,9 +77,9 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
   def dtUpdateStatusByIndex(dtIndexName: String = "", minTs: Long = 0): List[NodeDtLoadingStatus] = {
     val client: RestHighLevelClient = elasticClient.httpClient
-    val esSystemIndex = if(dtIndexName.nonEmpty) Index.esSystemIndexName(dtIndexName) else ""
+    val languageIndex = if(dtIndexName.nonEmpty) Index.esSystemIndexName(dtIndexName) else ""
     val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
-    if(esSystemIndex =/= "") boolQueryBuilder.filter(QueryBuilders.termQuery("index", esSystemIndex))
+    if(languageIndex =/= "") boolQueryBuilder.filter(QueryBuilders.termQuery("index", languageIndex))
     if(minTs > 0) boolQueryBuilder.filter(QueryBuilders.rangeQuery("timestamp").gte(minTs))
 
     val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
@@ -99,17 +99,17 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
       val uuid: String = source.get("uuid") match {
         case Some(t) => t.asInstanceOf[String]
-        case _ => throw NodeDtLoadingStatusServiceException("Failed to get uuid for the index: " + esSystemIndex)
+        case _ => throw NodeDtLoadingStatusServiceException("Failed to get uuid for the index: " + languageIndex)
       }
 
       val index : String = source.get("index") match {
         case Some(t) => t.asInstanceOf[String]
-        case _ => throw NodeDtLoadingStatusServiceException("Failed to get index name: " + esSystemIndex)
+        case _ => throw NodeDtLoadingStatusServiceException("Failed to get index name: " + languageIndex)
       }
 
       val timestamp : Long = source.get("timestamp") match {
         case Some(t) => t.asInstanceOf[Long]
-        case _ => throw NodeDtLoadingStatusServiceException("Failed to get timestamp for the index: " + esSystemIndex)
+        case _ => throw NodeDtLoadingStatusServiceException("Failed to get timestamp for the index: " + languageIndex)
       }
 
       NodeDtLoadingStatus(uuid = Some{uuid}, index = index, timestamp = Some{timestamp})
@@ -117,7 +117,7 @@ object NodeDtLoadingStatusService extends AbstractDataService {
   }
 
   def nodeLoadingStatusAll(verbose: Boolean = false, strict: Boolean = false) : NodeLoadingAllDtStatus = {
-    val idxUpdateStatus = allDTReloadTimestamp(minTimestamp = Some(0)).map{ dtReloadTs =>
+    val idxUpdateStatus = allInstanceTimestamp(minTimestamp = Some(0)).map{ dtReloadTs =>
       val upToDate = analyzerService.analyzersMap.get(dtReloadTs.indexName) match {
         case Some(t) => t.lastReloadingTimestamp >= dtReloadTs.timestamp
         case _ => false
@@ -142,7 +142,7 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
   def loadingStatus(index: String, strict: Boolean = false) : ClusterLoadingDtStatusIndex = {
     val aliveNodes = clusterNodesService.aliveNodes.nodes.map(_.uuid).toSet // all alive nodes
-    val indexPushTimestamp = dtReloadService.dTReloadTimestamp(index) // push timestamp for the index
+    val indexPushTimestamp = dtReloadService.instanceTimestamp(index) // push timestamp for the index
     val nodeDtLoadingStatus = // update operations for the index
       dtUpdateStatusByIndex(dtIndexName = index, minTs = indexPushTimestamp.timestamp)
         .map(_.uuid.getOrElse("")).toSet

@@ -10,7 +10,7 @@ import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.util.{RandomNumbers, Time}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.{LabelCountHistogramItem, _}
-import com.getjenny.starchat.services.esclient.{EsCrudBase, QuestionAnswerElasticClient}
+import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, QuestionAnswerElasticClient}
 import com.getjenny.starchat.utils.Index
 import org.apache.lucene.search.join._
 import org.elasticsearch.action.index.IndexResponse
@@ -58,7 +58,7 @@ trait QuestionAnswerService extends AbstractDataService {
     */
   private[this] def calcDictSize(indexName: String): DictSize = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val questionAgg = AggregationBuilders.cardinality("question_term_count").field("question.base")
     val answerAgg = AggregationBuilders.cardinality("answer_term_count").field("answer.base")
@@ -68,7 +68,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val query = QueryBuilders.matchAllQuery
 
-    val searchResp = esCrudBase.find(instance, query,
+    val searchResp = indexLanguageCrud.read(instance, query,
       aggregation = List(questionAgg, answerAgg, totalAgg),
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       maxItems = Option(0),
@@ -134,14 +134,14 @@ trait QuestionAnswerService extends AbstractDataService {
     */
   private[this] def calcTotalTerms(indexName: String): TotalTerms = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val questionAgg = AggregationBuilders.sum("question_term_count").field("question.base_length")
     val answerAgg = AggregationBuilders.sum("answer_term_count").field("answer.base_length")
 
     val query = QueryBuilders.matchAllQuery
 
-    val searchResp = esCrudBase.find(instance, query, aggregation = List(questionAgg, answerAgg),
+    val searchResp = indexLanguageCrud.read(instance, query, aggregation = List(questionAgg, answerAgg),
       maxItems = Option(0),
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Option(true))
@@ -207,7 +207,7 @@ trait QuestionAnswerService extends AbstractDataService {
   def calcTermCount(indexName: String,
                     field: TermCountFields.Value = TermCountFields.question, term: String): TermCount = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val agg = AggregationBuilders.sum("countTerms")
       .script(new Script("_score"))
@@ -219,7 +219,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val query = QueryBuilders.matchQuery(esFieldName, term)
 
-    val searchResp = esCrudBase.find(instance, query, aggregation = List(agg),
+    val searchResp = indexLanguageCrud.read(instance, query, aggregation = List(agg),
       searchType = SearchType.DFS_QUERY_THEN_FETCH, requestCache = Option(true))
 
     val totalHits = searchResp.getHits.getTotalHits.value
@@ -829,7 +829,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
   def search(indexName: String, documentSearch: QADocumentSearch): Option[SearchQADocumentsResults] = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val sort = documentSearch.sortByConvIdIdx match {
       case Some(true) => List(new FieldSortBuilder("conversation").order(SortOrder.DESC),
@@ -839,7 +839,7 @@ trait QuestionAnswerService extends AbstractDataService {
     }
 
     val query = queryBuilder(documentSearch)
-    val searchResp = esCrudBase.find(instance, query,
+    val searchResp = indexLanguageCrud.read(instance, query,
       from = documentSearch.from,
       maxItems = documentSearch.size.orElse(Option(10)),
       minScore = documentSearch.minScore.orElse(Option(elasticClient.queryMinThreshold)),
@@ -891,7 +891,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
   def analytics(indexName: String, request: QAAggregatedAnalyticsRequest): QAAggregatedAnalytics = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val firstIndexInConv: Long = 1
     val query: BoolQueryBuilder = QueryBuilders.boolQuery()
@@ -923,7 +923,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val aggregationList = createAggregations(request, firstIndexInConv, dateHistInterval, minDocInBuckets)
 
-    val searchResp = esCrudBase.find(instance, query,
+    val searchResp = indexLanguageCrud.read(instance, query,
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Some(true),
       aggregation = aggregationList,
@@ -1501,7 +1501,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
   def create(indexName: String, document: QADocument, refresh: Int): Option[IndexDocumentResult] = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val builder: XContentBuilder = jsonBuilder().startObject()
 
@@ -1651,9 +1651,9 @@ trait QuestionAnswerService extends AbstractDataService {
 
     builder.endObject()
 
-    val response: IndexResponse = esCrudBase.index(instance, document.id, builder)
+    val response: IndexResponse = indexLanguageCrud.create(instance, document.id, builder)
 
-    refreshIndex(indexName, refresh, esCrudBase)
+    refreshIndex(indexName, refresh, indexLanguageCrud)
 
     val doc_result: IndexDocumentResult = IndexDocumentResult(index = response.getIndex,
       id = response.getId,
@@ -1825,11 +1825,11 @@ trait QuestionAnswerService extends AbstractDataService {
 
   def update(indexName: String, document: QADocumentUpdate, refresh: Int): UpdateDocumentsResult = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val builder = updateBuilder(document, instance)
-    val bulkResponse = esCrudBase.bulkUpdate(document.id.map(x => (x, builder)))
+    val bulkResponse = indexLanguageCrud.bulkUpdate(document.id.map(x => (x, builder)))
 
-    refreshIndex(indexName, refresh, esCrudBase)
+    refreshIndex(indexName, refresh, indexLanguageCrud)
 
     val listOfDocRes: List[UpdateDocumentResult] = bulkResponse.getItems.map(response => {
       UpdateDocumentResult(index = response.getIndex,
@@ -1842,9 +1842,9 @@ trait QuestionAnswerService extends AbstractDataService {
     UpdateDocumentsResult(data = listOfDocRes)
   }
 
-  private[this] def refreshIndex(indexName: String, refresh: Int, esCrudBase: EsCrudBase): Unit = {
+  private[this] def refreshIndex(indexName: String, refresh: Int, indexLanguageCrud: IndexLanguageCrud): Unit = {
     if (refresh =/= 0) {
-      val refresh_index = esCrudBase.refresh()
+      val refresh_index = indexLanguageCrud.refresh()
       if (refresh_index.failedShardsN > 0) {
         throw QuestionAnswerServiceException("index refresh failed: (" + indexName + ")")
       }
@@ -1868,9 +1868,9 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   def read(indexName: String, ids: List[String]): Option[SearchQADocumentsResults] = {
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
-    val response = esCrudBase.findAll(ids)
+    val response = indexLanguageCrud.readAll(ids)
     val filteredDoc = response.getResponses.toList
       .filter(p => p.getResponse.isExists)
       .map { e =>
@@ -1890,9 +1890,9 @@ trait QuestionAnswerService extends AbstractDataService {
 
   def allDocuments(indexName: String, keepAlive: Long = 60000, size: Int = 100): Iterator[QADocument] = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val query = QueryBuilders.matchAllQuery
-    var scrollResp = esCrudBase.find(instance, query, maxItems = Option(size), scroll = true, scrollTime = keepAlive)
+    var scrollResp = indexLanguageCrud.read(instance, query, maxItems = Option(size), scroll = true, scrollTime = keepAlive)
 
     val scrollId = scrollResp.getScrollId
 
@@ -1902,7 +1902,7 @@ trait QuestionAnswerService extends AbstractDataService {
         val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
         documentFromMap(indexName, id, source)
       }
-      scrollResp = esCrudBase.scroll(new SearchScrollRequest(scrollId))
+      scrollResp = indexLanguageCrud.scroll(new SearchScrollRequest(scrollId))
       (documents, documents.nonEmpty)
     }.takeWhile { case (_, docNonEmpty) => docNonEmpty }
       .flatMap { case (doc, _) => doc }

@@ -11,7 +11,7 @@ object CronInitializeSystemIndicesService extends CronService {
     val client = systemIndexManagementService.elasticClient
     val indices = List(
       client.indexName + "." + client.userIndexSuffix,
-      client.indexName + "." + client.systemRefreshDtIndexSuffix,
+      client.indexName + "." + client.systemInstanceRegistrySuffix,
       client.indexName + "." + client.systemClusterNodesIndexSuffix,
       client.indexName + "." + client.systemDtNodesStatusIndexSuffix
     )

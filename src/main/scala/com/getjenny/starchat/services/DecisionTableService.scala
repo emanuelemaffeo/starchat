@@ -11,7 +11,7 @@ import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.utils.TokenToVector
 import com.getjenny.starchat.entities._
-import com.getjenny.starchat.services.esclient.{DecisionTableElasticClient, EsCrudBase}
+import com.getjenny.starchat.services.esclient.{DecisionTableElasticClient, IndexLanguageCrud}
 import com.getjenny.starchat.utils.{Base64, Index}
 import org.apache.lucene.search.join._
 import org.elasticsearch.action.get.{GetResponse, MultiGetRequest, _}
@@ -268,7 +268,7 @@ object DecisionTableService extends AbstractDataService {
 
   def search(indexName: String, documentSearch: DTDocumentSearch): SearchDTDocumentsResults = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val minScore = documentSearch.minScore.getOrElse(
       Option {
@@ -303,7 +303,7 @@ object DecisionTableService extends AbstractDataService {
       case _ => responseToDtDocumentDefault
     }
 
-    val searchResponse = esCrudBase.find(instance, boolQueryBuilder, version = Option(true),
+    val searchResponse = indexLanguageCrud.read(instance, boolQueryBuilder, version = Option(true),
       from = documentSearch.from.orElse(Option(0)),
       maxItems = documentSearch.size.orElse(Option(10)))
 
@@ -359,7 +359,7 @@ object DecisionTableService extends AbstractDataService {
 
   def create(indexName: String, document: DTDocument, refresh: Int): IndexDocumentResult = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val builder: XContentBuilder = jsonBuilder().startObject()
 
@@ -395,10 +395,10 @@ object DecisionTableService extends AbstractDataService {
     builder.field("evaluation_class", evaluationClass)
     builder.endObject()
 
-    val response: IndexResponse = esCrudBase.index(instance, document.state, builder)
+    val response: IndexResponse = indexLanguageCrud.create(instance, document.state, builder)
 
     if (refresh =/= 0) {
-      val refreshIndex = esCrudBase.refresh()
+      val refreshIndex = indexLanguageCrud.refresh()
       if (refreshIndex.failedShardsN > 0) {
         throw new Exception("DecisionTable : index refresh failed: (" + indexName + ")")
       }
@@ -415,7 +415,7 @@ object DecisionTableService extends AbstractDataService {
 
   def update(indexName: String, document: DTDocumentUpdate, refresh: Int): UpdateDocumentResult = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val builder: XContentBuilder = jsonBuilder().startObject()
 
@@ -484,10 +484,10 @@ object DecisionTableService extends AbstractDataService {
 
     builder.endObject()
 
-    val response = esCrudBase.update(instance, document.state, builder)
+    val response = indexLanguageCrud.update(instance, document.state, builder)
 
     if (refresh =/= 0) {
-      val refreshIndex = esCrudBase.refresh()
+      val refreshIndex = indexLanguageCrud.refresh()
       if (refreshIndex.failedShardsN > 0) {
         throw new Exception("DecisionTable : index refresh failed: (" + indexName + ")")
       }
@@ -504,10 +504,10 @@ object DecisionTableService extends AbstractDataService {
 
   def getDTDocuments(indexName: String): SearchDTDocumentsResults = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val query = QueryBuilders.matchAllQuery
 
-    val scrollResp: SearchResponse = esCrudBase.find(instance, query, scroll = true,
+    val scrollResp: SearchResponse = indexLanguageCrud.read(instance, query, scroll = true,
       version = Option(true), maxItems = Option(10000))
 
     //get a map of stateId -> AnalyzerItem (only if there is smt in the field "analyzer")
@@ -525,9 +525,9 @@ object DecisionTableService extends AbstractDataService {
   }
 
   def read(indexName: String, ids: List[String]): SearchDTDocumentsResults = {
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
-    val response = esCrudBase.findAll(ids)
+    val response = indexLanguageCrud.readAll(ids)
 
     val documents: Option[List[SearchDTDocument]] = Option {
       response.getResponses
@@ -682,7 +682,7 @@ object DecisionTableService extends AbstractDataService {
 
   def wordFrequenciesInQueries(indexName: String): Map[String, Double] = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     /*   Query to fetch for word freq in queries
     {
@@ -707,7 +707,7 @@ object DecisionTableService extends AbstractDataService {
 
     val query = QueryBuilders.matchAllQuery
 
-    val searchResp = esCrudBase.find(instance, query,
+    val searchResp = indexLanguageCrud.read(instance, query,
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Some(true),
       maxItems = Option(0),
@@ -729,7 +729,7 @@ object DecisionTableService extends AbstractDataService {
 
   def wordFrequenciesInQueriesByState(indexName: String): List[DTStateWordFreqsItem] = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     /*   Query to fetch for each state word freq in queries
     {
@@ -790,7 +790,7 @@ object DecisionTableService extends AbstractDataService {
           )
       )
 
-    val searchResp = esCrudBase.find(instance, query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
+    val searchResp = indexLanguageCrud.read(instance, query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
       aggregation = List(aggregation),
       requestCache = Some(true),
       maxItems = Option(0),
@@ -820,7 +820,7 @@ object DecisionTableService extends AbstractDataService {
 
   def totalQueriesMatchingRegEx(indexName: String, rx: String): Long = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     /*   Query to fetch inner hits for the queries which satisfy regex expression
     {
@@ -853,7 +853,7 @@ object DecisionTableService extends AbstractDataService {
         .innerHit(new InnerHitBuilder().setSize(100)) // Increase in Index Definition
     )
 
-    val searchResp = esCrudBase.find(instance, query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
+    val searchResp = indexLanguageCrud.read(instance, query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Some(true),
       maxItems = Option(10000),
       minScore = Option(0.0f))
@@ -867,7 +867,7 @@ object DecisionTableService extends AbstractDataService {
 
   def totalQueriesOfStateMatchingRegEx(indexName: String, rx: String, stateName: String): Long = {
     val instance = Index.instanceName(indexName)
-    val esCrudBase = EsCrudBase(elasticClient, indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     /*   Query to fetch inner hits for the queries which satisfy regex expression
     "size": 10000,
@@ -906,7 +906,7 @@ object DecisionTableService extends AbstractDataService {
         QueryBuilders.regexpQuery("queries.query.base", rx).maxDeterminizedStates(10000), ScoreMode.None)
         .innerHit(new InnerHitBuilder().setSize(100))) // Increase in Index Definition
 
-    val searchResp = esCrudBase.find(instance, query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
+    val searchResp = indexLanguageCrud.read(instance, query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Some(true),
       maxItems = Option(10000),
       minScore = Option(0.0f))

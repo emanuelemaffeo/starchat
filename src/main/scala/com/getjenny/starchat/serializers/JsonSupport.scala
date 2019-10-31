@@ -341,4 +341,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val conversationFormat = jsonFormat2(Conversation)
   implicit val conversationsFormat = jsonFormat2(Conversations)
   implicit val updateQAByQueryReqFormat = jsonFormat2(UpdateQAByQueryReq)
+
+  implicit val createLanguageIndexRequestFromat = jsonFormat1(CreateLanguageIndexRequest)
+
 }

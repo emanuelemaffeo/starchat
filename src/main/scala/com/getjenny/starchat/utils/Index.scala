@@ -23,6 +23,7 @@ object Index {
   val systemIndexMatchRegexDelimited: Regex = ("^" + systemIndexMatchRegex + "$").r
 
   val indexMatchRegex: Regex = ("((?:" + langRegex + ")_(?:" + arbitraryPatternRegex + "))").r
+  val languageIndexMatchRegex: Regex = ("""(?:index_(""" + langRegex + "))").r
   val indexMatchRegexDelimited: Regex = ("^" + indexMatchRegex + "$").r
 
   val indexExtractFieldsRegex: Regex = ("""(?:index_(""" +
