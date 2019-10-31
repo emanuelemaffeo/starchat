@@ -121,7 +121,7 @@ class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
 
 object IndexLanguageCrud {
   def apply(client: ElasticClient, index: String): IndexLanguageCrud = {
-    val esLanguageIndex = Index.esSystemIndexName(index, client.indexSuffix)
-    new IndexLanguageCrud(client, esLanguageIndex)
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(index, client.indexSuffix)
+    new IndexLanguageCrud(client, esLanguageSpecificIndexName)
   }
 }

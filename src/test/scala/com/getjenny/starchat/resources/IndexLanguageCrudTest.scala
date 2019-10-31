@@ -16,17 +16,14 @@ import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
 
 import scala.collection.JavaConverters._
 
-class EsCrudBaseTest extends FunSuite with Matchers with ScalatestRouteTest with JsonSupport with BeforeAndAfterAll {
+class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTest with JsonSupport with BeforeAndAfterAll {
 
   val client: IndexManagementElasticClient.type = IndexManagementElasticClient
 
-  val indexName = "index_getjenny_test_0"
-  val languageIndex = Index.esSystemIndexName(indexName, client.indexSuffix)
-  val indexLanguageCrud = IndexLanguageCrud(client, indexName)
   val indexName = "index_getjenny_english_test_0"
-  val esLanguageSpecificIndexName: String =
-    Index.esLanguageFromIndexName(indexName, client.indexSuffix)
-  val esCrudBase = EsCrudBase(client, indexName)
+  val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, client.indexSuffix)
+  val indexLanguageCrud = IndexLanguageCrud(client, indexName)
+
 
   override protected def beforeAll(): Unit = {
     val request = new CreateIndexRequest(esLanguageSpecificIndexName)

@@ -80,9 +80,9 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
   def dtUpdateStatusByIndex(dtIndexName: String = "", minTs: Long = 0): List[NodeDtLoadingStatus] = {
     val client: RestHighLevelClient = elasticClient.httpClient
-    val esSystemIndex = if(dtIndexName.nonEmpty) Index.esLanguageFromIndexName(dtIndexName) else ""
+    val esLanguageSpecificIndexName = if(dtIndexName.nonEmpty) Index.esLanguageFromIndexName(dtIndexName) else ""
     val boolQueryBuilder : BoolQueryBuilder = QueryBuilders.boolQuery()
-    if(languageIndex =/= "") boolQueryBuilder.filter(QueryBuilders.termQuery("index", languageIndex))
+    if(esLanguageSpecificIndexName =/= "") boolQueryBuilder.filter(QueryBuilders.termQuery("index", esLanguageSpecificIndexName))
     if(minTs > 0) boolQueryBuilder.filter(QueryBuilders.rangeQuery("timestamp").gte(minTs))
 
     val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
@@ -102,17 +102,17 @@ object NodeDtLoadingStatusService extends AbstractDataService {
 
       val uuid: String = source.get("uuid") match {
         case Some(t) => t.asInstanceOf[String]
-        case _ => throw NodeDtLoadingStatusServiceException("Failed to get uuid for the index: " + languageIndex)
+        case _ => throw NodeDtLoadingStatusServiceException("Failed to get uuid for the index: " + esLanguageSpecificIndexName)
       }
 
       val index : String = source.get("index") match {
         case Some(t) => t.asInstanceOf[String]
-        case _ => throw NodeDtLoadingStatusServiceException("Failed to get index name: " + languageIndex)
+        case _ => throw NodeDtLoadingStatusServiceException("Failed to get index name: " + esLanguageSpecificIndexName)
       }
 
       val timestamp : Long = source.get("timestamp") match {
         case Some(t) => t.asInstanceOf[Long]
-        case _ => throw NodeDtLoadingStatusServiceException("Failed to get timestamp for the index: " + languageIndex)
+        case _ => throw NodeDtLoadingStatusServiceException("Failed to get timestamp for the index: " + esLanguageSpecificIndexName)
       }
 
       NodeDtLoadingStatus(uuid = Some{uuid}, index = index, timestamp = Some{timestamp})
