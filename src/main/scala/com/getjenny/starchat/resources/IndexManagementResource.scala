@@ -29,25 +29,23 @@ trait IndexManagementResource extends StarChatResource {
             authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, "admin", Permissions.admin)) {
-              parameters('indexSuffix.as[String].?) { _ =>
-                val breaker: CircuitBreaker = StarChatCircuitBreaker
-                  .getCircuitBreaker(maxFailure = 10, callTimeout = 30.seconds)
-                onCompleteWithBreakerFuture(breaker)(
-                  operation match {
-                    case CreateOperation => dtReloadService.addInstance(indexName)
-                    case DisableOperation => dtReloadService.disableInstance(indexName)
-                    case DeleteOperation => dtReloadService.markDeleteInstance(indexName)
-                  }
-
-                ) {
-                  case Success(t) => completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
-                    t
-                  })
-                  case Failure(e) => completeResponse(StatusCodes.BadRequest,
-                    Option {
-                      IndexManagementResponse(message = e.getMessage)
-                    })
+              val breaker: CircuitBreaker = StarChatCircuitBreaker
+                .getCircuitBreaker(maxFailure = 10, callTimeout = 30.seconds)
+              onCompleteWithBreakerFuture(breaker)(
+                operation match {
+                  case CreateOperation => dtReloadService.addInstance(indexName)
+                  case DisableOperation => dtReloadService.disableInstance(indexName)
+                  case DeleteOperation => dtReloadService.markDeleteInstance(indexName)
                 }
+
+              ) {
+                case Success(t) => completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
+                  t
+                })
+                case Failure(e) => completeResponse(StatusCodes.BadRequest,
+                  Option {
+                    IndexManagementResponse(message = e.getMessage)
+                  })
               }
             }
           }
