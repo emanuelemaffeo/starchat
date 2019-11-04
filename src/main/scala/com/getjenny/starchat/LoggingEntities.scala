@@ -1,8 +1,8 @@
 package com.getjenny.starchat
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
+ */
 
 import java.util.Base64
 
@@ -53,7 +53,7 @@ object LoggingEntities {
       val elapsedTime: Long = (responseTimestamp - requestTimestamp)
       Some(LogEntry(
         remoteAddressReqUriReqRes.format(address(remoteAddress), req.uri, req.method.name, res.status) +
-        " ReqEntity(" + req.entity.httpEntity + ") ResEntity(" + res.entity + ") ElapsedTimeMs(" + elapsedTime + ")"
+          " ReqEntity(" + req.entity.httpEntity + ") ResEntity(" + res.entity + ") ElapsedTimeMs(" + elapsedTime + ")"
         , Logging.InfoLevel))
     case RouteResult.Rejected(rejections) =>
       val responseTimestamp: Long = System.currentTimeMillis()
@@ -74,11 +74,11 @@ object LoggingEntities {
       val elapsedTime: Long = (responseTimestamp - requestTimestamp)
       Some(LogEntry(
         remoteAddressReqUriReqRes.format(address(remoteAddress), req.uri, req.method.name, res.status) +
-        " ReqEntity(" + req.entity + ")" +
-        " ReqB64Entity(" + Base64.getEncoder.encodeToString(req.entity.toString.getBytes) + ")" +
-        " ResEntity(" + res.entity + ")" +
-        " ResB64Entity(" + Base64.getEncoder.encodeToString(res.entity.toString.getBytes) + ")" +
-        " ElapsedTimeMs(" + elapsedTime + ")", Logging.InfoLevel))
+          " ReqEntity(" + req.entity + ")" +
+          " ReqB64Entity(" + Base64.getEncoder.encodeToString(req.entity.toString.getBytes) + ")" +
+          " ResEntity(" + res.entity + ")" +
+          " ResB64Entity(" + Base64.getEncoder.encodeToString(res.entity.toString.getBytes) + ")" +
+          " ElapsedTimeMs(" + elapsedTime + ")", Logging.InfoLevel))
     case RouteResult.Rejected(rejections) =>
       val responseTimestamp: Long = System.currentTimeMillis()
       val elapsedTime: Long = (responseTimestamp - requestTimestamp)
