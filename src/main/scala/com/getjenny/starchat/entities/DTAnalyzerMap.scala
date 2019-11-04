@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 10/02/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 10/02/17.
+ */
 
 case class DTAnalyzerLoad(numOfEntries: Int)
 

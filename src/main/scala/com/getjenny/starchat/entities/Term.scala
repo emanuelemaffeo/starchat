@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 11/07/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 11/07/17.
+ */
 
 import scala.collection.immutable.Map
 

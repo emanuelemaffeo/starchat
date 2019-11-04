@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by angelo on 07/04/17.
-  */
+ * Created by angelo on 07/04/17.
+ */
 
 import com.getjenny.analyzer.expressions.AnalyzersData
 

@@ -11,7 +11,6 @@ import akka.http.scaladsl.server.directives.FileInfo
 import akka.http.scaladsl.server.{Directive1, Directives, ExceptionHandler, Route}
 import akka.pattern.CircuitBreaker
 import com.getjenny.starchat.SCActorSystem
-import com.getjenny.starchat.entities.User
 import com.getjenny.starchat.serializers.JsonSupport
 import com.getjenny.starchat.services.UserEsServiceException
 import com.getjenny.starchat.services.auth.{AbstractStarChatAuthenticator, StarChatAuthenticator}
@@ -100,7 +99,7 @@ trait StarChatResource extends Directives with JsonSupport {
   }
 
   protected[this] def completeResponse[A: ToEntityMarshaller](statusCodeOk: StatusCode, statusCodeFailed: StatusCode,
-                                              data: Option[A]): Route = {
+                                                              data: Option[A]): Route = {
     data match {
       case Some(t) =>
         respondWithDefaultHeader(defaultHeader) {
@@ -112,7 +111,7 @@ trait StarChatResource extends Directives with JsonSupport {
   }
 
   protected[this] def completeResponse[A: ToEntityMarshaller](statusCodeOk: StatusCode, statusCodeFailed: StatusCode,
-                                              data: A): Route = {
+                                                              data: A): Route = {
     respondWithDefaultHeader(defaultHeader) {
       complete(statusCodeOk, data)
     }

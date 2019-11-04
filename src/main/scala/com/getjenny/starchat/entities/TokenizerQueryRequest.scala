@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 03/04/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 03/04/17.
+ */
 
 object TokenizersDescription {
   val analyzersMap: Map[String, (String, String)] = Map[String, (String, String)](
@@ -26,9 +26,9 @@ object TokenizersDescription {
 }
 
 case class TokenizerQueryRequest(
-  tokenizer: String,
-  text: String
-)
+                                  tokenizer: String,
+                                  text: String
+                                )
 
 case class TokenizerResponseItem(
                                   startOffset: Int,
@@ -36,8 +36,8 @@ case class TokenizerResponseItem(
                                   endOffset: Int,
                                   token: String,
                                   tokenType: String
-)
+                                )
 
 case class TokenizerResponse(
-  tokens: List[TokenizerResponseItem] = List.empty[TokenizerResponseItem]
-)
+                              tokens: List[TokenizerResponseItem] = List.empty[TokenizerResponseItem]
+                            )

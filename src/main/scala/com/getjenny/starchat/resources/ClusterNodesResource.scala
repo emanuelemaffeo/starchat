@@ -7,12 +7,11 @@ import com.getjenny.starchat.entities.{Permissions, ReturnMessageData}
 import com.getjenny.starchat.routing.{StarChatCircuitBreaker, StarChatResource}
 import com.getjenny.starchat.services.ClusterNodesService
 
-import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 29/01/19.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 29/01/19.
+ */
 
 trait ClusterNodesResource extends StarChatResource {
   private[this] val clusterNodesService: ClusterNodesService.type = ClusterNodesService

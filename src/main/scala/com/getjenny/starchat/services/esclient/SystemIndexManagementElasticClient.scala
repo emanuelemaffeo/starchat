@@ -1,10 +1,8 @@
 package com.getjenny.starchat.services.esclient
 
-import com.getjenny.starchat.services.SystemIndexManagementService.config
-
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 14/11/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 14/11/17.
+ */
 
 object SystemIndexManagementElasticClient extends ElasticClient {
   override val indexName: String = config.getString("es.system_index_name")

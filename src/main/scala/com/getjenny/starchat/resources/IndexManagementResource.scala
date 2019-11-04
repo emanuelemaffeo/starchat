@@ -1,15 +1,15 @@
 package com.getjenny.starchat.resources
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 19/12/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 19/12/16.
+ */
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
 import akka.pattern.CircuitBreaker
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.routing._
-import com.getjenny.starchat.services.{InstanceRegistryService, LangaugeIndexManagementService}
+import com.getjenny.starchat.services.InstanceRegistryService
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}

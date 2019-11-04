@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
+ */
 
 import scalaz.Scalaz._
 
@@ -13,11 +13,11 @@ object Doctypes extends Enumeration {
   HIDDEN,
 
   /** hidden document, these are indexed but must not be retrieved,
-    * use this type for data used just to improve statistic for data retrieval */
+   * use this type for data used just to improve statistic for data retrieval */
   DECISIONTABLE,
 
   /** does not contains conversation data, used to redirect the
-    * conversation to any state of the decision tree */
+   * conversation to any state of the decision tree */
   METADATA,
 
   /** used for metadata e.g. conversation medatada */
@@ -31,9 +31,9 @@ object Agent extends Enumeration {
   val HUMAN_REPLY,
 
   /** Answer provided by an agent, must be used when the conversation
-    * has been escalated and the platform (a human is carrying on the conversation) and is not possible
-    * to discriminate between HUMAN_PICKED and HUMAN_REPLY.
-    */
+   * has been escalated and the platform (a human is carrying on the conversation) and is not possible
+   * to discriminate between HUMAN_PICKED and HUMAN_REPLY.
+   */
   HUMAN_PICKED,
 
   /** When an agent chooses and answer suggestion provided by smartLayer */
@@ -56,7 +56,7 @@ object Escalated extends Enumeration {
   UNSPECIFIED = Escalated.Value
 
   /** usually in the middle of a conversation this value is not set,
-    * it is known at the end of the conversation or when the user requests to escalate. */
+   * it is known at the end of the conversation or when the user requests to escalate. */
   def value(v: String): Escalated.Value = values.find(_.toString === v).getOrElse(UNSPECIFIED)
 }
 

@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 02/07/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 02/07/16.
+ */
 
 case class DeleteDocumentResult(index: String,
                                 id: String,

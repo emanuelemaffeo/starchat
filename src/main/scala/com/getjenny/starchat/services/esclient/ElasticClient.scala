@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services.esclient
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
+ */
 
 import java.net.InetAddress
 
@@ -10,9 +10,9 @@ import com.getjenny.starchat.entities._
 import com.getjenny.starchat.utils.SslContext
 import com.typesafe.config.{Config, ConfigFactory}
 import javax.net.ssl._
-import org.apache.http.{Header, HttpHost}
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder
 import org.apache.http.message.BasicHeader
+import org.apache.http.{Header, HttpHost}
 import org.elasticsearch.action.admin.indices.refresh.{RefreshRequest, RefreshResponse}
 import org.elasticsearch.client.indices._
 import org.elasticsearch.client.{RequestOptions, RestClient, RestClientBuilder, RestHighLevelClient}
@@ -72,7 +72,7 @@ trait ElasticClient {
     } else {
       RestClient.builder(inetAddresses: _*)
         .setHttpClientConfigCallback(HttpClientConfigCallback)
-    }.setDefaultHeaders(defaultHeaders)
+      }.setDefaultHeaders(defaultHeaders)
   }
 
   private[this] var esHttpClient: RestHighLevelClient = openHttp()
