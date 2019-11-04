@@ -132,7 +132,17 @@ object InstanceRegistryService extends AbstractDataService {
   }
 
   def deleteEntry(ids: List[String]): DeleteDocumentsResult = {
-    delete(indexName = InstanceRegistryIndex, ids = ids, refresh = 0)
+    val result = delete(indexName = InstanceRegistryIndex, ids = ids, refresh = 0)
+    ids.foreach(cache.remove)
+    result
+  }
+
+  def getAll: List[(String, InstanceRegistryDocument)] = {
+    val response = esCrudBase.read(QueryBuilders.matchAllQuery())
+
+    response.getHits.getHits.map { x =>
+      x.getId -> InstanceRegistryDocument(x.getSourceAsMap.asScala.toMap)
+    }.toList
   }
 
   def allInstanceTimestamp(minTimestamp: Option[Long] = None,

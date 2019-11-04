@@ -50,12 +50,11 @@ trait AbstractDataService {
     */
   def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
-    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
     val bulkReq: BulkRequest = new BulkRequest()
 
     ids.foreach( id => {
       val deleteReq = new DeleteRequest()
-        .index(esLanguageSpecificIndexName)
+        .index(indexName)
         .id(id)
       bulkReq.add(deleteReq)
     })
@@ -64,7 +63,7 @@ trait AbstractDataService {
 
     if (refresh =/= 0) {
       val refreshIndex = elasticClient
-        .refresh(esLanguageSpecificIndexName)
+        .refresh(indexName)
       if(refreshIndex.failedShardsN > 0) {
         throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
       }
