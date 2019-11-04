@@ -104,8 +104,7 @@ object InstanceRegistryService extends AbstractDataService {
   private[this] def updateInstance(indexName: String, timestamp: Option[Long],
                                    enabled: Option[Boolean], delete: Option[Boolean]): UpdateResponse = {
 
-    val document = findEsLanguageIndex(indexName)
-    val toBeUpdated = document.copy(timestamp =  timestamp , enabled = enabled, delete = delete)
+    val toBeUpdated = InstanceRegistryDocument(timestamp =  timestamp , enabled = enabled, delete = delete)
     val response = esCrudBase.update(indexName, toBeUpdated.builder)
     log.debug("Updated instance {} with {} on index {}", indexName, enabled, indexName)
 
