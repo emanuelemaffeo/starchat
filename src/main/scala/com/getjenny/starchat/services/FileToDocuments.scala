@@ -47,7 +47,7 @@ object FileToDocuments extends JsonSupport {
     }
 
     listOfDocuments.hits.map { doc =>
-        doc.document
+      doc.document
     }.toIndexedSeq
   }
 

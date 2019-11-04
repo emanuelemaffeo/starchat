@@ -1,20 +1,18 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 23/08/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 23/08/17.
+ */
 
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.{DeleteDocumentsResult, DtReloadTimestamp, IndexManagementResponse}
 import com.getjenny.starchat.services.esclient.{EsCrudBase, SystemIndexManagementElasticClient}
 import com.getjenny.starchat.utils.Index
-import org.elasticsearch.action.index.IndexResponse
 import org.elasticsearch.action.update.UpdateResponse
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders}
-import org.elasticsearch.rest.RestStatus
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.sort.{FieldSortBuilder, SortOrder}
 import scalaz.Scalaz._

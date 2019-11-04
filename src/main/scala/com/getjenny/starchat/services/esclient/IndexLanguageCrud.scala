@@ -1,23 +1,18 @@
 package com.getjenny.starchat.services.esclient
 
-import akka.event.{Logging, LoggingAdapter}
-import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.RefreshIndexResult
 import com.getjenny.starchat.utils.Index
-import org.elasticsearch.action.bulk.{BulkRequest, BulkResponse}
-import org.elasticsearch.action.get.{MultiGetRequest, MultiGetResponse}
-import org.elasticsearch.action.index.{IndexRequest, IndexResponse}
-import org.elasticsearch.action.search.{SearchRequest, SearchResponse, SearchScrollRequest, SearchType}
-import org.elasticsearch.action.update.{UpdateRequest, UpdateResponse}
-import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.action.bulk.BulkResponse
+import org.elasticsearch.action.get.MultiGetResponse
+import org.elasticsearch.action.index.IndexResponse
+import org.elasticsearch.action.search.{SearchResponse, SearchScrollRequest, SearchType}
+import org.elasticsearch.action.update.UpdateResponse
 import org.elasticsearch.common.Strings
-import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder
 import org.elasticsearch.common.xcontent._
 import org.elasticsearch.index.query.{QueryBuilder, QueryBuilders}
-import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryRequest}
+import org.elasticsearch.index.reindex.BulkByScrollResponse
 import org.elasticsearch.search.aggregations.AggregationBuilder
-import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortBuilder
 
 //private constructor - only the factory object can create an instance,

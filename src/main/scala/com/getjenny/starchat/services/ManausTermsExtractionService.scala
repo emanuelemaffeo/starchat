@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 23/05/18.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 23/05/18.
+ */
 
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.util.VectorUtils
@@ -15,7 +15,6 @@ import com.getjenny.starchat.utils.Index
 import scalaz.Scalaz._
 
 import scala.collection.immutable.Map
-import scala.concurrent.Future
 
 object ManausTermsExtractionService extends AbstractDataService {
   private[this] val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
@@ -294,10 +293,10 @@ object ManausTermsExtractionService extends AbstractDataService {
 
     // calculate the vector representation for the sentence
     val sentenceVectors = tokenizationRes.tokens.map { token =>
-        allTerms.get(token.token) match {
-          case Some(t) => (token.token, t.vector)
-          case _ => (token.token, None)
-        }
+      allTerms.get(token.token) match {
+        case Some(t) => (token.token, t.vector)
+        case _ => (token.token, None)
+      }
     }.filter{case (_, vectors) => vectors.nonEmpty}.map { case (_, vecs) => vecs.get}.toVector
     val termsInSentence = sentenceVectors.length
 

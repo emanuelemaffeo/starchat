@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 23/08/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 23/08/17.
+ */
 
 import java.util.UUID.randomUUID
 
@@ -132,7 +132,7 @@ object ClusterNodesService extends AbstractDataService {
     val dtReloadTimestamps : List[ClusterNode] = scrollResp.getHits.getHits.toList.map({ timestampEntry =>
       val item: SearchHit = timestampEntry
       val docId : String = item.getId // the id is the index name
-    val source : Map[String, Any] = item.getSourceAsMap.asScala.toMap
+      val source : Map[String, Any] = item.getSourceAsMap.asScala.toMap
 
       val timestamp : Long = source.get("timestamp") match {
         case Some(t) => t.asInstanceOf[Long]

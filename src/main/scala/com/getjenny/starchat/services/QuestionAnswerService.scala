@@ -851,8 +851,7 @@ trait QuestionAnswerService extends AbstractDataService {
         val id: String = item.getId
         val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
         val document = documentFromMap(indexName, id, source)
-        val searchDocument: SearchQADocument = SearchQADocument(score = item.getScore, document = document)
-        searchDocument
+        SearchQADocument(score = item.getScore, document = document)
       }
     }
 
