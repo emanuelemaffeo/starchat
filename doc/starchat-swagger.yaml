@@ -67,9 +67,9 @@ paths:
     post:
       tags:
         - admin
-      summary: create a new starchat index set
+      summary: enable an instance to access to the specific language index
       operationId: post_index_management_create
-      description: "create all the starchat indices."
+      description: "add instance to the instance registry for the specific indexName"
       parameters:
         - in: path
           name: index_name
@@ -77,16 +77,82 @@ paths:
           required: true
           schema:
             type: string
-        - in: query
-          name: indexSuffix
-          description: >-
-            the index suffix, if not specified the instance related indices will be updated.
-            The suffixes can be specified in the configuration file,
-            by default they can be -> logs_data, prior_data, question_answer, state, term
-          example: state
-          required: false
+      responses:
+        '201':
+          description: instance successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndexManagementResponse'
+        '400':
+          description: 'invalid input, object invalid, bad request'
+        '401':
+          description: authorization denied or authentication failed
+  '/{index_name}/index_management/disable':
+    post:
+      tags:
+        - admin
+      summary: disable an instance
+      operationId: post_index_management_disable
+      description: "set the enabled flag to false in the instance registry"
+      parameters:
+        - in: path
+          name: index_name
+          description: "the name of the index: it must have the following format index_<organization>_<language>_<arbitrary suffix> e.g. index_getjenny_italian_usecase0"
+          required: true
           schema:
             type: string
+      responses:
+        '201':
+          description: instance successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndexManagementResponse'
+        '400':
+          description: 'invalid input, object invalid, bad request'
+        '401':
+          description: authorization denied or authentication failed
+  '/{index_name}/index_management/delete':
+    post:
+      tags:
+        - admin
+      summary: mark for delete an instance
+      operationId: post_index_management_delete
+      description: "set the delete flag to true in the instance registry"
+      parameters:
+        - in: path
+          name: index_name
+          description: "the name of the index: it must have the following format index_<organization>_<language>_<arbitrary suffix> e.g. index_getjenny_italian_usecase0"
+          required: true
+          schema:
+            type: string
+      responses:
+        '201':
+          description: instance successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndexManagementResponse'
+        '400':
+          description: 'invalid input, object invalid, bad request'
+        '401':
+          description: authorization denied or authentication failed
+  '/language_index_management':
+    post:
+      tags:
+        - admin
+      summary: create a new starchat index set
+      operationId: post_index_management_create
+      description: "create all the starchat indices."
+      parameters:
+        - requestBody:
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CreateLanguageIndexRequest'
+            description: "Index list to create, every index must have the following format index_<language> e.g. index_italian,
+                 if not evaluated, it will create all language indexes in configuration"
       responses:
         '201':
           description: index successfully created
@@ -98,17 +164,16 @@ paths:
           description: 'invalid input, object invalid, bad request'
         '401':
           description: authorization denied or authentication failed
-  '/{index_name}/index_management':
     get:
       tags:
         - admin
-      summary: get the status of the starchat indices
-      operationId: get_index_management
+      summary: get the status of the starchat language specific indices
+      operationId: get_language_index_management
       description: query and return the status of the starchat indices
       parameters:
-        - in: path
+        - in: query
           name: index_name
-          description: "the name of the index: it must have the following format index_<organization>_<language>_<arbitrary suffix> e.g. index_getjenny_italian_usecase0"
+          description: "the name of the index: it must have the following format index_<language> e.g. index_italian"
           required: true
           schema:
             type: string
@@ -122,7 +187,7 @@ paths:
             type: string
       responses:
         '200':
-          description: list of indices
+          description: information containing status of indicies
           content:
             application/json:
               schema:
@@ -134,15 +199,15 @@ paths:
     delete:
       tags:
         - admin
-      summary: delete a starchat indices
-      operationId: delete_index_management
+      summary: delete a starchat language specific index
+      operationId: delete_language_index_management
       description: >-
         delete all the starchat tables and all the data, the operation must be
         explicitly allowed from the configuration file
       parameters:
-        - in: path
+        - in: query
           name: index_name
-          description: "the name of the index: it must have the following format index_<organization>_<language>_<arbitrary suffix> e.g. index_getjenny_italian_usecase0"
+          description: "the name of the index: it must have the following format index_<language> e.g. index_italian"
           required: true
           schema:
             type: string
@@ -165,17 +230,17 @@ paths:
           description: 'invalid input, object invalid, bad request'
         '401':
           description: authorization denied or authentication failed
-  '/{index_name}/index_management/open':
+  '/language_index_management/open':
     post:
       tags:
         - admin
       summary: open a starchat index
-      operationId: post_index_management_open
+      operationId: post_language_index_management_open
       description: open a index, write operations on schemas and data are permitted
       parameters:
-        - in: path
+        - in: query
           name: index_name
-          description: "the name of the index: it must have the following format index_<organization>_<language>_<arbitrary suffix> e.g. index_getjenny_italian_usecase0"
+          description: "the name of the index: it must have the following format index_<language> e.g. index_italian"
           required: true
           schema:
             type: string
@@ -197,17 +262,17 @@ paths:
           description: 'invalid input, object invalid, bad request'
         '401':
           description: authorization denied or authentication failed
-  '/{index_name}/index_management/close':
+  '/language_index_management/close':
     post:
       tags:
         - admin
       summary: close an index
-      operationId: post_index_management_close
+      operationId: post_language_index_management_close
       description: open a starchat system index, write operations on schemas and data are permitted
       parameters:
-        - in: path
+        - in: query
           name: index_name
-          description: "the name of the index: it must have the following format index_<organization>_<language>_<arbitrary suffix> e.g. index_getjenny_italian_usecase0"
+          description: "the name of the index: it must have the following format index_<language> e.g. index_italian"
           required: true
           schema:
             type: string
@@ -229,17 +294,17 @@ paths:
           description: 'invalid input, object invalid, bad request'
         '401':
           description: authorization denied or authentication failed
-  '/{index_name}/index_management/refresh':
+  '/language_index_management/refresh':
     post:
       tags:
         - admin
       summary: refresh the starchat indices
-      operationId: post_index_management_refresh
+      operationId: post_language_index_management_refresh
       description: refresh starchat indices
       parameters:
-        - in: path
+        - in: query
           name: index_name
-          description: "the name of the index: it must have the following format index_<organization>_<language>_<arbitrary suffix> e.g. index_getjenny_italian_usecase0"
+          description: "the name of the index: it must have the following format index_<language> e.g. index_italian"
           required: true
           schema:
             type: string
@@ -261,17 +326,17 @@ paths:
           description: 'invalid input, object invalid, bad request'
         '401':
           description: authorization denied or authentication failed
-  '/{index_name}/index_management/mappings':
+  '/language_index_management/mappings':
     put:
       tags:
         - admin
       summary: update starchat indices mappings
-      operationId: put_index_management_mappings
+      operationId: put_language_index_management_mappings
       description: update the mappings for the starchat indices
       parameters:
-        - in: path
+        - in: query
           name: index_name
-          description: "the name of the index: it must have the following format index_<organization>_<language>_<arbitrary suffix> e.g. index_getjenny_italian_usecase0"
+          description: "the name of the index: it must have the following format index_<language> e.g. index_italian"
           required: true
           schema:
             type: string
@@ -293,17 +358,17 @@ paths:
           description: 'invalid input, object invalid, bad request'
         '401':
           description: authorization denied or authentication failed
-  '/{index_name}/index_management/settings':
+  '/language_index_management/settings':
     put:
       tags:
         - admin
       summary: update the settings for the starchat indices
-      operationId: put_index_management_settings
+      operationId: put_language_index_management_settings
       description: update the starchat indices settings
       parameters:
-        - in: path
+        - in: query
           name: index_name
-          description: "the name of the index: it must have the following format index_<organization>_<language>_<arbitrary suffix> e.g. index_getjenny_italian_usecase0"
+          description: "the name of the index: it must have the following format index_<language> e.g. index_italian"
           required: true
           schema:
             type: string
@@ -2552,6 +2617,14 @@ paths:
         description: cache parameters
 components:
   schemas:
+    CreateLanguageIndexRequest:
+      type: object
+      required:
+        - languageList
+      properties:
+        languageList:
+          type: array
+          description: a list containing all language indexes that user want to create
     AnalyzerEvaluateRequest:
       type: object
       required:

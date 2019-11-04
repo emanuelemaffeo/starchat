@@ -36,7 +36,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
             }
           } ~
             get {
-              parameters('index, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
+              parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
                 authenticateBasicAsync(realm = authRealm, authenticator = authenticator.authenticator) { user =>
                   authorizeAsync(_ =>
                     authenticator.hasPermissions(user, languageIndex, Permissions.read)) {
@@ -57,7 +57,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
               }
             } ~
             delete {
-              parameters('index, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
+              parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
                 authenticateBasicAsync(realm = authRealm,
                   authenticator = authenticator.authenticator) { user =>
                   authorizeAsync(_ => authenticator.hasPermissions(user, languageIndex, Permissions.admin)) {
@@ -82,7 +82,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
       pathPrefix(LanguageIndexManagement ~ Slash ~ """(open|close)""".r) { operation =>
         pathEnd {
           post {
-            parameters('index, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
+            parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
               authenticateBasicAsync(realm = authRealm,
                 authenticator = authenticator.authenticator) { user =>
                 authorizeAsync(_ =>
@@ -108,7 +108,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
       pathPrefix(LanguageIndexManagement ~ Slash ~ """(mappings|settings)""".r) { mappingOrSettings =>
         pathEnd {
           put {
-            parameters('index, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
+            parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
               authenticateBasicAsync(realm = authRealm, authenticator = authenticator.authenticator) { user =>
                 authorizeAsync(_ =>
                   authenticator.hasPermissions(user, languageIndex, Permissions.admin)) {
@@ -136,7 +136,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
       pathPrefix(LanguageIndexManagement ~ Slash ~ "refresh") {
         pathEnd {
           post {
-            parameters('index, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
+            parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
               authenticateBasicAsync(realm = authRealm, authenticator = authenticator.authenticator) { user =>
                 authorizeAsync(_ =>
                   authenticator.hasPermissions(user, languageIndex, Permissions.write)) {

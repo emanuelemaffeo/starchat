@@ -185,8 +185,6 @@ object LangaugeIndexManagementService extends AbstractDataService {
           createIndexRes.isAcknowledged)
       })
 
-      dtReloadService.addInstance(indexName)
-
       val message = "IndexCreation: " + operationsMessage.map { case (msg, _) => msg }.mkString(" ")
 
       IndexManagementResponse(message = message, check = operationsMessage.forall { case (_, ck) => ck })
