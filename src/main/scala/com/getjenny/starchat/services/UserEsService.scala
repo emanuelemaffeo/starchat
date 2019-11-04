@@ -42,7 +42,9 @@ class UserEsService extends AbstractUserService {
   def create(user: User): IndexDocumentResult = {
 
     if(user.id === "admin") {
-      throw new AuthenticationException("admin user cannot be changed")
+      throw new AuthenticationException("admin user cannot be created via APIs")
+    } else if (user.id.startsWith("index_")){
+      throw new AuthenticationException("Invalid pattern for username: \"index_\"")
     }
 
     val builder : XContentBuilder = jsonBuilder().startObject()
@@ -173,7 +175,6 @@ class UserEsService extends AbstractUserService {
     if(user.id === "admin") {
       adminUser
     } else {
-
       val client: RestHighLevelClient = elasticClient.httpClient
 
       val getReq = new GetRequest()
