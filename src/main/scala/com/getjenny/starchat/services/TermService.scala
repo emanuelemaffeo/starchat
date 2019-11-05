@@ -12,6 +12,7 @@ import com.getjenny.analyzer.util.VectorUtils
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.utils.TextToVectorsTools
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.services.DecisionTableService.elasticClient
 import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, TermElasticClient}
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.action.get.MultiGetItemResponse
@@ -565,5 +566,18 @@ object TermService extends AbstractDataService {
       frequencyStem = frequencyStem,
       vector = vector,
       score = score)
+  }
+
+  override def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
+    super.delete(esLanguageSpecificIndexName, ids, refresh)
+  }
+
+  override def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
+    val instance = Index.instanceName(indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
+    val response = indexLanguageCrud.delete(instance, QueryBuilders.matchAllQuery)
+
+    DeleteDocumentsSummaryResult(message = "delete", deleted = response.getTotal)
   }
 }

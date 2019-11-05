@@ -35,7 +35,7 @@ object CronDeleteInstanceService extends CronService {
         val instance = Index.instanceName(registryEntryId)
         val crud = new EsCrudBase(systemIndexManagementService.elasticClient, indexName)
         val delete = crud.delete(QueryBuilders.matchQuery("instance", instance))
-        log.info("Deleted instance: {} - doc deleted: {}", instance, delete.getDeleted)
+        log.info("Deleted instance: {} from index: {} - doc deleted: {}", instance, indexName, delete.getDeleted)
         instanceRegistryService.deleteEntry(List(registryEntryId))
         DeleteInstanceResponse(indexName, instance, delete.getDeleted)
       }.toEither

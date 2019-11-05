@@ -106,6 +106,7 @@ object InstanceRegistryService extends AbstractDataService {
 
     val toBeUpdated = InstanceRegistryDocument(timestamp =  timestamp , enabled = enabled, delete = delete)
     val response = esCrudBase.update(indexName, toBeUpdated.builder)
+    esCrudBase.refresh()
     log.debug("Updated instance {} with {} on index {}", indexName, enabled, indexName)
 
     val updatedDocument = findEsLanguageIndex(indexName)
@@ -130,7 +131,7 @@ object InstanceRegistryService extends AbstractDataService {
   }
 
   def deleteEntry(ids: List[String]): DeleteDocumentsResult = {
-    val result = delete(indexName = InstanceRegistryIndex, ids = ids, refresh = 0)
+    val result = delete(indexName = InstanceRegistryIndex, ids = ids, refresh = 1)
     ids.foreach(cache.remove)
     result
   }

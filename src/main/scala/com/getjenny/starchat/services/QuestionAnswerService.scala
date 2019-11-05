@@ -10,6 +10,7 @@ import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.util.{RandomNumbers, Time}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.{LabelCountHistogramItem, _}
+import com.getjenny.starchat.services.DecisionTableService.elasticClient
 import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, QuestionAnswerElasticClient}
 import com.getjenny.starchat.utils.Index
 import org.apache.lucene.search.join._
@@ -1984,5 +1985,18 @@ trait QuestionAnswerService extends AbstractDataService {
           UpdateDocumentResult(index = indexName, id = item.id, version = -1, created = false)
       }
     }
+  }
+
+  override def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
+    super.delete(esLanguageSpecificIndexName, ids, refresh)
+  }
+
+  override def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
+    val instance = Index.instanceName(indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
+    val response = indexLanguageCrud.delete(instance, QueryBuilders.matchAllQuery)
+
+    DeleteDocumentsSummaryResult(message = "delete", deleted = response.getTotal)
   }
 }

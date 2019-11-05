@@ -17,9 +17,11 @@ import org.apache.lucene.search.join._
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.index.IndexResponse
 import org.elasticsearch.action.search.{SearchResponse, SearchType}
+import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.index.query.{BoolQueryBuilder, InnerHitBuilder, QueryBuilder, QueryBuilders}
+import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.elasticsearch.rest.RestStatus
 import org.elasticsearch.script.Script
 import org.elasticsearch.search.SearchHit
@@ -698,7 +700,7 @@ object DecisionTableService extends AbstractDataService {
         }
     } */
 
-    val aggregation =  AggregationBuilders.nested("queries", "queries")
+    val aggregation = AggregationBuilders.nested("queries", "queries")
       .subAggregation(
         AggregationBuilders.terms("queries_children").field("queries.query.base").minDocCount(1)
       )
@@ -917,4 +919,19 @@ object DecisionTableService extends AbstractDataService {
     }
 
   }
+
+  override def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
+    super.delete(esLanguageSpecificIndexName, ids, refresh)
+  }
+
+
+  override def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
+    val instance = Index.instanceName(indexName)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
+    val response = indexLanguageCrud.delete(instance, QueryBuilders.matchAllQuery)
+
+    DeleteDocumentsSummaryResult(message = "delete", deleted = response.getTotal)
+  }
+
 }
