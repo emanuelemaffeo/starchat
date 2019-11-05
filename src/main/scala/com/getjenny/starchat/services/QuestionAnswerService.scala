@@ -1275,225 +1275,225 @@ trait QuestionAnswerService extends AbstractDataService {
         if (reqAggs.contains(QAAggregationsTypes.avgFeedbackConvScore)) {
           aggregationBuilderList += AggregationBuilders
             .avg("avgFeedbackConvScore").field("feedbackConvScore")
-
-          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScore)) {
-            aggregationBuilderList += AggregationBuilders
-              .avg("avgFeedbackAnswerScore").field("feedbackAnswerScore")
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScore)) {
-            aggregationBuilderList += AggregationBuilders
-              .avg("avgAlgorithmConvScore").field("algorithmConvScore")
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScore)) {
-            aggregationBuilderList += AggregationBuilders.avg("avgAlgorithmAnswerScore")
-              .field("algorithmAnswerScore")
-          }
-          if (reqAggs.contains(QAAggregationsTypes.scoreHistogram)) {
-            aggregationBuilderList += AggregationBuilders
-              .histogram("scoreHistogram").field("feedbackConvScore")
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScore)) {
+          aggregationBuilderList += AggregationBuilders
+            .avg("avgFeedbackAnswerScore").field("feedbackAnswerScore")
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScore)) {
+          aggregationBuilderList += AggregationBuilders
+            .avg("avgAlgorithmConvScore").field("algorithmConvScore")
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScore)) {
+          aggregationBuilderList += AggregationBuilders.avg("avgAlgorithmAnswerScore")
+            .field("algorithmAnswerScore")
+        }
+        if (reqAggs.contains(QAAggregationsTypes.scoreHistogram)) {
+          aggregationBuilderList += AggregationBuilders
+            .histogram("scoreHistogram").field("feedbackConvScore")
+            .interval(1.0d).minDocCount(minDocInBuckets)
+        }
+        if (reqAggs.contains(QAAggregationsTypes.scoreHistogramNotTransferred)) {
+          aggregationBuilderList += AggregationBuilders.filter("scoreHistogramNotTransferred",
+            QueryBuilders.boolQuery().mustNot(
+              QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString)
+            )
+          ).subAggregation(
+            AggregationBuilders
+              .histogram("scoreHistogramNotTransferred").field("feedbackConvScore")
               .interval(1.0d).minDocCount(minDocInBuckets)
-          }
-          if (reqAggs.contains(QAAggregationsTypes.scoreHistogramNotTransferred)) {
-            aggregationBuilderList += AggregationBuilders.filter("scoreHistogramNotTransferred",
-              QueryBuilders.boolQuery().mustNot(
-                QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString)
+          )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.scoreHistogramTransferred)) {
+          aggregationBuilderList += AggregationBuilders.filter("scoreHistogramTransferred",
+            QueryBuilders.boolQuery()
+              .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+          ).subAggregation(
+            AggregationBuilders
+              .histogram("scoreHistogramTransferred").field("feedbackConvScore")
+              .interval(1.0d).minDocCount(minDocInBuckets)
+          )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.conversationsHistogram)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("conversationsHistogram",
+              QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)).subAggregation(
+              AggregationBuilders
+                .dateHistogram("conversationsHistogram").field("timestamp")
+                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+            )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.conversationsNotTransferredHistogram)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("conversationsNotTransferredHistogram",
+              QueryBuilders.boolQuery()
+                .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+                .must(QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)))
+              .subAggregation(
+                AggregationBuilders
+                  .dateHistogram("conversationsNotTransferredHistogram").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
               )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.conversationsTransferredHistogram)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("conversationsTransferredHistogram",
+              QueryBuilders.boolQuery()
+                .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+                .must(QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)))
+              .subAggregation(
+                AggregationBuilders
+                  .dateHistogram("conversationsTransferredHistogram").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+              )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.qaPairHistogram)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("qaPairHistogram",
+              QueryBuilders.boolQuery()
+                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+              .subAggregation(
+                AggregationBuilders
+                  .dateHistogram("qaPairHistogram").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+              )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.qaPairAnsweredHistogram)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("qaPairAnsweredHistogram",
+              QueryBuilders.boolQuery()
+                .must(QueryBuilders.termQuery("answered", Answered.ANSWERED.toString))
+                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+              .subAggregation(
+                AggregationBuilders
+                  .dateHistogram("qaPairAnsweredHistogram").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+              )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.qaPairUnansweredHistogram)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("qaPairUnansweredHistogram",
+              QueryBuilders.boolQuery()
+                .must(QueryBuilders.termQuery("answered", Answered.UNANSWERED.toString))
+                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+              .subAggregation(
+                AggregationBuilders
+                  .dateHistogram("qaPairUnansweredHistogram").field("timestamp")
+                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+              )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesHistogram)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("qaMatchedStatesHistogram",
+              QueryBuilders.boolQuery()
+                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+              .subAggregation(
+                AggregationBuilders.terms("qaMatchedStatesHistogram").field("state")
+              )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesWithScoreHistogram)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("qaMatchedStatesWithScoreHistogram",
+              QueryBuilders.boolQuery()
+                .must(QueryBuilders.rangeQuery("feedbackAnswerScore").gte(0.0))
+                .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
+                .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
+              .subAggregation(
+                AggregationBuilders.terms("qaMatchedStatesWithScoreHistogram").field("state")
+              )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackNotTransferredConvScoreOverTime)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("avgFeedbackNotTransferredConvScoreOverTime",
+              QueryBuilders.boolQuery()
+                .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
             ).subAggregation(
               AggregationBuilders
-                .histogram("scoreHistogramNotTransferred").field("feedbackConvScore")
-                .interval(1.0d).minDocCount(minDocInBuckets)
+                .dateHistogram("avgFeedbackNotTransferredConvScoreOverTime").field("timestamp")
+                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
             )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.scoreHistogramTransferred)) {
-            aggregationBuilderList += AggregationBuilders.filter("scoreHistogramTransferred",
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackTransferredConvScoreOverTime)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("avgFeedbackTransferredConvScoreOverTime",
               QueryBuilders.boolQuery()
                 .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
             ).subAggregation(
               AggregationBuilders
-                .histogram("scoreHistogramTransferred").field("feedbackConvScore")
-                .interval(1.0d).minDocCount(minDocInBuckets)
-            )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.conversationsHistogram)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("conversationsHistogram",
-                QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)).subAggregation(
-                AggregationBuilders
-                  .dateHistogram("conversationsHistogram").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.conversationsNotTransferredHistogram)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("conversationsNotTransferredHistogram",
-                QueryBuilders.boolQuery()
-                  .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-                  .must(QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)))
-                .subAggregation(
-                  AggregationBuilders
-                    .dateHistogram("conversationsNotTransferredHistogram").field("timestamp")
-                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.conversationsTransferredHistogram)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("conversationsTransferredHistogram",
-                QueryBuilders.boolQuery()
-                  .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-                  .must(QueryBuilders.termQuery("index_in_conversation", firstIndexInConv)))
-                .subAggregation(
-                  AggregationBuilders
-                    .dateHistogram("conversationsTransferredHistogram").field("timestamp")
-                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.qaPairHistogram)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("qaPairHistogram",
-                QueryBuilders.boolQuery()
-                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-                .subAggregation(
-                  AggregationBuilders
-                    .dateHistogram("qaPairHistogram").field("timestamp")
-                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.qaPairAnsweredHistogram)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("qaPairAnsweredHistogram",
-                QueryBuilders.boolQuery()
-                  .must(QueryBuilders.termQuery("answered", Answered.ANSWERED.toString))
-                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-                .subAggregation(
-                  AggregationBuilders
-                    .dateHistogram("qaPairAnsweredHistogram").field("timestamp")
-                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.qaPairUnansweredHistogram)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("qaPairUnansweredHistogram",
-                QueryBuilders.boolQuery()
-                  .must(QueryBuilders.termQuery("answered", Answered.UNANSWERED.toString))
-                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-                .subAggregation(
-                  AggregationBuilders
-                    .dateHistogram("qaPairUnansweredHistogram").field("timestamp")
-                    .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                    .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesHistogram)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("qaMatchedStatesHistogram",
-                QueryBuilders.boolQuery()
-                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-                .subAggregation(
-                  AggregationBuilders.terms("qaMatchedStatesHistogram").field("state")
-                )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesWithScoreHistogram)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("qaMatchedStatesWithScoreHistogram",
-                QueryBuilders.boolQuery()
-                  .must(QueryBuilders.rangeQuery("feedbackAnswerScore").gte(0.0))
-                  .must(QueryBuilders.termQuery("doctype", Doctypes.NORMAL.toString))
-                  .must(QueryBuilders.termQuery("agent", Agent.STARCHAT.toString)))
-                .subAggregation(
-                  AggregationBuilders.terms("qaMatchedStatesWithScoreHistogram").field("state")
-                )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackNotTransferredConvScoreOverTime)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("avgFeedbackNotTransferredConvScoreOverTime",
-                QueryBuilders.boolQuery()
-                  .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-              ).subAggregation(
-                AggregationBuilders
-                  .dateHistogram("avgFeedbackNotTransferredConvScoreOverTime").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                  .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
-              )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackTransferredConvScoreOverTime)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("avgFeedbackTransferredConvScoreOverTime",
-                QueryBuilders.boolQuery()
-                  .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-              ).subAggregation(
-                AggregationBuilders
-                  .dateHistogram("avgFeedbackTransferredConvScoreOverTime").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                  .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
-              )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmNotTransferredConvScoreOverTime)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("avgAlgorithmNotTransferredConvScoreOverTime",
-                QueryBuilders.boolQuery()
-                  .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-              ).subAggregation(
-                AggregationBuilders
-                  .dateHistogram("avgAlgorithmNotTransferredConvScoreOverTime").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                  .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
-              )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmTransferredConvScoreOverTime)) {
-            aggregationBuilderList +=
-              AggregationBuilders.filter("avgAlgorithmTransferredConvScoreOverTime",
-                QueryBuilders.boolQuery()
-                  .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
-              ).subAggregation(
-                AggregationBuilders
-                  .dateHistogram("avgAlgorithmTransferredConvScoreOverTime").field("timestamp")
-                  .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-                  .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-                  .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
-              )
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackConvScoreOverTime)) {
-            aggregationBuilderList +=
-              AggregationBuilders
-                .dateHistogram("avgFeedbackConvScoreOverTime").field("timestamp")
+                .dateHistogram("avgFeedbackTransferredConvScoreOverTime").field("timestamp")
                 .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
                 .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
                 .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScoreOverTime)) {
-            aggregationBuilderList += AggregationBuilders
-              .dateHistogram("avgAlgorithmAnswerScoreOverTime").field("timestamp")
-              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmAnswerScore"))
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScoreOverTime)) {
-            aggregationBuilderList += AggregationBuilders
-              .dateHistogram("avgFeedbackAnswerScoreOverTime").field("timestamp")
-              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackAnswerScore"))
-          }
-          if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScoreOverTime)) {
-            aggregationBuilderList += AggregationBuilders
-              .dateHistogram("avgAlgorithmConvScoreOverTime").field("timestamp")
-              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
-              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
-              .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
-          }
+            )
         }
+        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmNotTransferredConvScoreOverTime)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("avgAlgorithmNotTransferredConvScoreOverTime",
+              QueryBuilders.boolQuery()
+                .mustNot(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+            ).subAggregation(
+              AggregationBuilders
+                .dateHistogram("avgAlgorithmNotTransferredConvScoreOverTime").field("timestamp")
+                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
+            )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmTransferredConvScoreOverTime)) {
+          aggregationBuilderList +=
+            AggregationBuilders.filter("avgAlgorithmTransferredConvScoreOverTime",
+              QueryBuilders.boolQuery()
+                .must(QueryBuilders.termQuery("escalated", Escalated.TRANSFERRED.toString))
+            ).subAggregation(
+              AggregationBuilders
+                .dateHistogram("avgAlgorithmTransferredConvScoreOverTime").field("timestamp")
+                .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+                .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+                .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
+            )
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackConvScoreOverTime)) {
+          aggregationBuilderList +=
+            AggregationBuilders
+              .dateHistogram("avgFeedbackConvScoreOverTime").field("timestamp")
+              .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+              .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+              .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackConvScore"))
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScoreOverTime)) {
+          aggregationBuilderList += AggregationBuilders
+            .dateHistogram("avgAlgorithmAnswerScoreOverTime").field("timestamp")
+            .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+            .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+            .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmAnswerScore"))
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScoreOverTime)) {
+          aggregationBuilderList += AggregationBuilders
+            .dateHistogram("avgFeedbackAnswerScoreOverTime").field("timestamp")
+            .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+            .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+            .subAggregation(AggregationBuilders.avg("avgScore").field("feedbackAnswerScore"))
+        }
+        if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScoreOverTime)) {
+          aggregationBuilderList += AggregationBuilders
+            .dateHistogram("avgAlgorithmConvScoreOverTime").field("timestamp")
+            .calendarInterval(dateHistInterval).minDocCount(minDocInBuckets)
+            .timeZone(dateHistTimezone).format("yyyy-MM-dd : HH:mm:ss")
+            .subAggregation(AggregationBuilders.avg("avgScore").field("algorithmConvScore"))
+        }
+
       case _ => List.empty[QAAggregationsTypes.Value]
     }
     aggregationBuilderList.toList
