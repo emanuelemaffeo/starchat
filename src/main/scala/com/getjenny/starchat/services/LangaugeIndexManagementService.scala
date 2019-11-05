@@ -9,6 +9,7 @@ import java.io._
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services.esclient.IndexManagementElasticClient
 import com.getjenny.starchat.utils.Index
+import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.open.{OpenIndexRequest, OpenIndexResponse}
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest
@@ -368,6 +369,14 @@ object LangaugeIndexManagementService extends AbstractDataService {
     })
 
     RefreshIndexResults(results = operationsResults)
+  }
+
+  def getAll: List[String] = {
+    val request = new GetIndexRequest("index_*");
+    val res = elasticClient.httpClient.indices()
+      .get(request, RequestOptions.DEFAULT)
+
+    res.getIndices.toList
   }
 }
 

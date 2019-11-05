@@ -36,22 +36,20 @@ trait LanguageIndexManagementResource extends StarChatResource {
             }
           } ~
             get {
-              parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
-                authenticateBasicAsync(realm = authRealm, authenticator = authenticator.authenticator) { user =>
-                  authorizeAsync(_ =>
-                    authenticator.hasPermissions(user, languageIndex, Permissions.read)) {
-                    val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                    onCompleteWithBreakerFuture(breaker)(
-                      languageIndexManagementService.check(indexName = languageIndex, indexSuffix = indexSuffix)
-                    ) {
-                      case Success(t) => completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
-                        t
+              authenticateBasicAsync(realm = authRealm, authenticator = authenticator.authenticator) { user =>
+                authorizeAsync(_ =>
+                  authenticator.hasPermissions(user, "admin", Permissions.read)) {
+                  val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
+                  onCompleteWithBreakerFuture(breaker)(
+                      languageIndexManagementService.getAll
+                  ) {
+                    case Success(t) => completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
+                      t
+                    })
+                    case Failure(e) => completeResponse(StatusCodes.BadRequest,
+                      Option {
+                        IndexManagementResponse(message = e.getMessage)
                       })
-                      case Failure(e) => completeResponse(StatusCodes.BadRequest,
-                        Option {
-                          IndexManagementResponse(message = e.getMessage)
-                        })
-                    }
                   }
                 }
               }
@@ -143,6 +141,31 @@ trait LanguageIndexManagementResource extends StarChatResource {
                   val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
                   onCompleteWithBreakerFuture(breaker)(languageIndexManagementService
                     .refresh(indexName = languageIndex, indexSuffix = indexSuffix)) {
+                    case Success(t) => completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
+                      t
+                    })
+                    case Failure(e) => completeResponse(StatusCodes.BadRequest,
+                      Option {
+                        IndexManagementResponse(message = e.getMessage)
+                      })
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      pathPrefix(LanguageIndexManagement ~ Slash ~ "check") {
+        pathEnd {
+          get {
+            parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
+              authenticateBasicAsync(realm = authRealm, authenticator = authenticator.authenticator) { user =>
+                authorizeAsync(_ =>
+                  authenticator.hasPermissions(user, languageIndex, Permissions.read)) {
+                  val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
+                  onCompleteWithBreakerFuture(breaker)(
+                    languageIndexManagementService.check(indexName = languageIndex, indexSuffix = indexSuffix)
+                  ) {
                     case Success(t) => completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
                       t
                     })
