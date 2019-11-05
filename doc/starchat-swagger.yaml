@@ -2625,6 +2625,8 @@ components:
         languageList:
           type: array
           description: a list containing all language indexes that user want to create
+          items:
+            type: string
     AnalyzerEvaluateRequest:
       type: object
       required:
@@ -3088,6 +3090,8 @@ components:
         state:
           type: array
           description: request a specific state
+          items:
+            type: string
           example:
            - "welcome_state1"
            - "welcome_state2"
