@@ -106,7 +106,7 @@ class EsCrudBase(client: ElasticClient, val index: String) {
     new IndexRequest()
       .index(index)
       .source(builder)
-      .opType(OpType.CREATE)
+      .create(true)
       .id(id)
   }
 
