@@ -57,7 +57,8 @@ class BasicHttpStarChatAuthenticator(userService: AbstractUserService) extends A
     user.id match {
       case `admin` => //admin can do everything
         val userPermissions = user.permissions.getOrElse("admin", Set.empty[Permissions.Value])
-        Future.successful(userPermissions.contains(Permissions.admin))
+        val indexEnabled = instanceRegistryService.getInstance(index).enabled.getOrElse(false)
+        Future.successful(userPermissions.contains(Permissions.admin) && indexEnabled)
       case _ =>
         val userPermissions = user.permissions.getOrElse(index, Set.empty[Permissions.Value])
         val indexEnabled = instanceRegistryService.getInstance(index).enabled.getOrElse(false)
