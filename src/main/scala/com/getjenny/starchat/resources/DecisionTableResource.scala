@@ -70,9 +70,9 @@ trait DecisionTableResource extends StarChatResource {
                   case (_, file) =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker(callTimeout = 60.seconds)
                     onCompleteWithBreakerFuture(breaker)(
-                      if (fileType == "csv") {
+                      if (fileType === "csv") {
                         decisionTableService.indexCSVFileIntoDecisionTable(indexName, file, 0)
-                      } else if (fileType == "json") {
+                      } else if (fileType === "json") {
                         decisionTableService.indexJSONFileIntoDecisionTable(indexName, file)
                       } else {
                         throw DecisionTableServiceException("Bad or unsupported file format: " + fileType)
