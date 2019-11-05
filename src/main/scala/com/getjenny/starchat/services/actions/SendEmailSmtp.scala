@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services.actions
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 26/04/19.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 26/04/19.
+ */
 
 import com.getjenny.starchat.entities.DtActionResult
 import courier.Defaults._
@@ -48,10 +48,10 @@ object SendEmailSmtp extends DtAction {
     params.get("to") match {
       case Some(v) =>
         v.replace(" ", "").split(";")
-        .map(addr => new InternetAddress(addr))
-        .foreach(addr => {
-          envelope = envelope.to(addr)
-        })
+          .map(addr => new InternetAddress(addr))
+          .foreach(addr => {
+            envelope = envelope.to(addr)
+          })
       case _ =>
     }
 

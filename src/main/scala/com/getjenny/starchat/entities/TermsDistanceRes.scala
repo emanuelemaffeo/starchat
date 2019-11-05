@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 08/06/18.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 08/06/18.
+ */
 
 case class TermsDistanceRes(
                              term1: String,

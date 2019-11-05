@@ -1,14 +1,13 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 10/03/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 10/03/17.
+ */
 
 import java.io._
 
 import com.getjenny.starchat.entities._
-import com.getjenny.starchat.services.SystemIndexManagementService.getClass
-import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, IndexManagementElasticClient}
+import com.getjenny.starchat.services.esclient.IndexManagementElasticClient
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.open.{OpenIndexRequest, OpenIndexResponse}
@@ -18,11 +17,9 @@ import org.elasticsearch.client.indices._
 import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
 import org.elasticsearch.common.settings._
 import org.elasticsearch.common.xcontent.XContentType
-import org.elasticsearch.index.query.QueryBuilders
 import scalaz.Scalaz._
 
 import scala.collection.immutable.List
-import scala.concurrent.Future
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
@@ -33,8 +30,8 @@ case class LangResourceException(message: String = "", cause: Throwable = None.o
   extends Exception(message, cause)
 
 /**
-  * Implements functions, eventually used by IndexManagementResource, for ES index management
-  */
+ * Implements functions, eventually used by IndexManagementResource, for ES index management
+ */
 object LangaugeIndexManagementService extends AbstractDataService {
   override val elasticClient: IndexManagementElasticClient.type = IndexManagementElasticClient
   private[this] val dtReloadService = InstanceRegistryService

@@ -8,12 +8,12 @@ import org.elasticsearch.action.bulk.{BulkRequest, BulkResponse}
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
 import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryAction, DeleteByQueryRequest, DeleteByQueryRequestBuilder}
+import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.elasticsearch.rest.RestStatus
 import scalaz.Scalaz._
 
 import scala.collection.immutable.List
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 case class DeleteDataServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -24,10 +24,10 @@ trait AbstractDataService {
   protected[this] val elasticClient: ElasticClient
 
   /** delete all the terms in a table
-    *
-    * @param indexName index name
-    * @return a DeleteDocumentsResult with the status of the delete operation
-    */
+   *
+   * @param indexName index name
+   * @return a DeleteDocumentsResult with the status of the delete operation
+   */
   def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
     val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
@@ -42,12 +42,12 @@ trait AbstractDataService {
   }
 
   /** delete one or more terms
-    *
-    * @param indexName index name
-    * @param ids the list of term ids to delete
-    * @param refresh whether to call an index update on ElasticSearch or not
-    * @return DeleteDocumentListResult with the result of term delete operations
-    */
+   *
+   * @param indexName index name
+   * @param ids the list of term ids to delete
+   * @param refresh whether to call an index update on ElasticSearch or not
+   * @return DeleteDocumentListResult with the result of term delete operations
+   */
   def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
     val bulkReq: BulkRequest = new BulkRequest()

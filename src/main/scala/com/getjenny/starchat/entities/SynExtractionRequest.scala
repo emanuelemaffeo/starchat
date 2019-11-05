@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 20/05/18.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 20/05/18.
+ */
 
 case class SynExtractionRequest (
                                   text: String,
@@ -10,15 +10,15 @@ case class SynExtractionRequest (
                                   sentencesThreshold: Option[Double] = Some(0.0d),
                                   synonymsThreshold: Option[Double] = Some(0.0d),
                                   distanceFunction: Option[SynonymExtractionDistanceFunction.Value] =
-                                    Some(SynonymExtractionDistanceFunction.EMDCOSINE),
+                                  Some(SynonymExtractionDistanceFunction.EMDCOSINE),
                                   commonOrSpecificSearchTerms: Option[CommonOrSpecificSearch.Value] =
-                                    Some(CommonOrSpecificSearch.COMMON),
+                                  Some(CommonOrSpecificSearch.COMMON),
                                   commonOrSpecificSearchPrior: Option[CommonOrSpecificSearch.Value] =
-                                    Some(CommonOrSpecificSearch.COMMON),
+                                  Some(CommonOrSpecificSearch.COMMON),
                                   commonOrSpecificSearchObserved: Option[CommonOrSpecificSearch.Value] =
-                                    Some(CommonOrSpecificSearch.IDXSPECIFIC),
+                                  Some(CommonOrSpecificSearch.IDXSPECIFIC),
                                   observedDataSource: Option[ObservedDataSources.Value] =
-                                    Some(ObservedDataSources.KNOWLEDGEBASE),
+                                  Some(ObservedDataSources.KNOWLEDGEBASE),
                                   fieldsPrior: Option[TermCountFields.Value] = Some(TermCountFields.all),
                                   fieldsObserved: Option[TermCountFields.Value] = Some(TermCountFields.all),
                                   minWordsPerSentence: Option[Int] = Some(10),

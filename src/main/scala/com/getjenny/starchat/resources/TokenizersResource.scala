@@ -1,8 +1,8 @@
 package com.getjenny.starchat.resources
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 03/04/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 03/04/17.
+ */
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
@@ -11,7 +11,6 @@ import com.getjenny.starchat.entities._
 import com.getjenny.starchat.routing._
 import com.getjenny.starchat.services.TermService
 
-import scala.concurrent.Future
 import scala.util.{Failure, Success}
 
 trait TokenizersResource extends StarChatResource {

@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 23/08/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 23/08/17.
+ */
 
 import akka.actor.{Actor, Props}
 import com.getjenny.starchat.SCActorSystem
@@ -12,7 +12,7 @@ import scala.language.postfixOps
 import scala.util.{Failure, Success, Try}
 
 /** Download and update the decision tables from elasticsearch
-  */
+ */
 object CronReloadDTService extends CronService {
   protected[this] val indexManagementService: LangaugeIndexManagementService.type = LangaugeIndexManagementService
 

@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services.actions
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 26/04/19.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 26/04/19.
+ */
 
 import com.getjenny.starchat.entities.DtActionResult
 import com.typesafe.config.{Config, ConfigFactory}

@@ -1,8 +1,8 @@
 package com.getjenny.starchat.resources
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
+ */
 
 
 import akka.http.javadsl.server.CircuitBreakerOpenRejection
@@ -15,7 +15,6 @@ import com.getjenny.starchat.routing._
 import com.getjenny.starchat.services._
 import scalaz.Scalaz._
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import scala.util.matching.Regex

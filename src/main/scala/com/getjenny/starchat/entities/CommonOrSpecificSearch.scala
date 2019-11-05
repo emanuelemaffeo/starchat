@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 30/04/18.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 30/04/18.
+ */
 
 import scalaz.Scalaz._
 

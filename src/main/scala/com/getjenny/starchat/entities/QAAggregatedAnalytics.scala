@@ -1,31 +1,31 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 15/03/19.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 15/03/19.
+ */
 
 case class ScoreHistogramItem(
-                           key: String,
-                           docCount: Long
-                         )
+                               key: String,
+                               docCount: Long
+                             )
 
 case class LabelCountHistogramItem(
-                                  key: String,
-                                  docCount: Long
-                                )
+                                    key: String,
+                                    docCount: Long
+                                  )
 
 case class CountOverTimeHistogramItem(
-                                   key: Long,
-                                   keyAsString: String,
-                                   docCount: Long
-                                 )
+                                       key: Long,
+                                       keyAsString: String,
+                                       docCount: Long
+                                     )
 
 case class AvgScoresHistogramItem(
-                                keyAsString: String,
-                                key: Long,
-                                docCount: Long,
-                                avgScore: Double
-                              )
+                                   keyAsString: String,
+                                   key: Long,
+                                   docCount: Long,
+                                   avgScore: Double
+                                 )
 
 case class QAAggregatedAnalytics(
                                   totalDocuments: Long = 0,

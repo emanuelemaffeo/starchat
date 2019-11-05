@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services.esclient
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 22/05/18.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 22/05/18.
+ */
 
 trait QuestionAnswerElasticClient extends ElasticClient {
   val queryMinThreshold : Float = config.getDouble("es.kb_query_min_threshold").toFloat

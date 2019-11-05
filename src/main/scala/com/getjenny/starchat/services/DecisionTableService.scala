@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
+ */
 
 import java.io.File
 import java.util
@@ -14,20 +14,18 @@ import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services.esclient.{DecisionTableElasticClient, IndexLanguageCrud}
 import com.getjenny.starchat.utils.{Base64, Index}
 import org.apache.lucene.search.join._
-import org.elasticsearch.action.get.{GetResponse, MultiGetRequest, _}
+import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.index.IndexResponse
-import org.elasticsearch.action.search.{SearchRequest, SearchResponse, SearchType}
-import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
+import org.elasticsearch.action.search.{SearchResponse, SearchType}
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.index.query.{BoolQueryBuilder, InnerHitBuilder, QueryBuilder, QueryBuilders}
 import org.elasticsearch.rest.RestStatus
 import org.elasticsearch.script.Script
 import org.elasticsearch.search.SearchHit
-import org.elasticsearch.search.aggregations.{AggregationBuilder, AggregationBuilders}
-import org.elasticsearch.search.aggregations.bucket.nested.{NestedAggregationBuilder, ParsedNested}
+import org.elasticsearch.search.aggregations.AggregationBuilders
+import org.elasticsearch.search.aggregations.bucket.nested.ParsedNested
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms
-import org.elasticsearch.search.builder.SearchSourceBuilder
 import scalaz.Scalaz._
 
 import scala.collection.JavaConverters._
@@ -37,8 +35,8 @@ case class DecisionTableServiceException(message: String = "", cause: Throwable 
   extends Exception(message, cause)
 
 /**
-  * Implements functions, eventually used by DecisionTableResource, for searching, get next response etc
-  */
+ * Implements functions, eventually used by DecisionTableResource, for searching, get next response etc
+ */
 object DecisionTableService extends AbstractDataService {
   override val elasticClient: DecisionTableElasticClient.type = DecisionTableElasticClient
   private[this] val termService: TermService.type = TermService
@@ -700,7 +698,7 @@ object DecisionTableService extends AbstractDataService {
         }
     } */
 
-   val aggregation =  AggregationBuilders.nested("queries", "queries")
+    val aggregation =  AggregationBuilders.nested("queries", "queries")
       .subAggregation(
         AggregationBuilders.terms("queries_children").field("queries.query.base").minDocCount(1)
       )

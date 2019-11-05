@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by angelo on 21/04/17.
-  */
+ * Created by angelo on 21/04/17.
+ */
 
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services.esclient.KnowledgeBaseElasticClient

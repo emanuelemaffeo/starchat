@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 01/12/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 01/12/17.
+ */
 
 import com.getjenny.analyzer.util.RandomNumbers
 import com.getjenny.starchat.entities._
@@ -21,14 +21,13 @@ import org.elasticsearch.rest.RestStatus
 import scalaz.Scalaz._
 
 import scala.collection.JavaConverters._
-import scala.concurrent.Future
 
 case class UserEsServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
 
 /**
-  * Implements functions, eventually used by IndexManagementResource, for ES index management
-  */
+ * Implements functions, eventually used by IndexManagementResource, for ES index management
+ */
 class UserEsService extends AbstractUserService {
   private[this] val config: Config = ConfigFactory.load()
   private[this] val elasticClient: SystemIndexManagementElasticClient.type = SystemIndexManagementElasticClient
@@ -43,7 +42,9 @@ class UserEsService extends AbstractUserService {
   def create(user: User): IndexDocumentResult = {
 
     if(user.id === "admin") {
-      throw new AuthenticationException("admin user cannot be changed")
+      throw new AuthenticationException("admin user cannot be created via APIs")
+    } else if (user.id.startsWith("index_")){
+      throw new AuthenticationException("Invalid pattern for username: \"index_\"")
     }
 
     val builder : XContentBuilder = jsonBuilder().startObject()
@@ -174,7 +175,6 @@ class UserEsService extends AbstractUserService {
     if(user.id === "admin") {
       adminUser
     } else {
-
       val client: RestHighLevelClient = elasticClient.httpClient
 
       val getReq = new GetRequest()
