@@ -3,6 +3,7 @@ package com.getjenny.starchat.services.esclient
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.RefreshIndexResult
+import org.elasticsearch.action.DocWriteRequest.OpType
 import org.elasticsearch.action.bulk.{BulkRequest, BulkResponse}
 import org.elasticsearch.action.get.{GetRequest, GetResponse, MultiGetRequest, MultiGetResponse}
 import org.elasticsearch.action.index.{IndexRequest, IndexResponse}
@@ -105,6 +106,7 @@ class EsCrudBase(client: ElasticClient, val index: String) {
     new IndexRequest()
       .index(index)
       .source(builder)
+      .opType(OpType.CREATE)
       .id(id)
   }
 

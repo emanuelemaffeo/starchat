@@ -67,7 +67,7 @@ class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
 
   def update(instance: String, id: String, builder: XContentBuilder, upsert: Boolean = false): UpdateResponse = {
     require(isInstanceEvaluated(builder), "instance field must be present while indexing a new document")
-    esCrudBase.update(id, builder)
+    esCrudBase.update(id, builder, upsert)
   }
 
   def update(instance: String, id: String, fields: Map[String, String]): UpdateResponse = {
