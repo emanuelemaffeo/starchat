@@ -142,17 +142,17 @@ paths:
     post:
       tags:
         - admin
-      summary: create a new starchat index set
-      operationId: post_index_management_create
-      description: "create all the starchat indices."
-      parameters:
-        - requestBody:
-            content:
-              application/json:
-                schema:
-                  $ref: '#/components/schemas/CreateLanguageIndexRequest'
-            description: "Index list to create, every index must have the following format index_<language> e.g. index_italian,
-                 if not evaluated, it will create all language indexes in configuration"
+      summary: create new language specific starchat index set
+      operationId: post_languahe_index_management
+      description: "create the language specific starchat indexes, these indexes must be crested after the system
+                    indexes and are required to create the instance indexes."
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateLanguageIndexRequest'
+        description: "Index list to create, every index must have the following format index_<language> e.g. index_italian,
+               if not evaluated, it will create all language indexes in configuration"
       responses:
         '201':
           description: index successfully created
@@ -4470,7 +4470,7 @@ components:
       example: 1M
     CountOverTimeHistogramItem:
       type: object
-      requested:
+      required:
         - key
         - keyAsString
         - docCount
@@ -4492,7 +4492,7 @@ components:
           example: 113
     AvgScoresHistogramItem:
       type: object
-      requested:
+      required:
         - key
         - keyAsString
         - docCount
@@ -4520,7 +4520,7 @@ components:
           example: 12.0
     ScoreHistogramItem:
       type: object
-      requested:
+      required:
         - key
         - docCount
       properties:
@@ -4536,7 +4536,7 @@ components:
           example: 13214
     LabelCountHistogramItem:
       type: object
-      requested:
+      required:
         - key
         - docCount
       properties:
@@ -4551,7 +4551,7 @@ components:
           example: 13214
     QAAggregatedAnalytics:
       type: object
-      requested:
+      required:
         - totalDocuments
         - totalConversations
       properties:
