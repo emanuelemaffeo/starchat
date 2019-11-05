@@ -19,7 +19,7 @@ import org.elasticsearch.search.sort.SortBuilder
 // in order to be sure that the index name passed as parameter is formatted correctly,
 class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
 
-  private[this] val Instance = "instance"
+  private[this] val instanceFieldName = "instance"
   private[this] val esCrudBase = new EsCrudBase(client, index)
 
   def readAll(ids: List[String]): MultiGetResponse = esCrudBase.readAll(ids)
@@ -39,7 +39,7 @@ class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
            fetchSource: Option[Array[String]] = None): SearchResponse = {
 
     val finalQuery = QueryBuilders.boolQuery()
-      .must(QueryBuilders.matchQuery(Instance, instance))
+      .must(QueryBuilders.matchQuery(instanceFieldName, instance))
       .must(queryBuilder)
 
     esCrudBase.read(finalQuery, from, sort, maxItems, searchType, aggregation, requestCache, minScore, scroll,
@@ -84,7 +84,7 @@ class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
 
   def delete(instance: String, queryBuilder: QueryBuilder): BulkByScrollResponse = {
     val finalQuery = QueryBuilders.boolQuery()
-      .must(QueryBuilders.matchQuery(Instance, instance))
+      .must(QueryBuilders.matchQuery(instanceFieldName, instance))
       .must(queryBuilder)
 
     esCrudBase.delete(finalQuery)
@@ -95,7 +95,7 @@ class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
   private[this] def builderFromMap(instance: String, fields: Map[String, String]): XContentBuilder = {
     val builder = jsonBuilder().startObject()
     fields.foreach { case (k, v) => builder.field(k, v) }
-    builder.field(Instance, instance)
+    builder.field(instanceFieldName, instance)
       .endObject()
     builder
   }
@@ -106,9 +106,9 @@ class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
         DeprecationHandler.THROW_UNSUPPORTED_OPERATION, Strings.toString(builder))
 
     Option(if (parser.nextToken() == XContentParser.Token.START_ARRAY) {
-      ObjectPath.eval[String](Instance, parser.listOrderedMap())
+      ObjectPath.eval[String](instanceFieldName, parser.listOrderedMap())
     } else {
-      ObjectPath.eval[String](Instance, parser.mapOrdered())
+      ObjectPath.eval[String](instanceFieldName, parser.mapOrdered())
     }).nonEmpty
   }
 
