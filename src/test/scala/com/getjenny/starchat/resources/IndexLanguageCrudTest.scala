@@ -21,7 +21,7 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
   val client: IndexManagementElasticClient.type = IndexManagementElasticClient
 
   val indexName = "index_getjenny_english_test_0"
-  val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, client.indexSuffix)
+  val esLanguageSpecificIndexName: String = Index.esLanguageFromIndexName(indexName, client.indexSuffix)
   val indexLanguageCrud = IndexLanguageCrud(client, indexName)
 
 
