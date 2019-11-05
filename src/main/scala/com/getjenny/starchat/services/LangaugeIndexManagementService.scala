@@ -106,7 +106,7 @@ object LangaugeIndexManagementService extends AbstractDataService {
         case Some(stream) => (Source.fromInputStream(stream, "utf-8").mkString, resType)
         case _ => ("", resType)
       }
-    }.filter { case (json, _) => json != "" }
+    }.filter { case (json, _) => json =/= "" }
     resourcesJson.foreach { case (resJson, resType) =>
       resType match {
         case LangResourceType.STOPWORD | LangResourceType.STEMMER_OVERRIDE =>
@@ -132,7 +132,7 @@ object LangaugeIndexManagementService extends AbstractDataService {
       .listFiles
       .filter(_.isDirectory)
       .map(_.getName)
-      .filterNot(x => x.equals("general") || x.equals("system"))
+      .filterNot(x => x === "general" || x === "system")
       .toList
   }
 
