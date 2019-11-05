@@ -96,6 +96,7 @@ object LangaugeIndexManagementService extends AbstractDataService {
   private[this] def loadLangSpecificResources(indexName: String, indexSuffix: String,
                                               language: String, openCloseIndices: Boolean = false): Unit = {
     val client: RestHighLevelClient = elasticClient.httpClient
+    val fullIndexName = Index.indexName(indexName, indexSuffix)
     val resourcesJson = langSpecificDataFiles.map { case (file, resType) =>
       val resPath: String = accessoryFilePathTpl.format(language, file)
       val resFileJsonIs: Option[InputStream] = Option {
@@ -106,12 +107,11 @@ object LangaugeIndexManagementService extends AbstractDataService {
         case _ => ("", resType)
       }
     }.filter { case (json, _) => json != "" }
-
     resourcesJson.foreach { case (resJson, resType) =>
       resType match {
         case LangResourceType.STOPWORD | LangResourceType.STEMMER_OVERRIDE =>
           if (openCloseIndices) openClose(indexName, Some(indexSuffix), "close")
-          val updateIndexSettingsReq = new UpdateSettingsRequest().indices(indexName)
+          val updateIndexSettingsReq = new UpdateSettingsRequest().indices(fullIndexName)
             .settings(Settings.builder().loadFromSource(resJson, XContentType.JSON))
           val updateIndexSettingsRes: AcknowledgedResponse = client.indices
             .putSettings(updateIndexSettingsReq, RequestOptions.DEFAULT)
