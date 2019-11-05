@@ -17,9 +17,9 @@ import scala.util.{Failure, Success}
 trait IndexManagementResource extends StarChatResource {
 
   private[this] val dtReloadService = InstanceRegistryService
-  private val CreateOperation = "create"
-  private val DisableOperation = "disable"
-  private val DeleteOperation = "delete"
+  private[this] val CreateOperation = "create"
+  private[this] val DisableOperation = "disable"
+  private[this] val DeleteOperation = "delete"
 
   def postIndexManagementCreateRoutes: Route = handleExceptions(routesExceptionHandler) {
     pathPrefix(indexRegex ~ Slash ~ "index_management" ~ Slash ~ s"^($CreateOperation|$DisableOperation|$DeleteOperation)".r) {

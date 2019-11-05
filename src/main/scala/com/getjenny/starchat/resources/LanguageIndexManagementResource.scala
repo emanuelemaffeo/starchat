@@ -11,7 +11,7 @@ import scala.util.{Failure, Success}
 
 trait LanguageIndexManagementResource extends StarChatResource {
   private[this] val languageIndexManagementService: LangaugeIndexManagementService.type = LangaugeIndexManagementService
-  private val LanguageIndexManagement = "language_index_management"
+  private[this] val LanguageIndexManagement = "language_index_management"
 
   def languageIndexManagement: Route = handleExceptions(routesExceptionHandler) {
     concat(

@@ -16,7 +16,7 @@ import scala.util.{Failure, Success}
 trait SystemIndexManagementResource extends StarChatResource {
 
   private[this] val systemIndexManagementService: SystemIndexManagementService.type = SystemIndexManagementService
-  private val SystemIndexManagement = "system_index_management"
+  private[this] val SystemIndexManagement = "system_index_management"
 
   def systemGetIndexesRoutes: Route = handleExceptions(routesExceptionHandler) {
     pathPrefix("system_indices") {
