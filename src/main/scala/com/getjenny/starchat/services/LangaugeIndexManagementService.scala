@@ -9,7 +9,6 @@ import java.io._
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services.esclient.IndexManagementElasticClient
 import com.getjenny.starchat.utils.Index
-import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.open.{OpenIndexRequest, OpenIndexResponse}
 import org.elasticsearch.action.admin.indices.settings.put.UpdateSettingsRequest
@@ -36,6 +35,7 @@ case class LangResourceException(message: String = "", cause: Throwable = None.o
 object LangaugeIndexManagementService extends AbstractDataService {
   override val elasticClient: IndexManagementElasticClient.type = IndexManagementElasticClient
   private[this] val dtReloadService = InstanceRegistryService
+  private[this] val languageSpecificIndexSuffix = "index_"
 
   private[this] def analyzerFiles(language: String): JsonMappingAnalyzersIndexFiles =
     JsonMappingAnalyzersIndexFiles(path = "/index_management/json_index_spec/" + language + "/analyzer.json",
@@ -142,7 +142,7 @@ object LangaugeIndexManagementService extends AbstractDataService {
     val languagesToCreate = if(languages.isEmpty) findAllLanguages else languages
 
     languagesToCreate.map { language =>
-      val indexName = s"index_$language"
+      val indexName = s"$languageSpecificIndexSuffix$language"
       val analyzerJsonPath: String = analyzerFiles(language).path
       val analyzerJsonIs: Option[InputStream] = Option {
         getClass.getResourceAsStream(analyzerJsonPath)
@@ -166,7 +166,7 @@ object LangaugeIndexManagementService extends AbstractDataService {
             throw new FileNotFoundException(message)
         }
 
-        val fullIndexName = s"index_$language.${item.indexSuffix}"
+        val fullIndexName = s"$languageSpecificIndexSuffix$language.${item.indexSuffix}"
 
         val createIndexReq = new CreateIndexRequest(fullIndexName).settings(
           Settings.builder().loadFromSource(analyzerJson, XContentType.JSON)
@@ -372,7 +372,7 @@ object LangaugeIndexManagementService extends AbstractDataService {
   }
 
   def getAll: List[String] = {
-    val request = new GetIndexRequest("index_*");
+    val request = new GetIndexRequest(s"$languageSpecificIndexSuffix*");
     val res = elasticClient.httpClient.indices()
       .get(request, RequestOptions.DEFAULT)
 

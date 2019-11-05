@@ -32,7 +32,7 @@ class LanguageIndexManagementResourceTest extends TestEnglishBase {
 
   it should {
     "return an HTTP code 200 when calling elasticsearch index refresh" in {
-      Post("/language_index_management/refresh?index=index_english") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+      Post("/language_index_management/refresh?index_name=index_english") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
       }
     }
@@ -40,7 +40,7 @@ class LanguageIndexManagementResourceTest extends TestEnglishBase {
 
   it should {
     "return an HTTP code 200 when getting informations from the index" in {
-      Get("/language_index_management?index=index_english") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+      Get("/language_index_management/check?index_name=index_english") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[IndexManagementResponse]
         response.message should fullyMatch regex "IndexCheck: " +
@@ -66,7 +66,7 @@ class LanguageIndexManagementResourceTest extends TestEnglishBase {
 
   it should {
     "return an HTTP code 200 when deleting an existing index" in {
-      Delete(s"/language_index_management?index=index_english") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+      Delete(s"/language_index_management?index_name=index_english") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[IndexManagementResponse]
       }
@@ -75,7 +75,7 @@ class LanguageIndexManagementResourceTest extends TestEnglishBase {
 
   it should {
     "return an HTTP code 400 when deleting a non existing index" in {
-      Delete(s"/language_index_management?index=index_english") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+      Delete(s"/language_index_management?index_name=index_english") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.BadRequest
         val response = responseAs[IndexManagementResponse]
       }
