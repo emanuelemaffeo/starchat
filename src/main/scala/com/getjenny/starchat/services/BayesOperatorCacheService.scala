@@ -41,7 +41,7 @@ object BayesOperatorCacheService extends AbstractDataService {
       .index(indexName)
       .source(document.toBuilder)
       .id(document.key)
-    
+
     val response = elasticClient.httpClient.index(request, RequestOptions.DEFAULT)
     log.info("BayesOperatorCache put - key: {}, value: {}, operation status: {}", key, value, response.status())
   }
