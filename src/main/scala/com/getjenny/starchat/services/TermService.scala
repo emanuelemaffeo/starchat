@@ -12,6 +12,7 @@ import com.getjenny.analyzer.util.VectorUtils
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.utils.TextToVectorsTools
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.services.DecisionTableService.elasticClient
 import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, TermElasticClient}
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.action.get.MultiGetItemResponse
@@ -171,7 +172,7 @@ object TermService extends AbstractDataService {
 
     val indexElems = createTermList(terms, instance)
 
-    val listOfDocRes = indexLanguageCrud.bulkCreate(indexElems)
+    val listOfDocRes = indexLanguageCrud.bulkCreate(instance, indexElems)
       .getItems
       .map { x =>
         IndexDocumentResult(x.getIndex, x.getId, x.getVersion, x.status === RestStatus.CREATED)
@@ -263,7 +264,7 @@ object TermService extends AbstractDataService {
 
     val updateElems = createTermList(terms, instance)
 
-    val listOfDocRes = indexLanguageCrud.bulkUpdate(updateElems, upsert = true)
+    val listOfDocRes = indexLanguageCrud.bulkUpdate(instance, updateElems, upsert = true)
       .getItems.map { x =>
       UpdateDocumentResult(x.getIndex, x.getId, x.getVersion, x.status === RestStatus.CREATED)
     }.toList

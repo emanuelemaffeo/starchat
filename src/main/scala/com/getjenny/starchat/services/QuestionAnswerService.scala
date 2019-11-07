@@ -1827,7 +1827,7 @@ trait QuestionAnswerService extends AbstractDataService {
     val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val builder = updateBuilder(document, instance)
-    val bulkResponse = indexLanguageCrud.bulkUpdate(document.id.map(x => (x, builder)))
+    val bulkResponse = indexLanguageCrud.bulkUpdate(instance, document.id.map(x => (x, builder)))
 
     refreshIndex(indexName, refresh, indexLanguageCrud)
 

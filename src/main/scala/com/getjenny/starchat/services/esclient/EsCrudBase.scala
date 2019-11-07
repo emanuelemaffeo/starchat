@@ -13,7 +13,7 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.index.query.QueryBuilder
-import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryRequest}
+import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryRequest, UpdateByQueryRequest}
 import org.elasticsearch.search.aggregations.AggregationBuilder
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortBuilder
