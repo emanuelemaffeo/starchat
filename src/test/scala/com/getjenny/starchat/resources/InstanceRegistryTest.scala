@@ -26,9 +26,9 @@ class InstanceRegistryTest extends TestBase {
       val instance2 = instanceRegistry.getInstance(indexNameCommon)
 
       assert(instance.enabled.isDefined)
-      assert(instance.enabled.get)
+      assert(instance.enabled === Some(true))
       assert(instance2.enabled.isDefined)
-      assert(instance2.enabled.get)
+      assert(instance2.enabled === Some(true))
     }
 
     "fail if trying to search an invalid index name" in {
@@ -48,7 +48,7 @@ class InstanceRegistryTest extends TestBase {
 
       val instance = instanceRegistry.getInstance(indexName)
       assert(instance.enabled.isDefined)
-      assert(!instance.enabled.get)
+      assert(instance.enabled === Some(false))
     }
 
     "mark delete instance" in {
@@ -56,7 +56,7 @@ class InstanceRegistryTest extends TestBase {
 
       val instance = instanceRegistry.getInstance(indexName)
       assert(instance.delete.isDefined)
-      assert(instance.delete.get)
+      assert(instance.delete === Some(true))
     }
 
     "update timestamp" in {
@@ -64,7 +64,7 @@ class InstanceRegistryTest extends TestBase {
 
       val instance = instanceRegistry.instanceTimestamp(indexName)
 
-      assert(instance.timestamp.equals(timestamp))
+      assert(instance.timestamp === timestamp)
     }
 
     "get all instances" in {
@@ -72,7 +72,7 @@ class InstanceRegistryTest extends TestBase {
       val allInstances = instanceRegistry.getAll
 
       assert(allInstances.nonEmpty)
-      assert(allInstances.size == 2)
+      assert(allInstances.size === 2)
     }
 
     "get all instances timestamp" in {
@@ -80,12 +80,12 @@ class InstanceRegistryTest extends TestBase {
       val allInstances = instanceRegistry.allInstanceTimestamp()
 
       assert(allInstances.nonEmpty)
-      assert(allInstances.size == 2)
+      assert(allInstances.size === 2)
 
       val instancesMap = allInstances.map(x => x.indexName -> x.timestamp).toMap
 
-      assert(instancesMap(indexName) == timestamp)
-      assert(instancesMap(indexNameCommon) == 0)
+      assert(instancesMap(indexName) === timestamp)
+      assert(instancesMap(indexNameCommon) === 0)
     }
 
     "delete entry" in {
@@ -93,7 +93,7 @@ class InstanceRegistryTest extends TestBase {
 
       val instance = instanceRegistry.getInstance(indexName)
 
-      assert(instance.equals(InstanceRegistryDocument.empty))
+      assert(instance === InstanceRegistryDocument.empty)
     }
   }
 
