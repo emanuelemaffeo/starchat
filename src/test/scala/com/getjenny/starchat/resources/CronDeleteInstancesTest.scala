@@ -56,7 +56,7 @@ class CronDeleteInstancesTest extends TestEnglishBase with TestKitBase with Impl
         assert(read.getHits.getHits.flatMap(_.getSourceAsMap.asScala).isEmpty)
       })
 
-      assert(registryEntry.equals(InstanceRegistryDocument.empty))
+      assert(registryEntry === InstanceRegistryDocument.empty)
     }
   }
 

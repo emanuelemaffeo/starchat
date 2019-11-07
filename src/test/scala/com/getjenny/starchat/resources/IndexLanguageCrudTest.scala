@@ -44,7 +44,7 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
     client.httpClient.indices.create(request, RequestOptions.DEFAULT)
   }
 
-  private def document(instance: String, message: String): XContentBuilder = {
+  private[this] def document(instance: String, message: String): XContentBuilder = {
     val builder = jsonBuilder().startObject()
     builder.field("instance", instance)
       .field("message", message)
@@ -77,7 +77,7 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
 
   test("Update document with same id and different instance test") {
     intercept[Exception] {
-      indexLanguageCrud.update("instance2", "1", document("instance", "ciao2"))
+      indexLanguageCrud.update("instance2", "1", document("instance2", "ciao2"))
     }
   }
 
@@ -102,11 +102,11 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
     val message = findResponse.getHits.getHits
       .flatMap(x => x.getSourceAsMap.asScala.get("message"))
       .map(_.asInstanceOf[String])
-      .filter(x => x.equals("ciao"))
+      .filter(x => x === "ciao")
 
     assert(message.nonEmpty)
     assert(message.length == 1)
-    assert(message.head.equals("ciao"))
+    assert(message.head === "ciao")
   }
 
   test("find with match all test") {
@@ -120,7 +120,7 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
 
     assert(message.nonEmpty)
     assert(message.length == 1)
-    assert(message.head.equals("aaaaa"))
+    assert(message.head === "aaaaa")
   }
 
   test("find all test") {

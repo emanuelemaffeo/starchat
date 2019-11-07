@@ -17,6 +17,7 @@ import org.elasticsearch.index.reindex.BulkByScrollResponse
 import org.elasticsearch.search.aggregations.AggregationBuilder
 import org.elasticsearch.search.sort.SortBuilder
 import scala.collection.JavaConverters._
+import scalaz.Scalaz._
 
 //private constructor - only the factory object can create an instance,
 // in order to be sure that the index name passed as parameter is formatted correctly,
@@ -71,8 +72,8 @@ class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
 
     val readResponse = esCrudBase.read(id)
     if (readResponse.isExists && !readResponse.isSourceEmpty) {
-      val savedInstance = readResponse.getSourceAsMap.asScala.getOrElse(instanceFieldName, "")
-      if(!savedInstance.equals(instance)) {
+      val savedInstance = readResponse.getSourceAsMap.asScala.getOrElse(instanceFieldName, "").toString
+      if(instance =/= savedInstance) {
         log.error(s"Trying to update instance $instance with id $id owned by $savedInstance")
         throw new IllegalArgumentException(s"Trying to update instance: $instance with id: $id owned by: $savedInstance")
       }
@@ -90,7 +91,7 @@ class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
     val otherInstancesIds = readResponse.getResponses
       .filterNot(x => x.getResponse.isSourceEmpty)
       .map(x => x.getId -> x.getResponse.getSourceAsMap.get(instanceFieldName).toString)
-      .filterNot { case (_, readInstance) => readInstance.equals(instance) }
+      .filterNot { case (_, readInstance) => readInstance === instance }
       .toSet
 
     if (otherInstancesIds.nonEmpty){
@@ -111,26 +112,18 @@ class IndexLanguageCrud private(val client: ElasticClient, val index: String) {
 
   def refresh(): RefreshIndexResult = esCrudBase.refresh()
 
-  private[this] def builderFromMap(instance: String, fields: Map[String, String]): XContentBuilder = {
-    val builder = jsonBuilder().startObject()
-    fields.foreach { case (k, v) => builder.field(k, v) }
-    builder.field(instanceFieldName, instance)
-      .endObject()
-    builder
-  }
-
   private[this] def isInstanceEvaluated(builder: XContentBuilder, instance: String): Boolean = {
     val parser = builder.contentType().xContent()
       .createParser(NamedXContentRegistry.EMPTY,
         DeprecationHandler.THROW_UNSUPPORTED_OPERATION, Strings.toString(builder))
 
-    val result = Option(if (parser.nextToken() == XContentParser.Token.START_ARRAY) {
+    val result = Option(if (parser.nextToken() === XContentParser.Token.START_ARRAY) {
       ObjectPath.eval[String](instanceFieldName, parser.listOrderedMap())
     } else {
       ObjectPath.eval[String](instanceFieldName, parser.mapOrdered())
     })
 
-    result.exists(_.equals(instance))
+    result.exists(_ === instance)
   }
 
 }
