@@ -12,8 +12,8 @@ class BayesOperatorCacheTest extends TestBase {
       bayesOperatorCache.put("test", 5d)
 
       val value = bayesOperatorCache.get("test")
-      assert(value.isDefined)
-      assert(value.get == 5d)
+
+      assert(value === Some(5d))
     }
 
     "update value in cache" in {
@@ -21,8 +21,7 @@ class BayesOperatorCacheTest extends TestBase {
 
       val value = bayesOperatorCache.get("test")
 
-      assert(value.isDefined)
-      assert(value.get == 8d)
+      assert(value === Some(8d))
     }
 
     "remove from cache" in {
