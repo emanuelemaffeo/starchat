@@ -20,6 +20,7 @@ import scalaz.Scalaz._
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Map
+import scala.util.{Failure, Success, Try}
 
 case class InstanceRegistryDocument(timestamp: Option[Long] = None, enabled: Option[Boolean] = None,
                                     delete: Option[Boolean] = None) {
@@ -80,14 +81,22 @@ object InstanceRegistryService extends AbstractDataService {
   }
 
   def addInstance(indexName: String): IndexManagementResponse = {
-    val document = InstanceRegistryDocument(Option(InstanceRegistryDocument.InstanceRegistryTimestampDefault),
-      Option(true))
+    if(!isValidIndexName(indexName))
+      throw new IllegalArgumentException(s"Index name $indexName is not a valid index to be used with instanceRegistry")
+
+    val document = InstanceRegistryDocument(
+      timestamp = Option(InstanceRegistryDocument.InstanceRegistryTimestampDefault),
+      enabled = Option(true)
+    )
     val response = esCrudBase.create(indexName, document.builder)
     cache.put(indexName, document)
     IndexManagementResponse(s"Created instance $indexName, operation status: ${response.status}", check = true)
   }
 
   def getInstance(indexName: String): InstanceRegistryDocument = {
+    if(!isValidIndexName(indexName))
+      throw new IllegalArgumentException(s"Index name $indexName is not a valid index to be used with instanceRegistry")
+
     cache.getOrElseUpdate(indexName, findEsLanguageIndex(indexName))
   }
 
@@ -103,6 +112,8 @@ object InstanceRegistryService extends AbstractDataService {
 
   private[this] def updateInstance(indexName: String, timestamp: Option[Long],
                                    enabled: Option[Boolean], delete: Option[Boolean]): UpdateResponse = {
+    if(!isValidIndexName(indexName))
+      throw new IllegalArgumentException(s"Index name $indexName is not a valid index to be used with instanceRegistry")
 
     val toBeUpdated = InstanceRegistryDocument(timestamp =  timestamp , enabled = enabled, delete = delete)
     val response = esCrudBase.update(indexName, toBeUpdated.builder)
@@ -114,13 +125,17 @@ object InstanceRegistryService extends AbstractDataService {
     response
   }
 
-  private[this] def findEsLanguageIndex(dtIndexName: String): InstanceRegistryDocument = {
-    val response = esCrudBase.read(dtIndexName)
-    if (!response.isExists || response.isSourceEmpty) {
+  private[this] def findEsLanguageIndex(dtIndexName: String): InstanceRegistryDocument = Try {
+    esCrudBase.read(dtIndexName)
+  } match {
+    case Success(response) => if (!response.isExists || response.isSourceEmpty) {
       InstanceRegistryDocument.empty
     } else {
       InstanceRegistryDocument(response.getSource.asScala.toMap)
     }
+    case Failure(e) =>
+      log.error("Error while reading from instance-registry - id: {} - exception: {}", dtIndexName, e)
+      InstanceRegistryDocument.empty
   }
 
   def instanceTimestamp(dtIndexName: String): DtReloadTimestamp = {
@@ -169,6 +184,11 @@ object InstanceRegistryService extends AbstractDataService {
           .getOrElse(InstanceRegistryDocument.InstanceRegistryTimestampDefault))
       }
     dtReloadTimestamps
+  }
+
+  def isValidIndexName(indexName: String): Boolean = indexName match {
+      case Index.fullInstanceIndex(_) => true
+      case _ => false
   }
 
 }

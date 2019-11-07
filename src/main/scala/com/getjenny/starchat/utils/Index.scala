@@ -29,6 +29,8 @@ object Index {
   val indexExtractFieldsRegex: Regex = ("""(?:index_(""" +
     orgNameRegex + """)_(""" + langRegex + ")_(" + arbitraryPatternRegex + "))").r
   val indexExtractFieldsRegexDelimited: Regex = ("^" + indexExtractFieldsRegex + "$").r
+  val fullInstanceIndex = s"(index_${orgNameRegex}_${langRegex}_$arbitraryPatternRegex)".r
+
 
   /** Extract language from index name
     *

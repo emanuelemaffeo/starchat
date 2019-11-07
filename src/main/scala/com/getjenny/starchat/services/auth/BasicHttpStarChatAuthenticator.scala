@@ -5,6 +5,7 @@ import akka.http.scaladsl.server.directives.Credentials
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services._
+import com.getjenny.starchat.utils.Index
 import com.roundeights.hasher.Implicits._
 import com.typesafe.config.{Config, ConfigFactory}
 
@@ -57,13 +58,20 @@ class BasicHttpStarChatAuthenticator(userService: AbstractUserService) extends A
     user.id match {
       case `admin` => //admin can do everything
         val userPermissions = user.permissions.getOrElse("admin", Set.empty[Permissions.Value])
-        val indexEnabled = instanceRegistryService.getInstance(index).enabled.getOrElse(false)
+        val indexEnabled = checkInstancePermission(index)
         Future.successful(userPermissions.contains(Permissions.admin) && indexEnabled)
       case _ =>
         val userPermissions = user.permissions.getOrElse(index, Set.empty[Permissions.Value])
-        val indexEnabled = instanceRegistryService.getInstance(index).enabled.getOrElse(false)
+        val indexEnabled = checkInstancePermission(index)
         val authorized = (userPermissions & permissions).nonEmpty && indexEnabled
         Future.successful(authorized)
     }
   }
+
+  private[this] def checkInstancePermission(index: String): Boolean = {
+    if(instanceRegistryService.isValidIndexName(index)) {
+      instanceRegistryService.getInstance(index).enabled.getOrElse(false)
+    } else true
+  }
+
 }
