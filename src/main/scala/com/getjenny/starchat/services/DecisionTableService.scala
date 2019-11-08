@@ -17,6 +17,7 @@ import org.apache.lucene.search.join._
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.index.IndexResponse
 import org.elasticsearch.action.search.{SearchResponse, SearchType}
+import org.elasticsearch.action.update.UpdateResponse
 import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.common.xcontent.XContentFactory._
@@ -395,7 +396,7 @@ object DecisionTableService extends AbstractDataService {
     builder.field("evaluation_class", evaluationClass)
     builder.endObject()
 
-    val response: IndexResponse = indexLanguageCrud.create(instance, document.state, builder)
+    val response: UpdateResponse = indexLanguageCrud.update(instance, document.state, builder, upsert = true)
 
     if (refresh =/= 0) {
       val refreshIndex = indexLanguageCrud.refresh()
