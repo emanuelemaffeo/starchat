@@ -18,7 +18,7 @@ import org.elasticsearch.search.aggregations.AggregationBuilder
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortBuilder
 
-class EsCrudBase(client: ElasticClient, val index: String) {
+class EsCrudBase(val client: ElasticClient, val index: String) {
 
   private[this] val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
 

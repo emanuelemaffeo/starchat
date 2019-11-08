@@ -172,7 +172,7 @@ object TermService extends AbstractDataService {
 
     val indexElems = createTermList(terms, instance)
 
-    val listOfDocRes = indexLanguageCrud.bulkCreate(instance, indexElems)
+    val listOfDocRes = indexLanguageCrud.bulkCreate(indexElems)
       .getItems
       .map { x =>
         IndexDocumentResult(x.getIndex, x.getId, x.getVersion, x.status === RestStatus.CREATED)
@@ -264,7 +264,7 @@ object TermService extends AbstractDataService {
 
     val updateElems = createTermList(terms, instance)
 
-    val listOfDocRes = indexLanguageCrud.bulkUpdate(instance, updateElems, upsert = true)
+    val listOfDocRes = indexLanguageCrud.bulkUpdate(updateElems, upsert = true)
       .getItems.map { x =>
       UpdateDocumentResult(x.getIndex, x.getId, x.getVersion, x.status === RestStatus.CREATED)
     }.toList
@@ -384,7 +384,7 @@ object TermService extends AbstractDataService {
         throw TermServiceException("Unexpected query type for terms search")
     }
 
-    val searchResponse = indexLanguageCrud.read(instance, boolQueryBuilder,
+    val searchResponse = indexLanguageCrud.read(boolQueryBuilder,
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       version = Option(true))
 
@@ -473,11 +473,10 @@ object TermService extends AbstractDataService {
    * @return an iterator for Items
    */
   def allDocuments(indexName: String, keepAlive: Long = 60000): Iterator[Term] = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val query = QueryBuilders.matchAllQuery
 
-    var scrollResp: SearchResponse = indexLanguageCrud.read(instance, query, scroll = true,
+    var scrollResp: SearchResponse = indexLanguageCrud.read(query, scroll = true,
       scrollTime = keepAlive, maxItems = Option(100))
 
     val scrollId = scrollResp.getScrollId
@@ -574,9 +573,8 @@ object TermService extends AbstractDataService {
   }
 
   override def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
-    val response = indexLanguageCrud.delete(instance, QueryBuilders.matchAllQuery)
+    val response = indexLanguageCrud.delete(QueryBuilders.matchAllQuery)
 
     DeleteDocumentsSummaryResult(message = "delete", deleted = response.getTotal)
   }

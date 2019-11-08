@@ -59,10 +59,9 @@ object AnalyzerService extends AbstractDataService {
   val dtMaxTables: Long = elasticClient.config.getLong("es.dt_max_tables")
 
   def getAnalyzers(indexName: String): mutable.LinkedHashMap[String, DecisionTableRuntimeItem] = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val query = QueryBuilders.matchAllQuery
-    val scrollResp = indexLanguageCrud.read(instance, query,
+    val scrollResp = indexLanguageCrud.read(query,
       maxItems = Option(10000),
       version = Option(true),
       fetchSource = Option(Array("state", "execution_order", "max_state_counter",

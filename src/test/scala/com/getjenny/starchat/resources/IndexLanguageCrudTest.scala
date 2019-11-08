@@ -21,9 +21,13 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
 
   val client: IndexManagementElasticClient.type = IndexManagementElasticClient
 
-  val indexName = "index_getjenny_english_test_0"
-  val esLanguageSpecificIndexName: String = Index.esLanguageFromIndexName(indexName, client.indexSuffix)
-  val indexLanguageCrud = IndexLanguageCrud(client, indexName)
+  val indexName1 = "index_getjenny_english_test_0"
+  val indexName2 = "index_getjenny_english_test_1"
+  val instance1 = Index.instanceName(indexName1)
+  val instance2 = Index.instanceName(indexName2)
+  val esLanguageSpecificIndexName: String = Index.esLanguageFromIndexName(indexName1, client.indexSuffix)
+  val indexLanguageCrud = IndexLanguageCrud(client, indexName1)
+  val indexLanguageCrud2 = IndexLanguageCrud(client, indexName2)
 
 
   override protected def beforeAll(): Unit = {
@@ -53,42 +57,41 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
   }
 
   test("insert test") {
-    val res = indexLanguageCrud.create("instance", "1", document("instance", "ciao"))
-    val res2 = indexLanguageCrud.create("instance2", "2", document("instance2", "aaaaa"))
+    val res = indexLanguageCrud.create("1", document(instance1, "ciao"))
+    val res2 = indexLanguageCrud.create("2", document(instance1, "aaaa"))
+    val res3 = indexLanguageCrud2.create("3", document(instance2, "bbbb"))
 
     indexLanguageCrud.refresh()
 
     assert(res.getResult === Result.CREATED)
     assert(res2.getResult === Result.CREATED)
+    assert(res3.getResult === Result.CREATED)
 
-  }
-
-  test("fail when trying to create a document evaluated with instance different to the one passed as parameter"){
-    intercept[Exception] {
-      indexLanguageCrud.create("instance2", "1", document("instance", "ciao"))
-    }
   }
 
   test("insert with same id should fail test") {
-    intercept[Exception] {
-      indexLanguageCrud.create("instance", "1", document("instance", "ciao"))
+    val caught = intercept[Exception] {
+      indexLanguageCrud.create("1", document(instance1, "ciao"))
     }
+    caught.printStackTrace()
   }
 
   test("Update document with same id and different instance test") {
-    intercept[Exception] {
-      indexLanguageCrud.update("instance2", "1", document("instance2", "ciao2"))
+    val caught = intercept[Exception] {
+      indexLanguageCrud2.update("1", document(instance2, "ciao2"))
     }
+    caught.printStackTrace()
   }
 
   test("Bulk update document with same id and different instance test") {
     val documents = List(
-      "1" -> document("instance2", "aaa"),
-      "2" -> document("instance2", "bbbb")
+      "1" -> document(instance2, "aaa"),
+      "2" -> document(instance2, "bbbb")
     )
-    intercept[Exception] {
-      indexLanguageCrud.bulkUpdate("instance2", documents)
+    val caught = intercept[Exception] {
+      indexLanguageCrud2.bulkUpdate(documents)
     }
+    caught.printStackTrace()
   }
 
   test("find with match test") {
@@ -96,7 +99,7 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
     val boolQueryBuilder = QueryBuilders.boolQuery()
       .must(QueryBuilders.matchQuery("message", "ciao"))
 
-    val findResponse = indexLanguageCrud.read("instance", boolQueryBuilder)
+    val findResponse = indexLanguageCrud.read(boolQueryBuilder)
     findResponse.getHits.forEach(println)
 
     val message = findResponse.getHits.getHits
@@ -111,7 +114,7 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
 
   test("find with match all test") {
     val query = QueryBuilders.matchAllQuery
-    val findResponse = indexLanguageCrud.read("instance2", query)
+    val findResponse = indexLanguageCrud.read(query)
     findResponse.getHits.forEach(println)
 
     val message = findResponse.getHits.getHits
@@ -119,27 +122,23 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
       .map(_.asInstanceOf[String])
 
     assert(message.nonEmpty)
-    assert(message.length == 1)
-    assert(message.head === "aaaaa")
+    assert(message.length === 2)
   }
 
   test("find all test") {
     val res: MultiGetResponse = indexLanguageCrud.readAll(List("1", "2"))
 
     res.getResponses.map(_.getResponse.getSource).foreach(println)
+    assert(res.getResponses.length === 2)
   }
 
   test("delete test") {
     val boolQueryBuilder = QueryBuilders.matchAllQuery()
 
-    val delete = indexLanguageCrud.delete("instance2", boolQueryBuilder)
+    val delete = indexLanguageCrud.delete(boolQueryBuilder)
     indexLanguageCrud.refresh()
 
-    val delete2 = indexLanguageCrud.delete("instance", boolQueryBuilder)
-    indexLanguageCrud.refresh()
-
-    assert(delete.getDeleted === 1L)
-    assert(delete2.getDeleted === 1L)
+    assert(delete.getDeleted === 2L)
   }
 
   override protected def afterAll(): Unit = {

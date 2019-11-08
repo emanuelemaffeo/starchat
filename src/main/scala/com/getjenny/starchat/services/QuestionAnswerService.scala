@@ -58,7 +58,6 @@ trait QuestionAnswerService extends AbstractDataService {
     * @return a data structure with the unique terms counts
     */
   private[this] def calcDictSize(indexName: String): DictSize = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val questionAgg = AggregationBuilders.cardinality("question_term_count").field("question.base")
@@ -69,7 +68,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val query = QueryBuilders.matchAllQuery
 
-    val searchResp = indexLanguageCrud.read(instance, query,
+    val searchResp = indexLanguageCrud.read(query,
       aggregation = List(questionAgg, answerAgg, totalAgg),
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       maxItems = Option(0),
@@ -134,7 +133,6 @@ trait QuestionAnswerService extends AbstractDataService {
     * @return a data structure with the terms counting and the total number of documents
     */
   private[this] def calcTotalTerms(indexName: String): TotalTerms = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val questionAgg = AggregationBuilders.sum("question_term_count").field("question.base_length")
@@ -142,7 +140,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val query = QueryBuilders.matchAllQuery
 
-    val searchResp = indexLanguageCrud.read(instance, query, aggregation = List(questionAgg, answerAgg),
+    val searchResp = indexLanguageCrud.read(query, aggregation = List(questionAgg, answerAgg),
       maxItems = Option(0),
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Option(true))
@@ -207,7 +205,6 @@ trait QuestionAnswerService extends AbstractDataService {
     */
   def calcTermCount(indexName: String,
                     field: TermCountFields.Value = TermCountFields.question, term: String): TermCount = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val agg = AggregationBuilders.sum("countTerms")
@@ -220,7 +217,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val query = QueryBuilders.matchQuery(esFieldName, term)
 
-    val searchResp = indexLanguageCrud.read(instance, query, aggregation = List(agg),
+    val searchResp = indexLanguageCrud.read(query, aggregation = List(agg),
       searchType = SearchType.DFS_QUERY_THEN_FETCH, requestCache = Option(true))
 
     val totalHits = searchResp.getHits.getTotalHits.value
@@ -829,7 +826,6 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   def search(indexName: String, documentSearch: QADocumentSearch): Option[SearchQADocumentsResults] = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val sort = documentSearch.sortByConvIdIdx match {
@@ -840,7 +836,7 @@ trait QuestionAnswerService extends AbstractDataService {
     }
 
     val query = queryBuilder(documentSearch)
-    val searchResp = indexLanguageCrud.read(instance, query,
+    val searchResp = indexLanguageCrud.read(query,
       from = documentSearch.from,
       maxItems = documentSearch.size.orElse(Option(10)),
       minScore = documentSearch.minScore.orElse(Option(elasticClient.queryMinThreshold)),
@@ -890,7 +886,6 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   def analytics(indexName: String, request: QAAggregatedAnalyticsRequest): QAAggregatedAnalytics = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val firstIndexInConv: Long = 1
@@ -923,7 +918,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val aggregationList = createAggregations(request, firstIndexInConv, dateHistInterval, minDocInBuckets)
 
-    val searchResp = indexLanguageCrud.read(instance, query,
+    val searchResp = indexLanguageCrud.read(query,
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Some(true),
       aggregation = aggregationList,
@@ -1208,7 +1203,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
         val labelCountHistograms: Map[String, List[LabelCountHistogramItem]] = Map(
           "qaMatchedStatesHistogram" -> qaMatchedStatesHistogram,
-          "qaMatchedStatesWithScoreHistogram" -> qaMatchedStatesWithScoreHistogram,
+          "qaMatchedStatesWithScoreHistogram" -> qaMatchedStatesWithScoreHistogram
         ).filter { case (_, v) => v.nonEmpty }.map { case (k, v) => (k, v.get) }
 
         val scoreHistograms: Map[String, List[ScoreHistogramItem]] = Map(
@@ -1651,7 +1646,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
     builder.endObject()
 
-    val response: IndexResponse = indexLanguageCrud.create(instance, document.id, builder)
+    val response: IndexResponse = indexLanguageCrud.create(document.id, builder)
 
     refreshIndex(indexName, refresh, indexLanguageCrud)
 
@@ -1827,7 +1822,7 @@ trait QuestionAnswerService extends AbstractDataService {
     val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val builder = updateBuilder(document, instance)
-    val bulkResponse = indexLanguageCrud.bulkUpdate(instance, document.id.map(x => (x, builder)))
+    val bulkResponse = indexLanguageCrud.bulkUpdate(document.id.map(x => (x, builder)))
 
     refreshIndex(indexName, refresh, indexLanguageCrud)
 
@@ -1889,10 +1884,9 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   def allDocuments(indexName: String, keepAlive: Long = 60000, size: Int = 100): Iterator[QADocument] = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val query = QueryBuilders.matchAllQuery
-    var scrollResp = indexLanguageCrud.read(instance, query, maxItems = Option(size), scroll = true, scrollTime = keepAlive)
+    var scrollResp = indexLanguageCrud.read(query, maxItems = Option(size), scroll = true, scrollTime = keepAlive)
 
     val scrollId = scrollResp.getScrollId
 
@@ -1993,9 +1987,8 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   override def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
-    val response = indexLanguageCrud.delete(instance, QueryBuilders.matchAllQuery)
+    val response = indexLanguageCrud.delete(QueryBuilders.matchAllQuery)
 
     DeleteDocumentsSummaryResult(message = "delete", deleted = response.getTotal)
   }
