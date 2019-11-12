@@ -24,9 +24,8 @@ object DecisionTableEntityManager extends ReadEntityManager[DecisionTableItem] {
   override def fromSearchResponse(response: SearchResponse): List[DecisionTableItem] = {
     response.getHits.getHits.toList.map {
       item: SearchHit =>
-        val version: Long = item.getVersion
         val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
-        fromSearch(source, item.getId, version)
+        fromSearch(source, item.getId, item.getVersion)
     }
   }
 
@@ -76,9 +75,8 @@ object DecisionTableEntityManager extends ReadEntityManager[DecisionTableItem] {
     response
       .filter(p => p.isExists)
       .map { item: GetResponse =>
-        val version: Long = item.getVersion
         val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
-        fromSearch(source, item.getId, version)
+        fromSearch(source, item.getId, item.getVersion)
       }
   }
 

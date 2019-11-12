@@ -1,6 +1,7 @@
 package com.getjenny.starchat.entities.es
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class TotalQueriesMatching(queriesTotalHits: Long)
 
@@ -12,5 +13,7 @@ object TotalQueriesMatchingEntityManager extends ReadEntityManager[TotalQueriesM
       .map(TotalQueriesMatching)
   }
 
-  override def fromGetResponse(response: List[GetResponse]): List[TotalQueriesMatching] = ???
+  override def fromGetResponse(response: List[GetResponse]): List[TotalQueriesMatching] = {
+    throw new NotImplementedException()
+  }
 }

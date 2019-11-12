@@ -2,8 +2,8 @@ package com.getjenny.starchat.entities.es
 
 import com.getjenny.starchat.services.QuestionAnswerServiceException
 
-import scala.collection.immutable.{List, Map}
 import scala.collection.JavaConverters._
+import scala.collection.immutable.{List, Map}
 
 object QADocumentMapper {
   def documentFromMap(indexName: String, id: String, source: Map[String, Any]): QADocument = {
@@ -48,13 +48,7 @@ object QADocumentMapper {
     }
 
     val questionScoredTerms: Option[List[(String, Double)]] = source.get("question_scored_terms") match {
-      case Some(t) => Option {
-        t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Any]]].asScala
-          .map(pair =>
-            (pair.getOrDefault("term", "").asInstanceOf[String],
-              pair.getOrDefault("score", 0.0).asInstanceOf[Double]))
-          .toList
-      }
+      case Some(t) => extractTermList(t)
       case _ => None: Option[List[(String, Double)]]
     }
 
@@ -64,13 +58,7 @@ object QADocumentMapper {
     }
 
     val answerScoredTerms: Option[List[(String, Double)]] = source.get("answer_scored_terms") match {
-      case Some(t) => Option {
-        t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Any]]].asScala
-          .map(pair =>
-            (pair.getOrDefault("term", "").asInstanceOf[String],
-              pair.getOrDefault("score", 0.0).asInstanceOf[Double]))
-          .toList
-      }
+      case Some(t) => extractTermList(t)
       case _ => None: Option[List[(String, Double)]]
     }
 
@@ -228,5 +216,15 @@ object QADocumentMapper {
       annotations = Option(annotationsOut),
       timestamp = timestamp
     )
+  }
+
+  private[this] def extractTermList(t: Any): Option[List[(String, Double)]] = {
+    Option {
+      t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Any]]].asScala
+        .map(pair =>
+          (pair.getOrDefault("term", "").asInstanceOf[String],
+            pair.getOrDefault("score", 0.0).asInstanceOf[Double]))
+        .toList
+    }
   }
 }

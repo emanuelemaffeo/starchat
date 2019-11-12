@@ -2,6 +2,7 @@ package com.getjenny.starchat.entities.es
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.aggregations.metrics.Cardinality
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class DictSize(numDocs: Long, answer: Long, question: Long, total: Long)
 
@@ -17,6 +18,6 @@ object DictSizeEntityManager extends ReadEntityManager[DictSize] {
       total = totalAggRes.getValue))
   }
 
-  override def fromGetResponse(response: List[GetResponse]): List[DictSize] = ???
+  override def fromGetResponse(response: List[GetResponse]): List[DictSize] = throw new NotImplementedException()
 
 }

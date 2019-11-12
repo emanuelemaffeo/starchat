@@ -3,6 +3,7 @@ import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.aggregations.bucket.nested.ParsedNested
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.Map
@@ -25,5 +26,7 @@ object WordFrequenciesInQueryEntityManager extends ReadEntityManager[WordFrequen
     List(WordFrequenciesInQuery(result))
   }
 
-  override def fromGetResponse(response: List[GetResponse]): List[WordFrequenciesInQuery] = ???
+  override def fromGetResponse(response: List[GetResponse]): List[WordFrequenciesInQuery] = {
+    throw new NotImplementedException()
+  }
 }

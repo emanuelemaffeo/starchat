@@ -8,6 +8,7 @@ import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.aggregations.metrics.Sum
 import scalaz.Scalaz._
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 object TermCountFields extends Enumeration {
   type TermCountField = Value
@@ -26,5 +27,7 @@ object TermCountEntityManager extends ReadEntityManager[TermCount] {
     List(TermCount(numDocs = totalHits, count = aggRes.getValue.toLong))
   }
 
-  override def fromGetResponse(response: List[GetResponse]): List[TermCount] = ???
+  override def fromGetResponse(response: List[GetResponse]): List[TermCount] = {
+    throw new NotImplementedException()
+  }
 }

@@ -294,6 +294,7 @@ object TermService extends AbstractDataService {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val response = indexLanguageCrud.delete(ids, new TermEntityManager)
+
     if (refresh =/= 0) {
       val refreshIndex = indexLanguageCrud.refresh()
       if (refreshIndex.failedShardsN > 0) {

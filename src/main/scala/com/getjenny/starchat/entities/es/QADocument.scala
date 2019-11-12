@@ -191,9 +191,8 @@ class QaDocumentEntityManager(indexName: String) extends EsEntityManager[QADocum
     response
       .filter(p => p.isExists)
       .map { item: GetResponse =>
-        val id: String = item.getId
         val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
-        QADocumentMapper.documentFromMap(indexName, extractId(id), source)
+        QADocumentMapper.documentFromMap(indexName, extractId(item.getId), source)
       }
   }
 
@@ -500,7 +499,7 @@ class QaDocumentEntityManager(indexName: String) extends EsEntityManager[QADocum
         }
         annotations.start match {
           case Some(t) => builder.field("start", t)
-          case _ => builder.field("start", false);
+          case _ => builder.field("start", false)
         }
       case _ => QADocumentAnnotations()
     }

@@ -1,6 +1,5 @@
 package com.getjenny.starchat.entities.es
 
-import com.getjenny.starchat.services.QuestionAnswerServiceException
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.SearchHit

@@ -2,6 +2,7 @@ package com.getjenny.starchat.entities.es
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.search.aggregations.metrics.Sum
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 case class TotalTerms(numDocs: Long, answer: Long, question: Long)
 
@@ -17,5 +18,7 @@ object TotalTermsEntityManager extends ReadEntityManager[TotalTerms] {
       answer = answerAggRes.getValue.toLong))
   }
 
-  override def fromGetResponse(response: List[GetResponse]): List[TotalTerms] = ???
+  override def fromGetResponse(response: List[GetResponse]): List[TotalTerms] = {
+    throw new NotImplementedException()
+  }
 }

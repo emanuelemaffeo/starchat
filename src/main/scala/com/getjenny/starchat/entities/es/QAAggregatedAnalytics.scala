@@ -9,6 +9,7 @@ import org.elasticsearch.search.aggregations.bucket.filter.ParsedFilter
 import org.elasticsearch.search.aggregations.bucket.histogram.{Histogram, ParsedDateHistogram}
 import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms
 import org.elasticsearch.search.aggregations.metrics.{Avg, Cardinality}
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
@@ -380,5 +381,7 @@ class QAAggregatedAnalyticsEntityManager(aggregationsTypes: Option[List[QAAggreg
 
   }
 
-  override def fromGetResponse(response: List[GetResponse]): List[QAAggregatedAnalytics] = ???
+  override def fromGetResponse(response: List[GetResponse]): List[QAAggregatedAnalytics] = {
+    throw new NotImplementedException()
+  }
 }
