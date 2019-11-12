@@ -10,6 +10,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshaller
 import akka.stream.scaladsl.Flow
 import akka.util.ByteString
 import com.getjenny.analyzer.expressions.AnalyzersData
+import com.getjenny.starchat.entities.es._
 import com.getjenny.starchat.entities.{QAAggregatedAnalyticsRequest, _}
 import scalaz.Scalaz._
 import spray.json._
@@ -182,7 +183,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val responseRequestUserInputFormat = jsonFormat3(ResponseRequestInUserInput)
   implicit val responseRequestInputFormat = jsonFormat9(ResponseRequestIn)
   implicit val responseRequestOutputFormat = jsonFormat14(ResponseRequestOut)
-  implicit val dtDocumentFormat = jsonFormat13(DTDocument)
+  implicit val dtDocumentFormat = jsonFormat13(DTDocumentCreate)
   implicit val dtDocumentUpdateFormat = jsonFormat12(DTDocumentUpdate)
   implicit val qaDocumentAnnotationsSearchFormat = jsonFormat20(QADocumentAnnotationsSearch)
   implicit val qaDocumentCoreFormat = jsonFormat8(QADocumentCore)

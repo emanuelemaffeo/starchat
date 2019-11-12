@@ -7,7 +7,7 @@ import akka.event.LoggingAdapter
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
 import breeze.io.CSVReader
-import com.getjenny.starchat.entities.{DTDocument, SearchDTDocument, SearchDTDocumentsResults, Term}
+import com.getjenny.starchat.entities.es.{DTDocumentCreate, SearchDTDocument, SearchDTDocumentsResults, Term}
 import com.getjenny.starchat.serializers.JsonSupport
 import scalaz.Scalaz._
 
@@ -21,7 +21,7 @@ case class FileToDocumentsException(message: String = "", cause: Throwable = Non
 
 object FileToDocuments extends JsonSupport {
 
-  def getDTDocumentsFromJSON(log: LoggingAdapter, file: File): IndexedSeq[DTDocument] = {
+  def getDTDocumentsFromJSON(log: LoggingAdapter, file: File): IndexedSeq[DTDocumentCreate] = {
     implicit val system: ActorSystem = ActorSystem()
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     implicit val executionContext: ExecutionContextExecutor = system.dispatcher
@@ -52,7 +52,7 @@ object FileToDocuments extends JsonSupport {
   }
 
   def getDTDocumentsFromCSV(log: LoggingAdapter, file: File, skipLines: Int = 0, separator: Char = ','):
-  IndexedSeq[DTDocument] = {
+  IndexedSeq[DTDocumentCreate] = {
     implicit val system: ActorSystem = ActorSystem()
     implicit val materializer: ActorMaterializer = ActorMaterializer()
     implicit val executionContext: ExecutionContextExecutor = system.dispatcher
@@ -103,7 +103,7 @@ object FileToDocuments extends JsonSupport {
           Some{entry(header("evaluationClass"))}
         } else None
 
-        val document = DTDocument(state = entry(header("state")),
+        val document = DTDocumentCreate(state = entry(header("state")),
           executionOrder = entry(header("executionOrder")).toInt,
           maxStateCount = entry(header("maxStateCount")).toInt,
           analyzer = entry(header("analyzer")),

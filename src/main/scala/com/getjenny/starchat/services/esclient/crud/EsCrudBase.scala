@@ -1,10 +1,11 @@
-package com.getjenny.starchat.services.esclient
+package com.getjenny.starchat.services.esclient.crud
 
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.RefreshIndexResult
-import org.elasticsearch.action.DocWriteRequest.OpType
+import com.getjenny.starchat.services.esclient.ElasticClient
 import org.elasticsearch.action.bulk.{BulkRequest, BulkResponse}
+import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.get.{GetRequest, GetResponse, MultiGetRequest, MultiGetResponse}
 import org.elasticsearch.action.index.{IndexRequest, IndexResponse}
 import org.elasticsearch.action.search.{SearchRequest, SearchResponse, SearchScrollRequest, SearchType}
@@ -13,10 +14,12 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.index.query.QueryBuilder
-import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryRequest, UpdateByQueryRequest}
+import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryRequest}
 import org.elasticsearch.search.aggregations.AggregationBuilder
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortBuilder
+
+import scala.collection.immutable.Map
 
 class EsCrudBase(val client: ElasticClient, val index: String) {
 
@@ -64,6 +67,33 @@ class EsCrudBase(val client: ElasticClient, val index: String) {
     log.debug("Search request: {}", request)
 
     client.httpClient.search(request, RequestOptions.DEFAULT)
+  }
+
+  def scroll(queryBuilder: QueryBuilder,
+             from: Option[Int] = None,
+             sort: List[SortBuilder[_]] = List.empty,
+             maxItems: Option[Int] = None,
+             searchType: SearchType = SearchType.DEFAULT,
+             aggregation: List[AggregationBuilder] = List.empty,
+             requestCache: Option[Boolean] = None,
+             minScore: Option[Float] = None,
+             scrollTime: Long = 60000,
+             version: Option[Boolean] = None,
+             fetchSource: Option[Array[String]] = None): Iterator[SearchResponse] = {
+
+    var response = read(queryBuilder, from, sort, maxItems, searchType, aggregation, requestCache,
+      minScore, scroll = true, scrollTime, version, fetchSource)
+
+    val scrollId = response.getScrollId
+
+    val initialResponse = response
+    Iterator(initialResponse) ++ Iterator.continually {
+      val request = new SearchScrollRequest(scrollId)
+      request.scroll(new TimeValue(scrollTime))
+      response = client.httpClient.scroll(request, RequestOptions.DEFAULT)
+      val r = response
+      r
+    }.takeWhile(x => x.getHits.getHits.length != 0)
   }
 
   def readAll(ids: List[String]): MultiGetResponse = {
@@ -128,12 +158,19 @@ class EsCrudBase(val client: ElasticClient, val index: String) {
     client.httpClient.deleteByQuery(request, RequestOptions.DEFAULT)
   }
 
-  def refresh(): RefreshIndexResult = {
-    client.refresh(index)
+  def delete(ids: List[String]): BulkResponse = {
+    val bulkRequest: BulkRequest = new BulkRequest()
+    ids.foreach( id => {
+      val request = new DeleteRequest()
+        .index(index)
+        .id(id)
+      bulkRequest.add(request)
+    })
+    bulkUpdate(bulkRequest)
   }
 
-  def scroll(scrollRequest: SearchScrollRequest): SearchResponse = {
-    client.httpClient.scroll(scrollRequest, RequestOptions.DEFAULT)
+  def refresh(): RefreshIndexResult = {
+    client.refresh(index)
   }
 
   private[this] def bulkUpdate(request: BulkRequest): BulkResponse = {

@@ -9,6 +9,7 @@ import com.getjenny.analyzer.util.VectorUtils
 import com.getjenny.manaus.{KeywordsExtraction, TokenOccurrence}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.utils.{EMDVectorDistances, MeanVectorDistances, SumVectorDistances, TextToVectorsTools}
+import com.getjenny.starchat.entities.es.{Term, TermCountFields, Terms, TextTerms}
 import com.getjenny.starchat.entities.{TermsExtractionRequest, _}
 import com.getjenny.starchat.services.esclient.ManausTermsExtractionElasticClient
 import com.getjenny.starchat.utils.Index

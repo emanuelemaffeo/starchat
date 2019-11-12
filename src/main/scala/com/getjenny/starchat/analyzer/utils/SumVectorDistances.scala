@@ -2,6 +2,7 @@ package com.getjenny.starchat.analyzer.utils
 
 import com.getjenny.analyzer.util.VectorUtils
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.es.TextTerms
 import com.getjenny.starchat.services._
 
 /**

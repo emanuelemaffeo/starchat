@@ -2,6 +2,7 @@ package com.getjenny.starchat.resources
 
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.es.{DTDocumentCreate, DTDocumentUpdate, SearchDTDocumentsResults}
 import com.getjenny.starchat.utils.Index
 
 class DecisionTableResourceTest extends TestEnglishBase {
@@ -42,7 +43,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
 
   it should {
     "return an HTTP code 201 when creating a new document" in {
-      val decisionTableRequest = DTDocument(
+      val decisionTableRequest = DTDocumentCreate(
         state = "forgot_password",
         executionOrder = 0,
         maxStateCount = 0,
@@ -58,7 +59,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         version = None
       )
 
-      val decisionTableRequest2 = DTDocument(
+      val decisionTableRequest2 = DTDocumentCreate(
         state = "dont_tell_password",
         executionOrder = 0,
         maxStateCount = 0,
@@ -95,7 +96,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
 
   it should {
     "return an HTTP code 201 when creating a new document with state that already exist" in {
-      val decisionTableRequest = DTDocument(
+      val decisionTableRequest = DTDocumentCreate(
         state = "forgot_password",
         executionOrder = 0,
         maxStateCount = 0,

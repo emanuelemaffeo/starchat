@@ -11,6 +11,7 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.stream.ActorMaterializer
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.es.{Agent, Answered, QADocument, QADocumentAnnotations, QADocumentCore}
 import com.getjenny.starchat.serializers.JsonSupport
 import scopt.OptionParser
 

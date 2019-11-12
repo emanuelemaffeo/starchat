@@ -1,5 +1,7 @@
 package com.getjenny.starchat.entities
 
+import com.getjenny.starchat.entities.es.{Agent, Answered, Doctypes, Escalated, Followup, QADocumentCore, Triggered}
+
 /**
  * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
  */

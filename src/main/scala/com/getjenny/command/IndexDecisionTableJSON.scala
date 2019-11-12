@@ -13,7 +13,8 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.http.scaladsl.unmarshalling.Unmarshal
 import akka.stream.ActorMaterializer
-import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.{es, _}
+import com.getjenny.starchat.entities.es.{DTDocumentCreate, SearchDTDocument, SearchDTDocumentsResults}
 import com.getjenny.starchat.serializers.JsonSupport
 import scopt.OptionParser
 
@@ -76,7 +77,7 @@ object IndexDecisionTableJSON extends JsonSupport {
 
     listOfDocuments.hits.foreach(item => {
       val entry = item.document
-      val state = DTDocument(state = entry.state,
+      val state = DTDocumentCreate(state = entry.state,
         executionOrder = entry.executionOrder,
         maxStateCount = entry.maxStateCount,
         analyzer = entry.analyzer,

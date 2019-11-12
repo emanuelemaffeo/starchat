@@ -1,5 +1,7 @@
 package com.getjenny.starchat.entities
 
+import com.getjenny.starchat.entities.es.QADocument
+
 /**
  * Created by Angelo Leto <angelo@getjenny.com> on 18/02/19.
  */

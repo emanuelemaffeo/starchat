@@ -2,9 +2,11 @@ package com.getjenny.starchat.resources
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.testkit.{ImplicitSender, TestKitBase}
-import com.getjenny.starchat.entities.{Term, Terms, UpdateDocumentsResult}
+import com.getjenny.starchat.entities.UpdateDocumentsResult
+import com.getjenny.starchat.entities.es.{Term, Terms}
 import com.getjenny.starchat.services.CronDeleteInstanceService.{DeleteInstanceActor, DeleteInstanceResponse}
-import com.getjenny.starchat.services.esclient.{EsCrudBase, IndexManagementElasticClient}
+import com.getjenny.starchat.services.esclient.IndexManagementElasticClient
+import com.getjenny.starchat.services.esclient.crud.EsCrudBase
 import com.getjenny.starchat.services.{InstanceRegistryDocument, InstanceRegistryService}
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.index.query.QueryBuilders

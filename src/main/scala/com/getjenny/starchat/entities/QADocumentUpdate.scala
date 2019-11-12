@@ -1,8 +1,6 @@
 package com.getjenny.starchat.entities
 
-/**
- * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
- */
+import com.getjenny.starchat.entities.es.{QADocumentAnnotations, QADocumentCore}
 
 case class QADocumentUpdate(
                              id: List[String], /* list of document ids to update (bulk editing) */
@@ -14,3 +12,4 @@ case class QADocumentUpdate(
                                               a GUI to avoid concurrent modifications, 0 means no operations pending */
                              timestamp: Option[Long] = None /* indexing timestamp, automatically calculated if not provided */
                            )
+

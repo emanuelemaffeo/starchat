@@ -1,34 +1,60 @@
 package com.getjenny.starchat.resources
 
 import akka.http.scaladsl.testkit.ScalatestRouteTest
+import com.getjenny.starchat.entities.es.EsEntityManager
 import com.getjenny.starchat.serializers.JsonSupport
-import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, IndexManagementElasticClient}
+import com.getjenny.starchat.services.esclient.IndexManagementElasticClient
+import com.getjenny.starchat.services.esclient.crud.IndexLanguageCrud
 import com.getjenny.starchat.utils.Index
-import org.elasticsearch.action.DocWriteResponse.Result
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
-import org.elasticsearch.action.get.MultiGetResponse
+import org.elasticsearch.action.get.GetResponse
+import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder
 import org.elasticsearch.common.xcontent.{XContentBuilder, XContentType}
 import org.elasticsearch.index.query.QueryBuilders
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
 
 import scala.collection.JavaConverters._
-import org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder
+
+case class TestDocument(id: String, message: String)
 
 class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTest with JsonSupport with BeforeAndAfterAll {
 
   val client: IndexManagementElasticClient.type = IndexManagementElasticClient
 
-  val indexName1 = "index_getjenny_english_test_0"
-  val indexName2 = "index_getjenny_english_test_1"
-  val instance1 = Index.instanceName(indexName1)
-  val instance2 = Index.instanceName(indexName2)
+  val indexName1: String = "index_getjenny_english_test_0"
+  val indexName2: String = "index_getjenny_english_test_1"
+  val instance1: String = Index.instanceName(indexName1)
+  val instance2: String = Index.instanceName(indexName2)
   val esLanguageSpecificIndexName: String = Index.esLanguageFromIndexName(indexName1, client.indexSuffix)
-  val indexLanguageCrud = IndexLanguageCrud(client, indexName1)
-  val indexLanguageCrud2 = IndexLanguageCrud(client, indexName2)
+  val indexLanguageCrud: IndexLanguageCrud = IndexLanguageCrud(client, indexName1)
+  val indexLanguageCrud2: IndexLanguageCrud = IndexLanguageCrud(client, indexName2)
 
+  object TestEntityManager extends EsEntityManager[TestDocument, TestDocument] {
+    override def fromSearchResponse(response: SearchResponse): List[TestDocument] = {
+      response.getHits.getHits.map(x => fromSource(x.getId, x.getSourceAsMap.asScala.toMap)).toList
+    }
+
+    override def fromGetResponse(response: List[GetResponse]): List[TestDocument] = {
+      response.map(x => fromSource(x.getId, x.getSourceAsMap.asScala.toMap))
+    }
+
+    private[this] def fromSource(id: String, source: Map[String, Any]): TestDocument = {
+      val message = source("message").toString
+      TestDocument(extractId(id), message)
+    }
+
+    override def toXContentBuilder(entity: TestDocument, instance: String): (String, XContentBuilder) = {
+      val builder = jsonBuilder().startObject()
+      builder.field("instance", instance)
+        .field("message", entity.message)
+        .endObject()
+      createId(instance, entity.id) -> builder
+    }
+  }
 
   override protected def beforeAll(): Unit = {
     val request = new CreateIndexRequest(esLanguageSpecificIndexName)
@@ -48,50 +74,43 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
     client.httpClient.indices.create(request, RequestOptions.DEFAULT)
   }
 
-  private[this] def document(instance: String, message: String): XContentBuilder = {
-    val builder = jsonBuilder().startObject()
-    builder.field("instance", instance)
-      .field("message", message)
-      .endObject()
-    builder
-  }
-
   test("insert test") {
-    val res = indexLanguageCrud.create("1", document(instance1, "ciao"))
-    val res2 = indexLanguageCrud.create("2", document(instance1, "aaaa"))
-    val res3 = indexLanguageCrud2.create("3", document(instance2, "bbbb"))
+    val res = indexLanguageCrud.create(TestDocument("1", "ciao"), TestEntityManager)
+    val res2 = indexLanguageCrud.create(TestDocument("2", "aaaa"), TestEntityManager)
+    val res3 = indexLanguageCrud2.create(TestDocument("3", "bbbb"), TestEntityManager)
 
     indexLanguageCrud.refresh()
 
-    assert(res.getResult === Result.CREATED)
-    assert(res2.getResult === Result.CREATED)
-    assert(res3.getResult === Result.CREATED)
+    assert(res.created === true)
+    assert(res2.created === true)
+    assert(res3.created === true)
 
   }
 
   test("insert with same id should fail test") {
     val caught = intercept[Exception] {
-      indexLanguageCrud.create("1", document(instance1, "ciao"))
+      indexLanguageCrud.create(TestDocument("1", "ciao"), TestEntityManager)
     }
     caught.printStackTrace()
   }
 
   test("Update document with same id and different instance test") {
     val caught = intercept[Exception] {
-      indexLanguageCrud2.update("1", document(instance2, "ciao2"))
+      indexLanguageCrud2.update(TestDocument("1", "ciao2"), entityManager = TestEntityManager)
     }
     caught.printStackTrace()
   }
 
   test("Bulk update document with same id and different instance test") {
     val documents = List(
-      "1" -> document(instance2, "aaa"),
-      "2" -> document(instance2, "bbbb")
+      TestDocument("1", "aaa"),
+      TestDocument("2", "bbbb")
     )
-    val caught = intercept[Exception] {
-      indexLanguageCrud2.bulkUpdate(documents)
-    }
-    caught.printStackTrace()
+    indexLanguageCrud2.bulkUpdate(documents.map(x => x.id -> x), entityManager = TestEntityManager)
+    val res = indexLanguageCrud.readAll(List("1", "2"), TestEntityManager)
+
+    assert(!res.exists(_.message === "aaa"))
+    assert(!res.exists(_.message === "bbb"))
   }
 
   test("find with match test") {
@@ -99,37 +118,32 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
     val boolQueryBuilder = QueryBuilders.boolQuery()
       .must(QueryBuilders.matchQuery("message", "ciao"))
 
-    val findResponse = indexLanguageCrud.read(boolQueryBuilder)
-    findResponse.getHits.forEach(println)
+    val findResponse = indexLanguageCrud.read(boolQueryBuilder, entityManager = TestEntityManager)
 
-    val message = findResponse.getHits.getHits
-      .flatMap(x => x.getSourceAsMap.asScala.get("message"))
-      .map(_.asInstanceOf[String])
-      .filter(x => x === "ciao")
+    val message = findResponse.filter(x => x.message === "ciao")
 
     assert(message.nonEmpty)
     assert(message.length == 1)
-    assert(message.head === "ciao")
+    assert(message.head.message === "ciao")
   }
 
   test("find with match all test") {
     val query = QueryBuilders.matchAllQuery
-    val findResponse = indexLanguageCrud.read(query)
-    findResponse.getHits.forEach(println)
+    val findResponse = indexLanguageCrud.read(query, entityManager = TestEntityManager)
 
-    val message = findResponse.getHits.getHits
-      .flatMap(x => x.getSourceAsMap.asScala.get("message"))
-      .map(_.asInstanceOf[String])
+    val message = findResponse.map(_.message)
 
     assert(message.nonEmpty)
     assert(message.length === 2)
   }
 
   test("find all test") {
-    val res: MultiGetResponse = indexLanguageCrud.readAll(List("1", "2"))
+    val res = indexLanguageCrud.readAll(List("1", "2"), TestEntityManager)
 
-    res.getResponses.map(_.getResponse.getSource).foreach(println)
-    assert(res.getResponses.length === 2)
+    res.foreach(println)
+    assert(res.length === 2)
+    assert(res.exists(_.id === "1"))
+    assert(res.exists(_.id === "2"))
   }
 
   test("delete test") {

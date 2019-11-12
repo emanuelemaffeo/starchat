@@ -7,7 +7,8 @@ package com.getjenny.starchat.services
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.{DeleteDocumentsResult, DtReloadTimestamp, IndexManagementResponse}
-import com.getjenny.starchat.services.esclient.{EsCrudBase, SystemIndexManagementElasticClient}
+import com.getjenny.starchat.services.esclient.SystemIndexManagementElasticClient
+import com.getjenny.starchat.services.esclient.crud.EsCrudBase
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.action.update.UpdateResponse
 import org.elasticsearch.common.xcontent.XContentBuilder
@@ -134,7 +135,7 @@ object InstanceRegistryService extends AbstractDataService {
       InstanceRegistryDocument(response.getSource.asScala.toMap)
     }
     case Failure(e) =>
-      log.error("Error while reading from instance-registry - id: {} - exception: {}", dtIndexName, e)
+      log.error(e, "Error while reading from instance-registry - id: {}", dtIndexName)
       InstanceRegistryDocument.empty
   }
 
@@ -171,8 +172,8 @@ object InstanceRegistryService extends AbstractDataService {
     val scrollResp = esCrudBase.read(boolQueryBuilder,
       maxItems = maxItems.orElse(Option(100L)).map(_.toInt),
       version = Option(true),
-      sort = List(new FieldSortBuilder(elasticClient.dtReloadTimestampFieldName).order(SortOrder.DESC)),
-      scroll = true)
+      sort = List(new FieldSortBuilder(elasticClient.dtReloadTimestampFieldName).order(SortOrder.DESC))
+    )
 
     val dtReloadTimestamps: List[DtReloadTimestamp] = scrollResp.getHits.getHits.toList
       .map { timestampEntry =>

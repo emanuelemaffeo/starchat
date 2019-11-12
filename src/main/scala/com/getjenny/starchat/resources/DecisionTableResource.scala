@@ -11,6 +11,7 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.CircuitBreaker
 import com.getjenny.analyzer.analyzers.AnalyzerEvaluationException
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.es.{DTDocumentCreate, DTDocumentUpdate}
 import com.getjenny.starchat.routing._
 import com.getjenny.starchat.services._
 import scalaz.Scalaz._
@@ -329,7 +330,7 @@ trait DecisionTableResource extends StarChatResource {
               authenticator.hasPermissions(user, indexName, Permissions.write)) {
               extractRequest { request =>
                 parameters("refresh".as[Int] ? 0) { refresh =>
-                  entity(as[DTDocument]) { document =>
+                  entity(as[DTDocumentCreate]) { document =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
                     onCompleteWithBreakerFuture(breaker)(decisionTableService.create(indexName, document, refresh)) {
                       case Success(t) =>

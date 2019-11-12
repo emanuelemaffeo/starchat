@@ -8,6 +8,7 @@ import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.analyzers._
 import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Context, Result}
 import com.getjenny.starchat.SCActorSystem
+import com.getjenny.starchat.entities.es.DTDocumentCreate
 import com.getjenny.starchat.entities.{ResponseRequestOut, _}
 import com.getjenny.starchat.services.actions._
 import com.getjenny.starchat.services.esclient.DecisionTableElasticClient
@@ -159,7 +160,7 @@ object ResponseService extends AbstractDataService {
 
     val docResults = decisionTableService.read(indexName, analyzersEvalData.keys.toList)
     val dtDocumentsList = docResults.hits.par.map { item =>
-      val doc: DTDocument = item.document
+      val doc: DTDocumentCreate = item.document
       val state = doc.state
       val evaluationRes: Result = analyzersEvalData(state)
       val maxStateCount: Int = doc.maxStateCount

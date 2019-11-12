@@ -1,7 +1,7 @@
 package com.getjenny.starchat.services
 
 import akka.actor.{Actor, Props}
-import com.getjenny.starchat.services.esclient.{EsCrudBase, IndexLanguageCrud}
+import com.getjenny.starchat.services.esclient.crud.EsCrudBase
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.index.query.QueryBuilders
 
@@ -30,7 +30,7 @@ object CronDeleteInstanceService extends CronService {
       case m => log.error("Unexpected message in  DeleteInstanceActor :{}", m)
     }
 
-    private def delete(registryEntryId: String, indexName: String): Either[String, DeleteInstanceResponse] = {
+    private[this] def delete(registryEntryId: String, indexName: String): Either[String, DeleteInstanceResponse] = {
       val res = Try {
         val instance = Index.instanceName(registryEntryId)
         val crud = new EsCrudBase(systemIndexManagementService.elasticClient, indexName)

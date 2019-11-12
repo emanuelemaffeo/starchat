@@ -125,7 +125,6 @@ object ClusterNodesService extends AbstractDataService {
 
     val searchReq = new SearchRequest(indexName)
       .source(sourceReq)
-      .scroll(new TimeValue(60000))
 
     val scrollResp : SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)
 

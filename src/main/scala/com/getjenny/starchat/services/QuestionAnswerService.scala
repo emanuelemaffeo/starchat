@@ -4,33 +4,26 @@ package com.getjenny.starchat.services
   * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
   */
 
-import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
+import java.time.{ZoneId, ZoneOffset}
 
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.util.{RandomNumbers, Time}
 import com.getjenny.starchat.SCActorSystem
-import com.getjenny.starchat.entities.{LabelCountHistogramItem, _}
-import com.getjenny.starchat.services.DecisionTableService.elasticClient
-import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, QuestionAnswerElasticClient}
+import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.es.{QaDocumentEntityManager, TermCountEntityManager, _}
+import com.getjenny.starchat.services.esclient.QuestionAnswerElasticClient
+import com.getjenny.starchat.services.esclient.crud.IndexLanguageCrud
 import com.getjenny.starchat.utils.Index
 import org.apache.lucene.search.join._
-import org.elasticsearch.action.index.IndexResponse
-import org.elasticsearch.action.search.{SearchScrollRequest, SearchType}
-import org.elasticsearch.common.xcontent.XContentBuilder
-import org.elasticsearch.common.xcontent.XContentFactory._
+import org.elasticsearch.action.search.SearchType
 import org.elasticsearch.index.query.functionscore._
 import org.elasticsearch.index.query.{BoolQueryBuilder, InnerHitBuilder, QueryBuilder, QueryBuilders}
-import org.elasticsearch.rest.RestStatus
 import org.elasticsearch.script._
-import org.elasticsearch.search.aggregations.bucket.filter.ParsedFilter
-import org.elasticsearch.search.aggregations.bucket.histogram.{DateHistogramInterval, Histogram, ParsedDateHistogram}
-import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms
-import org.elasticsearch.search.aggregations.metrics.{Avg, Cardinality, Sum}
+import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval
 import org.elasticsearch.search.aggregations.{AggregationBuilder, AggregationBuilders}
 import org.elasticsearch.search.sort.{FieldSortBuilder, ScoreSortBuilder, SortOrder}
 import scalaz.Scalaz._
 
-import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -68,21 +61,11 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val query = QueryBuilders.matchAllQuery
 
-    val searchResp = indexLanguageCrud.read(query,
+    indexLanguageCrud.read(query,
       aggregation = List(questionAgg, answerAgg, totalAgg),
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       maxItems = Option(0),
-      requestCache = Option(true))
-
-    val questionAggRes: Cardinality = searchResp.getAggregations.get("question_term_count")
-    val answerAggRes: Cardinality = searchResp.getAggregations.get("answer_term_count")
-    val totalAggRes: Cardinality = searchResp.getAggregations.get("total_term_count")
-
-    DictSize(numDocs = searchResp.getHits.getTotalHits.value,
-      question = questionAggRes.getValue,
-      answer = answerAggRes.getValue,
-      total = totalAggRes.getValue
-    )
+      requestCache = Option(true), entityManager = DictSizeEntityManager).head
   }
 
   var dictSizeCacheMaxSize: Int
@@ -140,19 +123,10 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val query = QueryBuilders.matchAllQuery
 
-    val searchResp = indexLanguageCrud.read(query, aggregation = List(questionAgg, answerAgg),
+    indexLanguageCrud.read(query, aggregation = List(questionAgg, answerAgg),
       maxItems = Option(0),
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
-      requestCache = Option(true))
-
-    val totalHits = searchResp.getHits.getTotalHits.value
-
-    val questionAggRes: Sum = searchResp.getAggregations.get("question_term_count")
-    val answerAggRes: Sum = searchResp.getAggregations.get("answer_term_count")
-
-    TotalTerms(numDocs = totalHits,
-      question = questionAggRes.getValue.toLong,
-      answer = answerAggRes.getValue.toLong)
+      requestCache = Option(true), entityManager = TotalTermsEntityManager).head
   }
 
   var totalTermsCacheMaxSize: Int
@@ -217,13 +191,9 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val query = QueryBuilders.matchQuery(esFieldName, term)
 
-    val searchResp = indexLanguageCrud.read(query, aggregation = List(agg),
-      searchType = SearchType.DFS_QUERY_THEN_FETCH, requestCache = Option(true))
-
-    val totalHits = searchResp.getHits.getTotalHits.value
-    val aggRes: Sum = searchResp.getAggregations.get("countTerms")
-
-    TermCount(numDocs = totalHits, count = aggRes.getValue.toLong)
+    indexLanguageCrud.read(query, aggregation = List(agg),
+      searchType = SearchType.DFS_QUERY_THEN_FETCH, requestCache = Option(true),
+      entityManager = TermCountEntityManager).head
   }
 
   var countTermCacheMaxSize: Int
@@ -313,233 +283,6 @@ trait QuestionAnswerService extends AbstractDataService {
     countTermCache.clear()
     totalTermsCache.clear()
     countersCacheParameters
-  }
-
-  def documentFromMap(indexName: String, id: String, source: Map[String, Any]): QADocument = {
-    val conversation: String = source.get("conversation") match {
-      case Some(t) => t.asInstanceOf[String]
-      case _ => throw QuestionAnswerServiceException("Missing conversation ID for " +
-        "index:docId(" + indexName + ":" + id + ")")
-    }
-
-    val indexInConversation: Int = source.get("index_in_conversation") match {
-      case Some(t) => t.asInstanceOf[Int]
-      case _ => throw QuestionAnswerServiceException("Missing index in conversation for " +
-        "index:docId(" + indexName + ":" + id + ")")
-    }
-
-    val status: Option[Int] = source.get("status") match {
-      case Some(t) => Some(t.asInstanceOf[Int])
-      case _ => Some(0)
-    }
-
-    val timestamp: Option[Long] = source.get("timestamp") match {
-      case Some(t) => Option {
-        t.asInstanceOf[Long]
-      }
-      case _ => None: Option[Long]
-    }
-
-    // begin core data
-    val question: Option[String] = source.get("question") match {
-      case Some(t) => Some(t.asInstanceOf[String])
-      case _ => None
-    }
-
-    val questionNegative: Option[List[String]] = source.get("question_negative") match {
-      case Some(t) =>
-        val res = t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, String]]]
-          .asScala.map(_.asScala.get("query")).filter(_.nonEmpty).map(_.get).toList
-        Option {
-          res
-        }
-      case _ => None: Option[List[String]]
-    }
-
-    val questionScoredTerms: Option[List[(String, Double)]] = source.get("question_scored_terms") match {
-      case Some(t) => Option {
-        t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Any]]].asScala
-          .map(pair =>
-            (pair.getOrDefault("term", "").asInstanceOf[String],
-              pair.getOrDefault("score", 0.0).asInstanceOf[Double]))
-          .toList
-      }
-      case _ => None: Option[List[(String, Double)]]
-    }
-
-    val answer: Option[String] = source.get("answer") match {
-      case Some(t) => Some(t.asInstanceOf[String])
-      case _ => None
-    }
-
-    val answerScoredTerms: Option[List[(String, Double)]] = source.get("answer_scored_terms") match {
-      case Some(t) => Option {
-        t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, Any]]].asScala
-          .map(pair =>
-            (pair.getOrDefault("term", "").asInstanceOf[String],
-              pair.getOrDefault("score", 0.0).asInstanceOf[Double]))
-          .toList
-      }
-      case _ => None: Option[List[(String, Double)]]
-    }
-
-    val topics: Option[String] = source.get("topics") match {
-      case Some(t) => Option {
-        t.asInstanceOf[String]
-      }
-      case _ => None: Option[String]
-    }
-
-    val verified: Option[Boolean] = source.get("verified") match {
-      case Some(t) => Some(t.asInstanceOf[Boolean])
-      case _ => Some(false)
-    }
-
-    val done: Option[Boolean] = source.get("done") match {
-      case Some(t) => Some(t.asInstanceOf[Boolean])
-      case _ => Some(false)
-    }
-
-    val coreDataOut: Option[QADocumentCore] = Some {
-      QADocumentCore(
-        question = question,
-        questionNegative = questionNegative,
-        questionScoredTerms = questionScoredTerms,
-        answer = answer,
-        answerScoredTerms = answerScoredTerms,
-        topics = topics,
-        verified = verified,
-        done = done
-      )
-    }
-    // begin core data
-
-    // begin annotations
-    val dclass: Option[String] = source.get("dclass") match {
-      case Some(t) => Option {
-        t.asInstanceOf[String]
-      }
-      case _ => None: Option[String]
-    }
-
-    val doctype: Option[Doctypes.Value] = source.get("doctype") match {
-      case Some(t) => Some {
-        Doctypes.value(t.asInstanceOf[String])
-      }
-      case _ => Some {
-        Doctypes.NORMAL
-      }
-    }
-
-    val state: Option[String] = source.get("state") match {
-      case Some(t) => Option {
-        t.asInstanceOf[String]
-      }
-      case _ => None: Option[String]
-    }
-
-    val agent: Option[Agent.Value] = source.get("agent") match {
-      case Some(t) => Some(Agent.value(t.asInstanceOf[String]))
-      case _ => Some(Agent.STARCHAT)
-    }
-
-    val escalated: Option[Escalated.Value] = source.get("escalated") match {
-      case Some(t) => Some(Escalated.value(t.asInstanceOf[String]))
-      case _ => Some(Escalated.UNSPECIFIED)
-    }
-
-    val answered: Option[Answered.Value] = source.get("answered") match {
-      case Some(t) => Some(Answered.value(t.asInstanceOf[String]))
-      case _ => Some(Answered.ANSWERED)
-    }
-
-    val triggered: Option[Triggered.Value] = source.get("triggered") match {
-      case Some(t) => Some(Triggered.value(t.asInstanceOf[String]))
-      case _ => Some(Triggered.UNSPECIFIED)
-    }
-
-    val followup: Option[Followup.Value] = source.get("followup") match {
-      case Some(t) => Some(Followup.value(t.asInstanceOf[String]))
-      case _ => Some(Followup.UNSPECIFIED)
-    }
-
-    val feedbackConv: Option[String] = source.get("feedbackConv") match {
-      case Some(t) => Option {
-        t.asInstanceOf[String]
-      }
-      case _ => None: Option[String]
-    }
-
-    val feedbackConvScore: Option[Double] = source.get("feedbackConvScore") match {
-      case Some(t) => Option {
-        t.asInstanceOf[Double]
-      }
-      case _ => None: Option[Double]
-    }
-
-    val algorithmConvScore: Option[Double] = source.get("algorithmConvScore") match {
-      case Some(t) => Option {
-        t.asInstanceOf[Double]
-      }
-      case _ => None: Option[Double]
-    }
-
-    val feedbackAnswerScore: Option[Double] = source.get("feedbackAnswerScore") match {
-      case Some(t) => Option {
-        t.asInstanceOf[Double]
-      }
-      case _ => None: Option[Double]
-    }
-
-    val algorithmAnswerScore: Option[Double] = source.get("algorithmAnswerScore") match {
-      case Some(t) => Option {
-        t.asInstanceOf[Double]
-      }
-      case _ => None: Option[Double]
-    }
-
-    val responseScore: Option[Double] = source.get("responseScore") match {
-      case Some(t) => Option {
-        t.asInstanceOf[Double]
-      }
-      case _ => None: Option[Double]
-    }
-
-    val start: Option[Boolean] = source.get("start") match {
-      case Some(t) => Some(t.asInstanceOf[Boolean])
-      case _ => Some(false)
-    }
-
-    val annotationsOut: Option[QADocumentAnnotations] = Some {
-      QADocumentAnnotations(
-        dclass = dclass,
-        doctype = doctype,
-        state = state,
-        agent = agent,
-        escalated = escalated,
-        answered = answered,
-        triggered = triggered,
-        followup = followup,
-        feedbackConv = feedbackConv,
-        feedbackConvScore = feedbackConvScore,
-        algorithmConvScore = algorithmConvScore,
-        feedbackAnswerScore = feedbackAnswerScore,
-        algorithmAnswerScore = algorithmAnswerScore,
-        responseScore = responseScore,
-        start = start
-      )
-    }
-    // end annotations
-
-    QADocument(
-      id = id,
-      conversation = conversation,
-      indexInConversation = indexInConversation,
-      status = status,
-      coreData = coreDataOut,
-      annotations = annotationsOut,
-      timestamp = timestamp
-    )
   }
 
   private[this] def queryBuilder(documentSearch: QADocumentSearch): BoolQueryBuilder = {
@@ -836,32 +579,13 @@ trait QuestionAnswerService extends AbstractDataService {
     }
 
     val query = queryBuilder(documentSearch)
-    val searchResp = indexLanguageCrud.read(query,
+    indexLanguageCrud.read(query,
       from = documentSearch.from,
       maxItems = documentSearch.size.orElse(Option(10)),
       minScore = documentSearch.minScore.orElse(Option(elasticClient.queryMinThreshold)),
       sort = sort,
-      searchType = SearchType.DFS_QUERY_THEN_FETCH)
-
-    val documents: Option[List[SearchQADocument]] = Option {
-      searchResp.getHits.getHits.toList.map { item =>
-        val id: String = item.getId
-        val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
-        val document = documentFromMap(indexName, id, source)
-        SearchQADocument(score = item.getScore, document = document)
-      }
-    }
-
-    val filteredDoc: List[SearchQADocument] =
-      documents.getOrElse(List.empty[SearchQADocument])
-
-    val maxScore: Float = searchResp.getHits.getMaxScore
-    val totalHits = searchResp.getHits.getTotalHits.value
-    val total: Int = filteredDoc.length
-    val searchResults: SearchQADocumentsResults = SearchQADocumentsResults(totalHits = totalHits,
-      hitsCount = total, maxScore = maxScore, hits = filteredDoc)
-
-    Some(searchResults)
+      searchType = SearchType.DFS_QUERY_THEN_FETCH,
+      entityManager = new SearchQADocumentEntityManager(indexName)).headOption
   }
 
   def conversations(indexName: String, ids: DocsIds): Conversations = {
@@ -918,337 +642,12 @@ trait QuestionAnswerService extends AbstractDataService {
 
     val aggregationList = createAggregations(request, firstIndexInConv, dateHistInterval, minDocInBuckets)
 
-    val searchResp = indexLanguageCrud.read(query,
+    indexLanguageCrud.read(query,
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Some(true),
       aggregation = aggregationList,
       maxItems = Option(0),
-      minScore = Option(0.0f))
-
-    val totalDocuments: Cardinality = searchResp.getAggregations.get("totalDocuments")
-    val totalConversations: Cardinality = searchResp.getAggregations.get("totalConversations")
-
-    val res = request.aggregations match {
-      case Some(aggregationsReq) =>
-        val reqAggs = aggregationsReq.toSet
-        val avgFeedbackConvScore: Option[Double] = if (reqAggs.contains(QAAggregationsTypes.avgFeedbackConvScore)) {
-          val avg: Avg = searchResp.getAggregations.get("avgFeedbackConvScore")
-          Some(avg.getValue)
-        } else None
-        val avgFeedbackAnswerScore: Option[Double] = if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScore)) {
-          val avg: Avg = searchResp.getAggregations.get("avgFeedbackAnswerScore")
-          Some(avg.getValue)
-        } else None
-        val avgAlgorithmConvScore: Option[Double] = if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScore)) {
-          val avg: Avg = searchResp.getAggregations.get("avgAlgorithmConvScore")
-          Some(avg.getValue)
-        } else None
-        val avgAlgorithmAnswerScore: Option[Double] = if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScore)) {
-          val avg: Avg = searchResp.getAggregations.get("avgAlgorithmAnswerScore")
-          Some(avg.getValue)
-        } else None
-        val scoreHistogram: Option[List[ScoreHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.scoreHistogram)) {
-          val h: Histogram = searchResp.getAggregations.get("scoreHistogram")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              ScoreHistogramItem(
-                key = bucket.getKeyAsString,
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val scoreHistogramNotTransferred: Option[List[ScoreHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.scoreHistogramNotTransferred)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("scoreHistogramNotTransferred")
-          val h: Histogram = pf.getAggregations.get("scoreHistogramNotTransferred")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              ScoreHistogramItem(
-                key = bucket.getKeyAsString,
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val scoreHistogramTransferred: Option[List[ScoreHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.scoreHistogramTransferred)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("scoreHistogramTransferred")
-          val h: Histogram = pf.getAggregations.get("scoreHistogramTransferred")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              ScoreHistogramItem(
-                key = bucket.getKeyAsString,
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val conversationsHistogram: Option[List[CountOverTimeHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.conversationsHistogram)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("conversationsHistogram")
-          val h: ParsedDateHistogram = pf.getAggregations.get("conversationsHistogram")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val conversationsNotTransferredHistogram: Option[List[CountOverTimeHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.conversationsNotTransferredHistogram)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("conversationsNotTransferredHistogram")
-          val h: ParsedDateHistogram = pf.getAggregations.get("conversationsNotTransferredHistogram")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val conversationsTransferredHistogram: Option[List[CountOverTimeHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.conversationsTransferredHistogram)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("conversationsTransferredHistogram")
-          val h: ParsedDateHistogram = pf.getAggregations.get("conversationsTransferredHistogram")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val qaPairHistogram: Option[List[CountOverTimeHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.qaPairHistogram)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("qaPairHistogram")
-          val h: ParsedDateHistogram = pf.getAggregations.get("qaPairHistogram")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val qaPairAnsweredHistogram: Option[List[CountOverTimeHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.qaPairAnsweredHistogram)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("qaPairAnsweredHistogram")
-          val h: ParsedDateHistogram = pf.getAggregations.get("qaPairAnsweredHistogram")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val qaPairUnansweredHistogram: Option[List[CountOverTimeHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.qaPairUnansweredHistogram)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("qaPairUnansweredHistogram")
-          val h: ParsedDateHistogram = pf.getAggregations.get("qaPairUnansweredHistogram")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              CountOverTimeHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val qaMatchedStatesHistogram: Option[List[LabelCountHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesHistogram)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("qaMatchedStatesHistogram")
-          val h: ParsedStringTerms = pf.getAggregations.get("qaMatchedStatesHistogram")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              LabelCountHistogramItem(
-                key = bucket.getKey.asInstanceOf[String],
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val qaMatchedStatesWithScoreHistogram: Option[List[LabelCountHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.qaMatchedStatesWithScoreHistogram)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("qaMatchedStatesWithScoreHistogram")
-          val h: ParsedStringTerms = pf.getAggregations.get("qaMatchedStatesWithScoreHistogram")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              LabelCountHistogramItem(
-                key = bucket.getKey.asInstanceOf[String],
-                docCount = bucket.getDocCount
-              )
-            }.toList
-          }
-        } else None
-        val avgFeedbackNotTransferredConvScoreOverTime: Option[List[AvgScoresHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.avgFeedbackNotTransferredConvScoreOverTime)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("avgFeedbackNotTransferredConvScoreOverTime")
-          val h: ParsedDateHistogram = pf.getAggregations.get("avgFeedbackNotTransferredConvScoreOverTime")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              val avg: Avg = bucket.getAggregations.get("avgScore")
-              AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount,
-                avgScore = avg.getValue
-              )
-            }.toList
-          }
-        } else None
-        val avgFeedbackTransferredConvScoreOverTime: Option[List[AvgScoresHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.avgFeedbackTransferredConvScoreOverTime)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("avgFeedbackTransferredConvScoreOverTime")
-          val h: ParsedDateHistogram = pf.getAggregations.get("avgFeedbackTransferredConvScoreOverTime")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              val avg: Avg = bucket.getAggregations.get("avgScore")
-              AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount,
-                avgScore = avg.getValue
-              )
-            }.toList
-          }
-        } else None
-        val avgAlgorithmNotTransferredConvScoreOverTime: Option[List[AvgScoresHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmNotTransferredConvScoreOverTime)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("avgAlgorithmNotTransferredConvScoreOverTime")
-          val h: ParsedDateHistogram = pf.getAggregations.get("avgAlgorithmNotTransferredConvScoreOverTime")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              val avg: Avg = bucket.getAggregations.get("avgScore")
-              AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount,
-                avgScore = avg.getValue
-              )
-            }.toList
-          }
-        } else None
-        val avgAlgorithmTransferredConvScoreOverTime: Option[List[AvgScoresHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmTransferredConvScoreOverTime)) {
-          val pf: ParsedFilter = searchResp.getAggregations.get("avgAlgorithmTransferredConvScoreOverTime")
-          val h: ParsedDateHistogram = pf.getAggregations.get("avgAlgorithmTransferredConvScoreOverTime")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              val avg: Avg = bucket.getAggregations.get("avgScore")
-              AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount,
-                avgScore = avg.getValue
-              )
-            }.toList
-          }
-        } else None
-        val avgFeedbackConvScoreOverTime: Option[List[AvgScoresHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.avgFeedbackConvScoreOverTime)) {
-          val h: ParsedDateHistogram = searchResp.getAggregations.get("avgFeedbackConvScoreOverTime")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              val avg: Avg = bucket.getAggregations.get("avgScore")
-              AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount,
-                avgScore = avg.getValue
-              )
-            }.toList
-          }
-        } else None
-        val avgAlgorithmAnswerScoreOverTime: Option[List[AvgScoresHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmAnswerScoreOverTime)) {
-          val h: ParsedDateHistogram = searchResp.getAggregations.get("avgAlgorithmAnswerScoreOverTime")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              val avg: Avg = bucket.getAggregations.get("avgScore")
-              AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount,
-                avgScore = avg.getValue
-              )
-            }.toList
-          }
-        } else None
-        val avgFeedbackAnswerScoreOverTime: Option[List[AvgScoresHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.avgFeedbackAnswerScoreOverTime)) {
-          val h: ParsedDateHistogram = searchResp.getAggregations.get("avgFeedbackAnswerScoreOverTime")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              val avg: Avg = bucket.getAggregations.get("avgScore")
-              AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount,
-                avgScore = avg.getValue
-              )
-            }.toList
-          }
-        } else None
-        val avgAlgorithmConvScoreOverTime: Option[List[AvgScoresHistogramItem]] = if (reqAggs.contains(QAAggregationsTypes.avgAlgorithmConvScoreOverTime)) {
-          val h: ParsedDateHistogram = searchResp.getAggregations.get("avgAlgorithmConvScoreOverTime")
-          Some {
-            h.getBuckets.asScala.map { bucket =>
-              val avg: Avg = bucket.getAggregations.get("avgScore")
-              AvgScoresHistogramItem(
-                key = bucket.getKey.asInstanceOf[ZonedDateTime].toInstant.toEpochMilli,
-                keyAsString = bucket.getKeyAsString,
-                docCount = bucket.getDocCount,
-                avgScore = avg.getValue
-              )
-            }.toList
-          }
-        } else None
-
-        val labelCountHistograms: Map[String, List[LabelCountHistogramItem]] = Map(
-          "qaMatchedStatesHistogram" -> qaMatchedStatesHistogram,
-          "qaMatchedStatesWithScoreHistogram" -> qaMatchedStatesWithScoreHistogram
-        ).filter { case (_, v) => v.nonEmpty }.map { case (k, v) => (k, v.get) }
-
-        val scoreHistograms: Map[String, List[ScoreHistogramItem]] = Map(
-          "scoreHistogram" -> scoreHistogram,
-          "scoreHistogramNotTransferred" -> scoreHistogramNotTransferred,
-          "scoreHistogramTransferred" -> scoreHistogramTransferred
-        ).filter { case (_, v) => v.nonEmpty }.map { case (k, v) => (k, v.get) }
-
-        val countOverTimeHistograms: Map[String, List[CountOverTimeHistogramItem]] = Map(
-          "conversationsHistogram" -> conversationsHistogram,
-          "conversationsNotTransferredHistogram" -> conversationsNotTransferredHistogram,
-          "conversationsTransferredHistogram" -> conversationsTransferredHistogram,
-          "qaPairHistogram" -> qaPairHistogram,
-          "qaPairAnsweredHistogram" -> qaPairAnsweredHistogram,
-          "qaPairUnansweredHistogram" -> qaPairUnansweredHistogram
-        ).filter { case (_, v) => v.nonEmpty }.map { case (k, v) => (k, v.get) }
-
-        val scoresOverTime: Map[String, List[AvgScoresHistogramItem]] = Map(
-          "avgFeedbackNotTransferredConvScoreOverTime" -> avgFeedbackNotTransferredConvScoreOverTime,
-          "avgFeedbackTransferredConvScoreOverTime" -> avgFeedbackTransferredConvScoreOverTime,
-          "avgAlgorithmNotTransferredConvScoreOverTime" -> avgAlgorithmNotTransferredConvScoreOverTime,
-          "avgAlgorithmTransferredConvScoreOverTime" -> avgAlgorithmTransferredConvScoreOverTime,
-          "avgFeedbackConvScoreOverTime" -> avgFeedbackConvScoreOverTime,
-          "avgAlgorithmAnswerScoreOverTime" -> avgAlgorithmAnswerScoreOverTime,
-          "avgFeedbackAnswerScoreOverTime" -> avgFeedbackAnswerScoreOverTime,
-          "avgAlgorithmConvScoreOverTime" -> avgAlgorithmConvScoreOverTime
-        ).filter { case (_, v) => v.nonEmpty }.map { case (k, v) => (k, v.get) }
-
-        QAAggregatedAnalytics(totalDocuments = totalDocuments.getValue,
-          totalConversations = totalConversations.getValue,
-          avgFeedbackConvScore = avgFeedbackConvScore,
-          avgFeedbackAnswerScore = avgFeedbackAnswerScore,
-          avgAlgorithmConvScore = avgAlgorithmConvScore,
-          avgAlgorithmAnswerScore = avgAlgorithmAnswerScore,
-          labelCountHistograms = if (labelCountHistograms.nonEmpty) Some(labelCountHistograms) else None,
-          scoreHistograms = if (scoreHistograms.nonEmpty) Some(scoreHistograms) else None,
-          countOverTimeHistograms = if (countOverTimeHistograms.nonEmpty) Some(countOverTimeHistograms) else None,
-          scoresOverTime = if (scoresOverTime.nonEmpty) Some(scoresOverTime) else None
-        )
-      case _ =>
-        QAAggregatedAnalytics(totalDocuments = totalDocuments.getValue,
-          totalConversations = totalConversations.getValue)
-    }
-
-    res
+      minScore = Option(0.0f), entityManager = new QAAggregatedAnalyticsEntityManager(request.aggregations)).head
   }
 
   private[this] def createAggregations(request: QAAggregatedAnalyticsRequest, firstIndexInConv: Long,
@@ -1495,346 +894,23 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   def create(indexName: String, document: QADocument, refresh: Int): Option[IndexDocumentResult] = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
-
-    val builder: XContentBuilder = jsonBuilder().startObject()
-
-    builder.field("id", document.id)
-    builder.field("instance", instance)
-    builder.field("conversation", document.conversation)
-
-    if (document.indexInConversation <= 0) throw QuestionAnswerServiceException("indexInConversation cannot be < 1")
-    builder.field("index_in_conversation", document.indexInConversation)
-
-    document.status match {
-      case Some(t) => builder.field("status", t)
-      case _ => ;
-    }
-
-    document.timestamp match {
-      case Some(t) => builder.field("timestamp", t)
-      case _ => builder.field("timestamp", Time.timestampMillis)
-    }
-
-    // begin core data
-    document.coreData match {
-      case Some(coreData) =>
-        coreData.question match {
-          case Some("") => ;
-          case Some(t) =>
-            builder.field("question", t)
-          case _ => ;
-        }
-        coreData.questionNegative match {
-          case Some(t) =>
-            val array = builder.startArray("question_negative")
-            t.foreach(q => {
-              array.startObject().field("query", q).endObject()
-            })
-            array.endArray()
-          case _ => ;
-        }
-        coreData.questionScoredTerms match {
-          case Some(t) =>
-            val array = builder.startArray("question_scored_terms")
-            t.foreach { case (term, score) =>
-              array.startObject().field("term", term)
-                .field("score", score).endObject()
-            }
-            array.endArray()
-          case _ => ;
-        }
-        coreData.answer match {
-          case Some("") => ;
-          case Some(t) => builder.field("answer", t)
-          case _ => ;
-        }
-        coreData.answerScoredTerms match {
-          case Some(t) =>
-            val array = builder.startArray("answer_scored_terms")
-            t.foreach { case (term, score) =>
-              array.startObject().field("term", term)
-                .field("score", score).endObject()
-            }
-            array.endArray()
-          case _ => ;
-        }
-        coreData.topics match {
-          case Some(t) => builder.field("topics", t)
-          case _ => ;
-        }
-        coreData.verified match {
-          case Some(t) => builder.field("verified", t)
-          case _ => builder.field("verified", false)
-
-        }
-        coreData.done match {
-          case Some(t) => builder.field("done", t)
-          case _ => builder.field("done", false)
-        }
-      case _ => QADocumentCore()
-    }
-    // end core data
-
-    // begin annotations
-    document.annotations match {
-      case Some(annotations) =>
-        annotations.dclass match {
-          case Some(t) => builder.field("dclass", t)
-          case _ => ;
-        }
-        annotations.doctype match {
-          case Some(t) => builder.field("doctype", t.toString)
-          case _ => builder.field("doctype", "NORMAL");
-        }
-        annotations.state match {
-          case Some(t) => builder.field("state", t)
-          case _ => ;
-        }
-        annotations.agent match {
-          case Some(t) => builder.field("agent", t.toString)
-          case _ => builder.field("agent", "STARCHAT");
-        }
-        annotations.escalated match {
-          case Some(t) => builder.field("escalated", t.toString)
-          case _ => builder.field("escalated", "UNSPECIFIED");
-        }
-        annotations.answered match {
-          case Some(t) => builder.field("answered", t.toString)
-          case _ => builder.field("answered", "ANSWERED");
-        }
-        annotations.triggered match {
-          case Some(t) => builder.field("triggered", t.toString)
-          case _ => builder.field("triggered", "UNSPECIFIED");
-        }
-        annotations.followup match {
-          case Some(t) => builder.field("followup", t.toString)
-          case _ => builder.field("followup", "UNSPECIFIED");
-        }
-        annotations.feedbackConv match {
-          case Some(t) => builder.field("feedbackConv", t)
-          case _ => ;
-        }
-        annotations.feedbackConvScore match {
-          case Some(t) => builder.field("feedbackConvScore", t)
-          case _ => ;
-        }
-        annotations.algorithmConvScore match {
-          case Some(t) => builder.field("algorithmConvScore", t)
-          case _ => ;
-        }
-        annotations.feedbackAnswerScore match {
-          case Some(t) => builder.field("feedbackAnswerScore", t)
-          case _ => ;
-        }
-        annotations.algorithmAnswerScore match {
-          case Some(t) => builder.field("algorithmAnswerScore", t)
-          case _ => ;
-        }
-        annotations.responseScore match {
-          case Some(t) => builder.field("responseScore", t)
-          case _ => ;
-        }
-        annotations.start match {
-          case Some(t) => builder.field("start", t)
-          case _ => builder.field("start", false);
-        }
-      case _ => QADocumentAnnotations()
-    }
-    // end annotations
-
-    builder.endObject()
-
-    val response: IndexResponse = indexLanguageCrud.create(document.id, builder)
+    val response = indexLanguageCrud.create(document, new QaDocumentEntityManager(indexName))
 
     refreshIndex(indexName, refresh, indexLanguageCrud)
 
-    val doc_result: IndexDocumentResult = IndexDocumentResult(index = response.getIndex,
-      id = response.getId,
-      version = response.getVersion,
-      created = response.status === RestStatus.CREATED
-    )
-
-    Option {
-      doc_result
-    }
-  }
-
-  private[this] def updateBuilder(document: QADocumentUpdate, instance: String): XContentBuilder = {
-    val builder: XContentBuilder = jsonBuilder().startObject()
-
-    builder.field("instance", instance)
-
-    document.conversation match {
-      case Some(t) => builder.field("conversation", t)
-      case _ => ;
-    }
-
-    document.indexInConversation match {
-      case Some(t) =>
-        if (t <= 0) throw QuestionAnswerServiceException("indexInConversation cannot be < 1")
-        builder.field("indexInConversation", t)
-      case _ => ;
-    }
-
-    document.status match {
-      case Some(t) => builder.field("status", t)
-      case _ => ;
-    }
-
-    document.timestamp match {
-      case Some(t) => builder.field("timestamp", t)
-      case _ => ;
-    }
-
-    // begin core data
-    document.coreData match {
-      case Some(coreData) =>
-        coreData.question match {
-          case Some(t) => builder.field("question", t)
-          case _ => ;
-        }
-        coreData.questionNegative match {
-          case Some(t) =>
-            val array = builder.startArray("question_negative")
-            t.foreach(q => {
-              array.startObject().field("query", q).endObject()
-            })
-            array.endArray()
-          case _ => ;
-        }
-        coreData.questionScoredTerms match {
-          case Some(t) =>
-            val array = builder.startArray("question_scored_terms")
-            t.foreach { case (term, score) =>
-              array.startObject().field("term", term)
-                .field("score", score).endObject()
-            }
-            array.endArray()
-          case _ => ;
-        }
-        coreData.answer match {
-          case Some(t) => builder.field("answer", t)
-          case _ => ;
-        }
-        coreData.answerScoredTerms match {
-          case Some(t) =>
-            val array = builder.startArray("answer_scored_terms")
-            t.foreach { case (term, score) =>
-              array.startObject().field("term", term)
-                .field("score", score).endObject()
-            }
-            array.endArray()
-          case _ => ;
-        }
-        coreData.topics match {
-          case Some(t) => builder.field("topics", t)
-          case _ => ;
-        }
-        coreData.verified match {
-          case Some(t) => builder.field("verified", t)
-          case _ => ;
-        }
-        coreData.done match {
-          case Some(t) => builder.field("done", t)
-          case _ => ;
-        }
-      case _ => QADocumentCore()
-    }
-    // end core data
-
-    // begin annotations
-    document.annotations match {
-      case Some(annotations) =>
-        annotations.dclass match {
-          case Some(t) => builder.field("dclass", t)
-          case _ => ;
-        }
-        builder.field("doctype", annotations.doctype.toString)
-        annotations.state match {
-          case Some(t) =>
-            builder.field("state", t)
-          case _ => ;
-        }
-        annotations.agent match {
-          case Some(t) =>
-            builder.field("agent", t.toString)
-          case _ => ;
-        }
-        annotations.escalated match {
-          case Some(t) =>
-            builder.field("escalated", t.toString)
-          case _ => ;
-        }
-        annotations.answered match {
-          case Some(t) =>
-            builder.field("answered", t.toString)
-          case _ => ;
-        }
-        annotations.triggered match {
-          case Some(t) =>
-            builder.field("triggered", t.toString)
-          case _ => ;
-        }
-        annotations.followup match {
-          case Some(t) =>
-            builder.field("followup", t.toString)
-          case _ => ;
-        }
-        annotations.feedbackConv match {
-          case Some(t) => builder.field("feedbackConv", t)
-          case _ => ;
-        }
-        annotations.feedbackConvScore match {
-          case Some(t) => builder.field("feedbackConvScore", t)
-          case _ => ;
-        }
-        annotations.algorithmConvScore match {
-          case Some(t) => builder.field("algorithmConvScore", t)
-          case _ => ;
-        }
-        annotations.feedbackAnswerScore match {
-          case Some(t) => builder.field("feedbackAnswerScore", t)
-          case _ => ;
-        }
-        annotations.algorithmAnswerScore match {
-          case Some(t) => builder.field("algorithmAnswerScore", t)
-          case _ => ;
-        }
-        annotations.responseScore match {
-          case Some(t) => builder.field("responseScore", t)
-          case _ => ;
-        }
-        annotations.start match {
-          case Some(t) => builder.field("start", t)
-          case _ => ;
-        }
-      case _ => ;
-    }
-    // end annotations
-
-    builder.endObject()
-    builder
+    Option {response}
   }
 
   def update(indexName: String, document: QADocumentUpdate, refresh: Int): UpdateDocumentsResult = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
-    val builder = updateBuilder(document, instance)
-    val bulkResponse = indexLanguageCrud.bulkUpdate(document.id.map(x => (x, builder)))
+    val qaDocumentList = QADocumentUpdateEntity.fromQADocumentUpdate(document)
+    val bulkResponse = indexLanguageCrud.bulkUpdate(qaDocumentList.map(x => x.id -> x),
+      entityManager = new QaDocumentEntityManager(indexName))
 
     refreshIndex(indexName, refresh, indexLanguageCrud)
 
-    val listOfDocRes: List[UpdateDocumentResult] = bulkResponse.getItems.map(response => {
-      UpdateDocumentResult(index = response.getIndex,
-        id = response.getId,
-        version = response.getVersion,
-        created = response.status === RestStatus.CREATED
-      )
-    }).toList
-
-    UpdateDocumentsResult(data = listOfDocRes)
+    UpdateDocumentsResult(data = bulkResponse)
   }
 
   private[this] def refreshIndex(indexName: String, refresh: Int, indexLanguageCrud: IndexLanguageCrud): Unit = {
@@ -1865,41 +941,14 @@ trait QuestionAnswerService extends AbstractDataService {
   def read(indexName: String, ids: List[String]): Option[SearchQADocumentsResults] = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
-    val response = indexLanguageCrud.readAll(ids)
-    val filteredDoc = response.getResponses.toList
-      .filter(p => p.getResponse.isExists)
-      .map { e =>
-        val item = e.getResponse
-        val source = item.getSource.asScala.toMap
-        val document = documentFromMap(indexName, item.getId, source)
-        SearchQADocument(score = .0f, document = document)
-      }
-
-    val searchResults = SearchQADocumentsResults(totalHits = filteredDoc.length, hitsCount = filteredDoc.length,
-      hits = filteredDoc)
-
-    Option {
-      searchResults
-    }
+    indexLanguageCrud.readAll(ids, new SearchQADocumentEntityManager(indexName)).headOption
   }
 
   def allDocuments(indexName: String, keepAlive: Long = 60000, size: Int = 100): Iterator[QADocument] = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val query = QueryBuilders.matchAllQuery
-    var scrollResp = indexLanguageCrud.read(query, maxItems = Option(size), scroll = true, scrollTime = keepAlive)
-
-    val scrollId = scrollResp.getScrollId
-
-    Iterator.continually {
-      val documents = scrollResp.getHits.getHits.toList.map { item =>
-        val id: String = item.getId
-        val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
-        documentFromMap(indexName, id, source)
-      }
-      scrollResp = indexLanguageCrud.scroll(new SearchScrollRequest(scrollId))
-      (documents, documents.nonEmpty)
-    }.takeWhile { case (_, docNonEmpty) => docNonEmpty }
-      .flatMap { case (doc, _) => doc }
+    indexLanguageCrud.scroll(query, maxItems = Option(size), scrollTime = keepAlive,
+      entityManager = new QaDocumentEntityManager(indexName))
   }
 
   private[this] def extractionReq(text: String, er: UpdateQATermsRequest) = TermsExtractionRequest(text = text,
@@ -1982,8 +1031,17 @@ trait QuestionAnswerService extends AbstractDataService {
   }
 
   override def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
-    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
-    super.delete(esLanguageSpecificIndexName, ids, refresh)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
+    val response = indexLanguageCrud.delete(ids, new QaDocumentEntityManager(indexName))
+
+    if (refresh =/= 0) {
+      val refreshIndex = indexLanguageCrud.refresh()
+      if(refreshIndex.failedShardsN > 0) {
+        throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
+      }
+    }
+
+    DeleteDocumentsResult(data = response)
   }
 
   override def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {

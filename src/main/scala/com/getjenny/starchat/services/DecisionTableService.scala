@@ -10,25 +10,18 @@ import java.util
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.utils.TokenToVector
-import com.getjenny.starchat.entities._
-import com.getjenny.starchat.services.esclient.{DecisionTableElasticClient, IndexLanguageCrud}
-import com.getjenny.starchat.utils.{Base64, Index}
+import com.getjenny.starchat.entities.es._
+import com.getjenny.starchat.entities.{SearchAlgorithm, _}
+import com.getjenny.starchat.services.esclient.DecisionTableElasticClient
+import com.getjenny.starchat.services.esclient.crud.IndexLanguageCrud
+import com.getjenny.starchat.utils.Index
 import org.apache.lucene.search.join._
-import org.elasticsearch.action.get.GetResponse
-import org.elasticsearch.action.index.IndexResponse
-import org.elasticsearch.action.search.{SearchResponse, SearchType}
-import org.elasticsearch.action.update.UpdateResponse
-import org.elasticsearch.client.{RequestOptions, RestHighLevelClient}
+import org.elasticsearch.action.search.SearchType
 import org.elasticsearch.common.xcontent.XContentBuilder
-import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.index.query.{BoolQueryBuilder, InnerHitBuilder, QueryBuilder, QueryBuilders}
-import org.elasticsearch.index.reindex.DeleteByQueryRequest
-import org.elasticsearch.rest.RestStatus
 import org.elasticsearch.script.Script
-import org.elasticsearch.search.SearchHit
+import org.elasticsearch.search.SearchHits
 import org.elasticsearch.search.aggregations.AggregationBuilders
-import org.elasticsearch.search.aggregations.bucket.nested.ParsedNested
-import org.elasticsearch.search.aggregations.bucket.terms.ParsedStringTerms
 import scalaz.Scalaz._
 
 import scala.collection.JavaConverters._
@@ -49,62 +42,34 @@ object DecisionTableService extends AbstractDataService {
     Map[String, ScoreMode]("min" -> ScoreMode.Min,
       "max" -> ScoreMode.Max, "avg" -> ScoreMode.Avg, "total" -> ScoreMode.Total)
 
-  private[this] def responseToDtDocumentDefault(searchResponse: SearchResponse): Option[List[SearchDTDocument]] = Some {
-    searchResponse.getHits.getHits.toList.map { item: SearchHit =>
-      val state: String = item.getId
-      val version: Option[Long] = Some(item.getVersion)
-      val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
-      val (searchDocument, _) = createDtDocument(state, version, source, item.getScore, orderedQueryExtractor(item))
-      searchDocument
-    }
-  }
-
-  private[this] def responseToDtDocumentNGrams(indexName: String, analyzer: String,
-                                               documentSearch: DTDocumentSearch)(searchResponse: SearchResponse):
-  Option[List[SearchDTDocument]] = Some {
-
-    val tokenizerRequest = TokenizerQueryRequest(tokenizer = analyzer, text = documentSearch.queries.getOrElse(""))
+  def handleNgrams(indexName: String, analyzer: String, queries: String,
+                   dtDocuments: List[SearchDTDocumentsAndNgrams]): List[SearchDTDocument] = {
+    val tokenizerRequest = TokenizerQueryRequest(tokenizer = analyzer, text = queries)
     val tokenizerResponse = termService.esTokenizer(indexName, tokenizerRequest)
     val queryTokens = tokenizerResponse.tokens.map(_.token)
 
-    val searchAlgorithm = documentSearch.searchAlgorithm.getOrElse(SearchAlgorithm.NGRAM2)
-    val sliding = searchAlgorithm match {
-      case SearchAlgorithm.STEM_NGRAM2 | SearchAlgorithm.NGRAM2 => 2
-      case SearchAlgorithm.STEM_NGRAM3 | SearchAlgorithm.NGRAM3 => 3
-      case SearchAlgorithm.STEM_NGRAM4 | SearchAlgorithm.NGRAM4 => 4
-      case _ => 2
-    }
-
-    val dtDocuments = searchResponse.getHits.getHits.toList.map {
-      item: SearchHit =>
-        val state: String = item.getId
-        val version: Option[Long] = Some(item.getVersion)
-        val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
-        val (searchDocument, ngrams) = createDtDocument(state, version, source, item.getScore, queryAndNgramExtractor(sliding)(item))
-        (searchDocument, ngrams)
-    }
-
-    val ngramsIndex = (dtDocuments.flatMap { case (_, ngrams) => ngrams }
+    val ngramsIndex = (dtDocuments.flatMap { case SearchDTDocumentsAndNgrams(_, ngrams) => ngrams }
       .flatten ++ queryTokens).distinct.zipWithIndex.toMap
 
     val queryVector = TokenToVector.tokensToVector(queryTokens, ngramsIndex)
 
-    dtDocuments.map { case (searchDocument, queriesNgrams) =>
+    dtDocuments.map { case SearchDTDocumentsAndNgrams(searchDocument, queriesNgrams) =>
       val score = queriesNgrams.map(ngrams => {
         1.0 - TokenToVector.cosineDist(queryVector, TokenToVector.tokensToVector(ngrams, ngramsIndex))
       }).max
       (searchDocument, score)
     }.map { case (searchDtDocument, score) =>
-      val document: DTDocument = searchDtDocument.document
+      val document: DTDocumentCreate = searchDtDocument.document
       SearchDTDocument(score = score.toFloat, document = document)
     }
   }
 
   private[this] def documentSearchQueries(indexName: String,
-                                          value: String, minScore: Float,
+                                          value: String,
+                                          minScore: Float,
                                           boostExactMatchFactor: Float,
                                           documentSearch: DTDocumentSearch
-                                         ): (QueryBuilder, SearchResponse => Option[List[SearchDTDocument]]) = {
+                                         ): (QueryBuilder, Option[(String, SearchAlgorithm.Value)]) = {
     val searchAlgorithm = documentSearch.searchAlgorithm.getOrElse(SearchAlgorithm.DEFAULT)
     searchAlgorithm match {
       case SearchAlgorithm.AUTO | SearchAlgorithm.DEFAULT =>
@@ -124,10 +89,6 @@ object DecisionTableService extends AbstractDataService {
             SearchAlgorithm.NGRAM2
           )
         }
-
-        val modDocumentSearch = documentSearch.copy(
-          searchAlgorithm = Some(algorithm)
-        )
         val script: Script = new Script(scriptBody)
         (QueryBuilders.nestedQuery(
           "queries",
@@ -136,7 +97,7 @@ object DecisionTableService extends AbstractDataService {
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true)
           .innerHit(new InnerHitBuilder().addScriptField("terms", script).setSize(100)),
-          responseToDtDocumentNGrams(indexName, analyzer, modDocumentSearch))
+          Option(analyzer -> algorithm))
       case SearchAlgorithm.STEM_BOOST_EXACT =>
         (
           QueryBuilders.nestedQuery(
@@ -148,7 +109,7 @@ object DecisionTableService extends AbstractDataService {
               ),
             queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
           ).ignoreUnmapped(true).innerHit(new InnerHitBuilder().setSize(100)),
-          responseToDtDocumentDefault)
+          None)
       case SearchAlgorithm.SHINGLES2 =>
         (QueryBuilders.nestedQuery(
           "queries",
@@ -156,7 +117,7 @@ object DecisionTableService extends AbstractDataService {
             .must(QueryBuilders.matchQuery("queries.query.shingles_2", value)),
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true).innerHit(new InnerHitBuilder().setSize(100)),
-          responseToDtDocumentDefault)
+          None)
       case SearchAlgorithm.SHINGLES3 =>
         (QueryBuilders.nestedQuery(
           "queries",
@@ -164,7 +125,7 @@ object DecisionTableService extends AbstractDataService {
             .must(QueryBuilders.matchQuery("queries.query.shingles_3", value)),
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true).innerHit(new InnerHitBuilder().setSize(100)),
-          responseToDtDocumentDefault)
+          None)
       case SearchAlgorithm.SHINGLES4 =>
         (QueryBuilders.nestedQuery(
           "queries",
@@ -172,7 +133,7 @@ object DecisionTableService extends AbstractDataService {
             .must(QueryBuilders.matchQuery("queries.query.shingles_4", value)),
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true).innerHit(new InnerHitBuilder().setSize(100)),
-          responseToDtDocumentDefault)
+          None)
       case SearchAlgorithm.STEM_SHINGLES2 =>
         (QueryBuilders.nestedQuery(
           "queries",
@@ -180,7 +141,7 @@ object DecisionTableService extends AbstractDataService {
             .must(QueryBuilders.matchQuery("queries.query.stemmed_shingles_2", value)),
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true).innerHit(new InnerHitBuilder().setSize(100)),
-          responseToDtDocumentDefault)
+          None)
       case SearchAlgorithm.STEM_SHINGLES3 =>
         (QueryBuilders.nestedQuery(
           "queries",
@@ -188,7 +149,7 @@ object DecisionTableService extends AbstractDataService {
             .must(QueryBuilders.matchQuery("queries.query.stemmed_shingles_3", value)),
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true).innerHit(new InnerHitBuilder().setSize(100)),
-          responseToDtDocumentDefault)
+          None)
       case SearchAlgorithm.STEM_SHINGLES4 =>
         (QueryBuilders.nestedQuery(
           "queries",
@@ -196,7 +157,7 @@ object DecisionTableService extends AbstractDataService {
             .must(QueryBuilders.matchQuery("queries.query.stemmed_shingles_4", value)),
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true).innerHit(new InnerHitBuilder().setSize(100)),
-          responseToDtDocumentDefault)
+          None)
       case SearchAlgorithm.NGRAM2 =>
         val scriptBody = "return doc['queries.query.ngram_2'] ;"
         val script: Script = new Script(scriptBody)
@@ -207,7 +168,7 @@ object DecisionTableService extends AbstractDataService {
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true)
           .innerHit(new InnerHitBuilder().addScriptField("terms", script).setSize(100)),
-          responseToDtDocumentNGrams(indexName, "ngram2", documentSearch))
+          Option("ngram2" -> searchAlgorithm))
       case SearchAlgorithm.STEM_NGRAM2 =>
         val scriptBody = "return doc['queries.query.stemmed_ngram_2'] ;"
         val script: Script = new Script(scriptBody)
@@ -218,7 +179,7 @@ object DecisionTableService extends AbstractDataService {
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true)
           .innerHit(new InnerHitBuilder().addScriptField("terms", script).setSize(100)),
-          responseToDtDocumentNGrams(indexName, "stemmed_ngram2", documentSearch))
+          Option("stemmed_ngram2" -> searchAlgorithm))
       case SearchAlgorithm.NGRAM3 =>
         val scriptBody = "return doc['queries.query.ngram_3'] ;"
         val script: Script = new Script(scriptBody)
@@ -229,7 +190,7 @@ object DecisionTableService extends AbstractDataService {
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true)
           .innerHit(new InnerHitBuilder().addScriptField("terms", script).setSize(100)),
-          responseToDtDocumentNGrams(indexName, "ngram3", documentSearch))
+          Option("ngram3" -> searchAlgorithm))
       case SearchAlgorithm.STEM_NGRAM3 =>
         val scriptBody = "return doc['queries.query.stemmed_ngram_3'] ;"
         val script: Script = new Script(scriptBody)
@@ -240,7 +201,7 @@ object DecisionTableService extends AbstractDataService {
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true)
           .innerHit(new InnerHitBuilder().addScriptField("terms", script).setSize(100)),
-          responseToDtDocumentNGrams(indexName, "stemmed_ngram3", documentSearch))
+          Option("stemmed_ngram3", searchAlgorithm))
       case SearchAlgorithm.NGRAM4 =>
         val scriptBody = "return doc['queries.query.ngram_4'] ;"
         val script: Script = new Script(scriptBody)
@@ -251,7 +212,7 @@ object DecisionTableService extends AbstractDataService {
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true)
           .innerHit(new InnerHitBuilder().addScriptField("terms", script).setSize(100)),
-          responseToDtDocumentNGrams(indexName, "ngram4", documentSearch))
+          Option("ngram4" -> searchAlgorithm))
       case SearchAlgorithm.STEM_NGRAM4 =>
         val scriptBody = "return doc['queries.query.stemmed_ngram_4'] ;"
         val script: Script = new Script(scriptBody)
@@ -262,13 +223,13 @@ object DecisionTableService extends AbstractDataService {
           queriesScoreMode.getOrElse(elasticClient.queriesScoreMode, ScoreMode.Max)
         ).ignoreUnmapped(true)
           .innerHit(new InnerHitBuilder().addScriptField("terms", script).setSize(100)),
-          responseToDtDocumentNGrams(indexName, "stemmed_ngram4", documentSearch))
+          Option("stemmed_ngram4" -> searchAlgorithm))
       case _ => throw DecisionTableServiceException("Unknown SearchAlgorithm: " + searchAlgorithm)
     }
+
   }
 
   def search(indexName: String, documentSearch: DTDocumentSearch): SearchDTDocumentsResults = {
-    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val minScore = documentSearch.minScore.getOrElse(
       Option {
@@ -294,31 +255,40 @@ object DecisionTableService extends AbstractDataService {
       case _ => ;
     }
 
-    val resToDtDocs: SearchResponse => Option[List[SearchDTDocument]] = documentSearch.queries match {
-      case Some(value) =>
-        val (nestedQuery, resToSearchDtDocs) =
-          documentSearchQueries(indexName, value, minScore, boostExactMatchFactor, documentSearch)
-        boolQueryBuilder.must(nestedQuery)
-        resToSearchDtDocs
-      case _ => responseToDtDocumentDefault
-    }
+    val (queryBuilder, isNgram) = documentSearch.queries.map(x => {
+      val (q, ngramsAlgorithm) = documentSearchQueries(indexName, x, minScore, boostExactMatchFactor, documentSearch)
+      boolQueryBuilder.must(q) -> ngramsAlgorithm
+    }).getOrElse(boolQueryBuilder -> None)
 
-    val searchResponse = indexLanguageCrud.read(boolQueryBuilder, version = Option(true),
+    val queryExtractorFunction = isNgram.map { case (_, alg) =>
+      val sliding = alg match {
+        case SearchAlgorithm.STEM_NGRAM2 | SearchAlgorithm.NGRAM2 => 2
+        case SearchAlgorithm.STEM_NGRAM3 | SearchAlgorithm.NGRAM3 => 3
+        case SearchAlgorithm.STEM_NGRAM4 | SearchAlgorithm.NGRAM4 => 4
+        case _ => 2
+      }
+      queryAndNgramExtractor(sliding)
+    }.getOrElse(orderedQueryExtractor)
+
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
+    val documents = indexLanguageCrud.read(queryBuilder, version = Option(true),
       from = documentSearch.from.orElse(Option(0)),
-      maxItems = documentSearch.size.orElse(Option(10)))
+      maxItems = documentSearch.size.orElse(Option(10)),
+      entityManager = new SearchDTDocumentEntityManager(queryExtractorFunction))
 
-    val documents: Option[List[SearchDTDocument]] = resToDtDocs(searchResponse)
+    val res = isNgram.map { case (analyzer, _) => handleNgrams(indexName, analyzer,
+      documentSearch.queries.getOrElse(""), documents)
+    }
+      .getOrElse(documents.map(_.documents))
 
-    val filteredDoc: List[SearchDTDocument] = documents.getOrElse(List[SearchDTDocument]())
-
-    val maxScore: Float = if (filteredDoc.nonEmpty) {
-      filteredDoc.maxBy(_.score).score
+    val maxScore: Float = if (res.nonEmpty) {
+      res.maxBy(_.score).score
     } else {
       0.0f
     }
 
-    val total: Int = filteredDoc.length
-    SearchDTDocumentsResults(total = total, maxScore = maxScore, hits = filteredDoc)
+    val total: Int = res.length
+    SearchDTDocumentsResults(total = total, maxScore = maxScore, hits = res)
   }
 
   def searchDtQueries(indexName: String,
@@ -357,45 +327,11 @@ object DecisionTableService extends AbstractDataService {
     )
   }
 
-  def create(indexName: String, document: DTDocument, refresh: Int): IndexDocumentResult = {
-    val instance = Index.instanceName(indexName)
+  def create(indexName: String, document: DTDocumentCreate, refresh: Int): IndexDocumentResult = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
-    val builder: XContentBuilder = jsonBuilder().startObject()
-
-    builder.field("instance", instance)
-    builder.field("state", document.state)
-    builder.field("execution_order", document.executionOrder)
-    builder.field("max_state_count", document.maxStateCount)
-    builder.field("analyzer", Base64.encode(document.analyzer))
-
-    val array = builder.startArray("queries")
-    document.queries.foreach(q => {
-      array.startObject().field("query", q).endObject()
-    })
-    array.endArray()
-
-    builder.field("bubble", document.bubble)
-    builder.field("action", document.action)
-
-    val actionInputBuilder: XContentBuilder = builder.startObject("action_input")
-    for ((k, v) <- document.actionInput) actionInputBuilder.field(k, v)
-    actionInputBuilder.endObject()
-
-    val stateDataBuilder: XContentBuilder = builder.startObject("state_data")
-    for ((k, v) <- document.stateData) stateDataBuilder.field(k, v)
-    stateDataBuilder.endObject()
-
-    builder.field("success_value", document.successValue)
-    builder.field("failure_value", document.failureValue)
-    val evaluationClass = document.evaluationClass match {
-      case Some(t) => t
-      case _ => "default"
-    }
-    builder.field("evaluation_class", evaluationClass)
-    builder.endObject()
-
-    val response: UpdateResponse = indexLanguageCrud.update(document.state, builder, upsert = true)
+    val response = indexLanguageCrud.update(document, upsert = true,
+      new SearchDTDocumentEntityManager(simpleQueryExtractor))
 
     if (refresh =/= 0) {
       val refreshIndex = indexLanguageCrud.refresh()
@@ -404,87 +340,19 @@ object DecisionTableService extends AbstractDataService {
       }
     }
 
-    val docResult: IndexDocumentResult = IndexDocumentResult(index = response.getIndex,
-      id = response.getId,
-      version = response.getVersion,
-      created = response.status === RestStatus.CREATED
+    val docResult: IndexDocumentResult = IndexDocumentResult(index = response.index,
+      id = response.id,
+      version = response.version,
+      created = response.created
     )
 
     docResult
   }
 
   def update(indexName: String, document: DTDocumentUpdate, refresh: Int): UpdateDocumentResult = {
-    val instance = Index.instanceName(indexName)
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
-    val builder: XContentBuilder = jsonBuilder().startObject()
-
-    builder.field("instance", instance)
-
-    document.analyzer match {
-      case Some(t) => builder.field("analyzer", Base64.encode(t))
-      case None => ;
-    }
-
-    document.executionOrder match {
-      case Some(t) => builder.field("execution_order", t)
-      case None => ;
-    }
-    document.maxStateCount match {
-      case Some(t) => builder.field("max_state_count", t)
-      case None => ;
-    }
-    document.queries match {
-      case Some(t) =>
-        val array = builder.startArray("queries")
-        t.foreach(q => {
-          array.startObject().field("query", q).endObject()
-        })
-        array.endArray()
-      case None => ;
-    }
-    document.bubble match {
-      case Some(t) => builder.field("bubble", t)
-      case None => ;
-    }
-    document.action match {
-      case Some(t) => builder.field("action", t)
-      case None => ;
-    }
-    document.actionInput match {
-      case Some(t) =>
-        if (t.nonEmpty) {
-          val actionInputBuilder: XContentBuilder = builder.startObject("action_input")
-          for ((k, v) <- t) actionInputBuilder.field(k, v)
-          actionInputBuilder.endObject()
-        } else {
-          builder.nullField("action_input")
-        }
-      case None => ;
-    }
-    document.stateData match {
-      case Some(t) =>
-        val stateDataBuilder: XContentBuilder = builder.startObject("state_data")
-        for ((k, v) <- t) stateDataBuilder.field(k, v)
-        stateDataBuilder.endObject()
-      case None => ;
-    }
-    document.successValue match {
-      case Some(t) => builder.field("success_value", t)
-      case None => ;
-    }
-    document.failureValue match {
-      case Some(t) => builder.field("failure_value", t)
-      case None => ;
-    }
-    document.evaluationClass match {
-      case Some(t) => builder.field("evaluation_class", t)
-      case None => ;
-    }
-
-    builder.endObject()
-
-    val response = indexLanguageCrud.update(document.state, builder)
+    val response = indexLanguageCrud.update(document, entityManager = new SearchDTDocumentEntityManager(simpleQueryExtractor))
 
     if (refresh =/= 0) {
       val refreshIndex = indexLanguageCrud.refresh()
@@ -493,30 +361,18 @@ object DecisionTableService extends AbstractDataService {
       }
     }
 
-    val docResult: UpdateDocumentResult = UpdateDocumentResult(index = response.getIndex,
-      id = response.getId,
-      version = response.getVersion,
-      created = response.status === RestStatus.CREATED
-    )
-
-    docResult
+    response
   }
 
   def getDTDocuments(indexName: String): SearchDTDocumentsResults = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val query = QueryBuilders.matchAllQuery
 
-    val scrollResp: SearchResponse = indexLanguageCrud.read(query, scroll = true,
-      version = Option(true), maxItems = Option(10000))
-
     //get a map of stateId -> AnalyzerItem (only if there is smt in the field "analyzer")
-    val decisionTableContent: List[SearchDTDocument] = scrollResp.getHits.getHits.toList.map { item =>
-      val state: String = item.getId
-      val version: Option[Long] = Some(item.getVersion)
-      val source: Map[String, Any] = item.getSourceAsMap.asScala.toMap
-      val (searchDocument, _) = createDtDocument(state, version, source, queryFunction = queryExtractor)
-      searchDocument
-    }.sortBy(_.document.state)
+    val decisionTableContent = indexLanguageCrud.read(query, version = Option(true), maxItems = Option(10000),
+      entityManager = new SearchDTDocumentEntityManager(simpleQueryExtractor))
+      .map(_.documents)
+      .sortBy(_.document.state)
 
     val maxScore: Float = .0f
     val total: Int = decisionTableContent.length
@@ -526,31 +382,16 @@ object DecisionTableService extends AbstractDataService {
   def read(indexName: String, ids: List[String]): SearchDTDocumentsResults = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
-    val response = indexLanguageCrud.readAll(ids)
-
-    val documents: Option[List[SearchDTDocument]] = Option {
-      response.getResponses
-        .toList
-        .filter(p => p.getResponse.isExists)
-        .map { e =>
-          val item: GetResponse = e.getResponse
-          val version: Option[Long] = Some(item.getVersion)
-          val state: String = item.getId
-          val source: Map[String, Any] = item.getSource.asScala.toMap
-
-          val (searchDocument, _) = createDtDocument(state, version, source, queryFunction = queryExtractor)
-          searchDocument
-        }
-    }
-
-    val filteredDoc: List[SearchDTDocument] = documents.getOrElse(List[SearchDTDocument]())
+    val documents = indexLanguageCrud
+      .readAll(ids, new SearchDTDocumentEntityManager(simpleQueryExtractor))
+      .map(_.documents)
 
     val maxScore: Float = .0f
-    val total: Int = filteredDoc.length
-    SearchDTDocumentsResults(total = total, maxScore = maxScore, hits = filteredDoc)
+    val total: Int = documents.length
+    SearchDTDocumentsResults(total = total, maxScore = maxScore, hits = documents)
   }
 
-  private[this] val queryExtractor = (source: Map[String, Any]) => {
+  private[this] val simpleQueryExtractor: (Map[String, SearchHits], Map[String, Any]) => (List[String], List[List[String]]) = (_: Map[String, SearchHits], source: Map[String, Any]) => {
     source.get("queries") match {
       case Some(t) => (t.asInstanceOf[util.ArrayList[util.HashMap[String, String]]]
         .asScala.map { res => Some(res.getOrDefault("query", None.orNull)) }
@@ -559,10 +400,10 @@ object DecisionTableService extends AbstractDataService {
     }
   }
 
-  private[this] val orderedQueryExtractor = (item: SearchHit) => (source: Map[String, Any]) => {
+  private[this] val orderedQueryExtractor = (innerHits: Map[String, SearchHits], source: Map[String, Any]) => {
     source.get("queries") match {
       case Some(t) =>
-        val offsets = item.getInnerHits.get("queries").getHits.toList.map(innerHit => {
+        val offsets = innerHits("queries").getHits.toList.map(innerHit => {
           innerHit.getNestedIdentity.getOffset
         })
         val query_array = t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, String]]].asScala.toList
@@ -572,10 +413,10 @@ object DecisionTableService extends AbstractDataService {
     }
   }
 
-  private[this] val queryAndNgramExtractor = (sliding: Int) => (item: SearchHit) => (source: Map[String, Any]) => {
+  private[this] val queryAndNgramExtractor = (sliding: Int) => (innerHits: Map[String, SearchHits], source: Map[String, Any]) => {
     source.get("queries") match {
       case Some(t) =>
-        val offsetsAndNgrams = item.getInnerHits.get("queries").getHits.toList.map(innerHit => {
+        val offsetsAndNgrams = innerHits("queries").getHits.toList.map(innerHit => {
           innerHit.getNestedIdentity.getOffset
         })
         val queryArray = t.asInstanceOf[java.util.ArrayList[java.util.HashMap[String, String]]].asScala.toList
@@ -588,77 +429,9 @@ object DecisionTableService extends AbstractDataService {
     }
   }
 
-  private[this] def createDtDocument(state: String, version: Option[Long], source: Map[String, Any], score: Float = 0f,
-                                     queryFunction: Map[String, Any] => (List[String], List[List[String]])): (SearchDTDocument, List[List[String]]) = {
-    val executionOrder: Int = source.get("execution_order") match {
-      case Some(t) => t.asInstanceOf[Int]
-      case None => 0
-    }
-
-    val maxStateCount: Int = source.get("max_state_count") match {
-      case Some(t) => t.asInstanceOf[Int]
-      case None => 0
-    }
-
-    val analyzer: String = source.get("analyzer") match {
-      case Some(t) => Base64.decode(t.asInstanceOf[String])
-      case None => ""
-    }
-
-    val (queries: List[String], ngram: List[List[String]]) = queryFunction(source)
-
-    val bubble: String = source.get("bubble") match {
-      case Some(t) => t.asInstanceOf[String]
-      case None => ""
-    }
-
-    val action: String = source.get("action") match {
-      case Some(t) => t.asInstanceOf[String]
-      case None => ""
-    }
-
-    val actionInput: Map[String, String] = source.get("action_input") match {
-      case Some(null) => Map[String, String]()
-      case Some(t) => t.asInstanceOf[util.HashMap[String, String]].asScala.toMap
-      case None => Map[String, String]()
-    }
-
-    val stateData: Map[String, String] = source.get("state_data") match {
-      case Some(null) => Map[String, String]()
-      case Some(t) => t.asInstanceOf[util.HashMap[String, String]].asScala.toMap
-      case None => Map[String, String]()
-    }
-
-    val successValue: String = source.get("success_value") match {
-      case Some(t) => t.asInstanceOf[String]
-      case None => ""
-    }
-
-    val failureValue: String = source.get("failure_value") match {
-      case Some(t) => t.asInstanceOf[String]
-      case None => ""
-    }
-
-    val evaluationClass: String = source.get("evaluation_class") match {
-      case Some(t) => t.asInstanceOf[String]
-      case None => "default"
-    }
-
-    val document: DTDocument = DTDocument(state = state, executionOrder = executionOrder,
-      maxStateCount = maxStateCount,
-      analyzer = analyzer, queries = queries, bubble = bubble,
-      action = action, actionInput = actionInput, stateData = stateData,
-      successValue = successValue, failureValue = failureValue,
-      evaluationClass = Some(evaluationClass), version = version
-    )
-
-    val searchDocument: SearchDTDocument = SearchDTDocument(score = score, document = document)
-    (searchDocument, ngram)
-  }
-
   def indexCSVFileIntoDecisionTable(indexName: String, file: File, skipLines: Int = 1, separator: Char = ','):
   IndexDocumentListResult = {
-    val documents: IndexedSeq[DTDocument] = FileToDocuments.getDTDocumentsFromCSV(log = log, file = file,
+    val documents: IndexedSeq[DTDocumentCreate] = FileToDocuments.getDTDocumentsFromCSV(log = log, file = file,
       skipLines = skipLines, separator = separator)
 
     val indexDocumentListResult = documents.map(dtDocument => {
@@ -669,7 +442,7 @@ object DecisionTableService extends AbstractDataService {
   }
 
   def indexJSONFileIntoDecisionTable(indexName: String, file: File): IndexDocumentListResult = {
-    val documents: IndexedSeq[DTDocument] = FileToDocuments.getDTDocumentsFromJSON(log = log, file = file)
+    val documents: IndexedSeq[DTDocumentCreate] = FileToDocuments.getDTDocumentsFromJSON(log = log, file = file)
 
     val indexDocumentListResult = documents.map(dtDocument => {
       create(indexName, dtDocument, 0)
@@ -705,24 +478,15 @@ object DecisionTableService extends AbstractDataService {
 
     val query = QueryBuilders.matchAllQuery
 
-    val searchResp = indexLanguageCrud.read(query,
+    val response = indexLanguageCrud.read(query,
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Some(true),
       maxItems = Option(0),
       minScore = Option(0.0f),
-      aggregation = List(aggregation))
+      aggregation = List(aggregation),
+      entityManager = WordFrequenciesInQueryEntityManager)
 
-    val parsedNested: ParsedNested = searchResp.getAggregations.get("queries")
-    val nQueries: Double = parsedNested.getDocCount
-    val parsedStringTerms: ParsedStringTerms = parsedNested.getAggregations.get("queries_children")
-    if (nQueries > 0) {
-      parsedStringTerms.getBuckets.asScala.map {
-        bucket => bucket.getKeyAsString -> bucket.getDocCount / nQueries
-      }.toMap
-    }
-    else {
-      Map[String, Double]()
-    }
+    response.headOption.map(_.frequencies).getOrElse(Map.empty)
   }
 
   def wordFrequenciesInQueriesByState(indexName: String): List[DTStateWordFreqsItem] = {
@@ -787,31 +551,12 @@ object DecisionTableService extends AbstractDataService {
           )
       )
 
-    val searchResp = indexLanguageCrud.read(query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
+    indexLanguageCrud.read(query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
       aggregation = List(aggregation),
       requestCache = Some(true),
       maxItems = Option(0),
-      minScore = Option(0.0f))
-
-    val pst: ParsedStringTerms = searchResp.getAggregations.get(stateAggsName)
-    pst.getBuckets.asScala.map {
-      stateBucket => {
-        val state = stateBucket.getKeyAsString
-        val parsedNested: ParsedNested = stateBucket.getAggregations.get("queries")
-        val nQueries: Double = parsedNested.getDocCount
-        val parsedStringTerms: ParsedStringTerms = parsedNested.getAggregations.get("queries_children")
-        if (nQueries > 0) {
-          val wordFreqs = parsedStringTerms.getBuckets.asScala.map {
-            bucket => bucket.getKeyAsString -> bucket.getDocCount / nQueries // normalize on nQueries
-          }.toMap
-          // add to map for each state the histogram wordFreqs
-          DTStateWordFreqsItem(state, wordFreqs)
-        }
-        else
-          DTStateWordFreqsItem(state, Map[String, Double]())
-      }
-    }.toList
-
+      minScore = Option(0.0f),
+      entityManager = DtStateWordFreqsEntityManager)
   }
 
 
@@ -849,15 +594,13 @@ object DecisionTableService extends AbstractDataService {
         .innerHit(new InnerHitBuilder().setSize(100)) // Increase in Index Definition
     )
 
-    val searchResp = indexLanguageCrud.read(query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
+    val totalHits = indexLanguageCrud.read(query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Some(true),
       maxItems = Option(10000),
-      minScore = Option(0.0f))
+      minScore = Option(0.0f),
+      entityManager = TotalQueriesMatchingEntityManager)
 
-    val hits: List[SearchHit] = searchResp.getHits.getHits.toList
-    hits.foldLeft(0L) { case (sum, element) =>
-      sum + element.getInnerHits().get("queries").getTotalHits().value
-    }
+    totalHits.map(_.queriesTotalHits).sum
   }
 
 
@@ -901,23 +644,30 @@ object DecisionTableService extends AbstractDataService {
         QueryBuilders.regexpQuery("queries.query.base", rx).maxDeterminizedStates(10000), ScoreMode.None)
         .innerHit(new InnerHitBuilder().setSize(100))) // Increase in Index Definition
 
-    val searchResp = indexLanguageCrud.read(query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
+    val totalHits = indexLanguageCrud.read(query, searchType = SearchType.DFS_QUERY_THEN_FETCH,
       requestCache = Some(true),
       maxItems = Option(10000),
-      minScore = Option(0.0f))
+      minScore = Option(0.0f),
+      entityManager = TotalQueriesMatchingEntityManager)
 
-    val hits: List[SearchHit] = searchResp.getHits.getHits.toList
-    hits.foldLeft(0L) {
-      (sum, element) => {
-        sum + element.getInnerHits().get("queries").getTotalHits().value
-      }
-    }
+    totalHits.map(_.queriesTotalHits).sum
 
   }
 
   override def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
-    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
-    super.delete(esLanguageSpecificIndexName, ids, refresh)
+    val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
+    val response = indexLanguageCrud.delete(ids, new WriteEntityManager[DTDocument] {
+      override protected def toXContentBuilder(entity: DTDocument, instance: String): (String, XContentBuilder) = ???
+    })
+
+    if (refresh =/= 0) {
+      val refreshIndex = indexLanguageCrud.refresh()
+      if(refreshIndex.failedShardsN > 0) {
+        throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
+      }
+    }
+
+    DeleteDocumentsResult(data = response)
   }
 
 

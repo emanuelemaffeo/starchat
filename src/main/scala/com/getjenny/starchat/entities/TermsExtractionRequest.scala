@@ -1,5 +1,7 @@
 package com.getjenny.starchat.entities
 
+import com.getjenny.starchat.entities.es.TermCountFields
+
 /**
  * Created by Angelo Leto <angelo@getjenny.com> on 20/05/18.
  */
