@@ -5,7 +5,6 @@ import akka.http.scaladsl.server.directives.Credentials
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services._
-import com.getjenny.starchat.utils.Index
 import com.roundeights.hasher.Implicits._
 import com.typesafe.config.{Config, ConfigFactory}
 
