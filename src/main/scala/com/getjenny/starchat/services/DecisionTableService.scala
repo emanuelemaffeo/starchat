@@ -333,12 +333,7 @@ object DecisionTableService extends AbstractDataService {
     val response = indexLanguageCrud.update(document, upsert = true,
       new SearchDTDocumentEntityManager(simpleQueryExtractor))
 
-    if (refresh =/= 0) {
-      val refreshIndex = indexLanguageCrud.refresh()
-      if (refreshIndex.failedShardsN > 0) {
-        throw new Exception("DecisionTable : index refresh failed: (" + indexName + ")")
-      }
-    }
+    refreshIndex(indexName, refresh, indexLanguageCrud)
 
     val docResult: IndexDocumentResult = IndexDocumentResult(index = response.index,
       id = response.id,
@@ -660,16 +655,20 @@ object DecisionTableService extends AbstractDataService {
       override protected def toXContentBuilder(entity: DTDocument, instance: String): (String, XContentBuilder) = ???
     })
 
-    if (refresh =/= 0) {
-      val refreshIndex = indexLanguageCrud.refresh()
-      if(refreshIndex.failedShardsN > 0) {
-        throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
-      }
-    }
+    refreshIndex(indexName, refresh, indexLanguageCrud)
 
     DeleteDocumentsResult(data = response)
   }
 
+
+  private[this] def refreshIndex(indexName: String, refresh: Int, indexLanguageCrud: IndexLanguageCrud): Unit = {
+    if (refresh =/= 0) {
+      val refreshIndex = indexLanguageCrud.refresh()
+      if (refreshIndex.failedShardsN > 0) {
+        throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
+      }
+    }
+  }
 
   override def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
