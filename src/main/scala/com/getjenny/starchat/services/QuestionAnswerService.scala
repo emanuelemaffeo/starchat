@@ -10,7 +10,6 @@ import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.util.{RandomNumbers, Time}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.{LabelCountHistogramItem, _}
-import com.getjenny.starchat.services.DecisionTableService.elasticClient
 import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, QuestionAnswerElasticClient}
 import com.getjenny.starchat.utils.Index
 import org.apache.lucene.search.join._

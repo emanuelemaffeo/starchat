@@ -3,7 +3,6 @@ package com.getjenny.starchat.services.esclient
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.entities.RefreshIndexResult
-import org.elasticsearch.action.DocWriteRequest.OpType
 import org.elasticsearch.action.bulk.{BulkRequest, BulkResponse}
 import org.elasticsearch.action.get.{GetRequest, GetResponse, MultiGetRequest, MultiGetResponse}
 import org.elasticsearch.action.index.{IndexRequest, IndexResponse}
@@ -13,7 +12,7 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.common.unit.TimeValue
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.index.query.QueryBuilder
-import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryRequest, UpdateByQueryRequest}
+import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryRequest}
 import org.elasticsearch.search.aggregations.AggregationBuilder
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortBuilder

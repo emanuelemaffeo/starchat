@@ -12,7 +12,7 @@ import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.analyzers.StarChatAnalyzer
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services.esclient.{DecisionTableElasticClient, IndexLanguageCrud}
-import com.getjenny.starchat.utils.{Base64, Index}
+import com.getjenny.starchat.utils.Base64
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.SearchHit
 import scalaz.Scalaz._

@@ -1,7 +1,7 @@
 package com.getjenny.starchat.services
 
 import akka.actor.{Actor, Props}
-import com.getjenny.starchat.services.esclient.{EsCrudBase, IndexLanguageCrud}
+import com.getjenny.starchat.services.esclient.EsCrudBase
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.index.query.QueryBuilders
 

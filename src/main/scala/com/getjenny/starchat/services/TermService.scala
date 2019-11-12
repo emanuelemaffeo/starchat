@@ -12,7 +12,6 @@ import com.getjenny.analyzer.util.VectorUtils
 import com.getjenny.starchat.SCActorSystem
 import com.getjenny.starchat.analyzer.utils.TextToVectorsTools
 import com.getjenny.starchat.entities._
-import com.getjenny.starchat.services.DecisionTableService.elasticClient
 import com.getjenny.starchat.services.esclient.{IndexLanguageCrud, TermElasticClient}
 import com.getjenny.starchat.utils.Index
 import org.elasticsearch.action.get.MultiGetItemResponse
