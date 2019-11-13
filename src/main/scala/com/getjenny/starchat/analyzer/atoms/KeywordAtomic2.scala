@@ -46,15 +46,10 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
   private[this] def fractionOfQueriesWithWordOfState(indexName: String, word: String, state: String): Double = {
     // get keyword freq in queries associated to the current state
     //TODO: to be optimized
-    DecisionTableService.wordFrequenciesInQueriesByState(indexName).find(item => item.state === state) match {
-      case Some(t) =>
-        t.wordFreqs.get(word) match {
-          case Some(v) => v
-          case _ => 0.0d
-        }
-      case _ => 0.0d
-    }
-
+   DecisionTableService
+      .wordFrequenciesInQueriesByState(indexName).find(item => item.state === state)
+      .flatMap(_.wordFreqs.get(word))
+      .getOrElse(0.0d)
   }
 
   private[this] def wordFrequencyInQueriesFieldOfAllStates(indexName: String, word: String): Double = {
