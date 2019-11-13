@@ -28,6 +28,13 @@ paths:
       responses:
         '200':
           description: the system is up and running
+    post:
+      summary: health check with versioning
+      operationId: health_check_versions
+      description: respond with the versions informations
+      responses:
+        '200':
+          description: the system is up and running
   '/{index_name}/analyzer/playground':
     post:
       tags:

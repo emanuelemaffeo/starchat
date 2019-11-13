@@ -68,6 +68,15 @@ enablePlugins(UniversalPlugin)
 enablePlugins(DockerPlugin)
 enablePlugins(DockerComposePlugin)
 
+lazy val root = (project in file(".")).
+  enablePlugins(BuildInfoPlugin).
+  settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoOptions += BuildInfoOption.BuildTime,
+    buildInfoOptions += BuildInfoOption.ToJson,
+    buildInfoPackage := "com.getjenny.starchat.autogen.utils"
+  )
+
 git.useGitDescribe := true
 
 //http://www.scala-sbt.org/sbt-native-packager/formats/docker.html
