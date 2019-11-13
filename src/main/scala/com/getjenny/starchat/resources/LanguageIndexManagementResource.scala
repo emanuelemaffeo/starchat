@@ -13,7 +13,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
   private[this] val languageIndexManagementService: LangaugeIndexManagementService.type = LangaugeIndexManagementService
   private[this] val languageIndexManagement = "language_index_management"
 
-  def languageIndexManagement: Route = handleExceptions(routesExceptionHandler) {
+  def languageIndexManagementRoutes: Route = handleExceptions(routesExceptionHandler) {
     concat(
       path(languageIndexManagement) {
         pathEnd {

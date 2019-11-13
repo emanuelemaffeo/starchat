@@ -33,9 +33,9 @@ trait IndexManagementResource extends StarChatResource {
                 .getCircuitBreaker(maxFailure = 10, callTimeout = 30.seconds)
               onCompleteWithBreakerFuture(breaker)(
                 operation match {
-                  case createOperation => dtReloadService.addInstance(indexName)
-                  case disableOperation => dtReloadService.disableInstance(indexName)
-                  case deleteOperation => dtReloadService.markDeleteInstance(indexName)
+                  case `createOperation` => dtReloadService.addInstance(indexName)
+                  case `disableOperation` => dtReloadService.disableInstance(indexName)
+                  case `deleteOperation` => dtReloadService.markDeleteInstance(indexName)
                 }
 
               ) {

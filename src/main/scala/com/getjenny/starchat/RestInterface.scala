@@ -100,6 +100,6 @@ trait RestInterface extends RootAPIResource
     LoggingEntities.logRequestAndResult(genUserRoutes) ~
     LoggingEntities.logRequestAndResultReduced(clusterNodesRoutes) ~
     LoggingEntities.logRequestAndResultReduced(nodeDtLoadingStatusRoutes) ~
-    LoggingEntities.logRequestAndResultReduced(languageIndexManagement)
+    LoggingEntities.logRequestAndResultReduced(languageIndexManagementRoutes)
 
 }
