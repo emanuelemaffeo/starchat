@@ -15,7 +15,7 @@ libraryDependencies ++= {
   val AnalyzerVersion = "2.0.1"
   val BreezeVersion	= "0.13.2"
   val CourierVersion = "1.0.0"
-  val ESClientVersion	= "7.4.1"
+  val ESClientVersion	= "7.4.2"
   val LogbackVersion	= "1.2.3"
   val ManausLibVersion = "1.0.2"
   val RoundeightsHasherVersion	= "1.2.0"
@@ -67,6 +67,15 @@ enablePlugins(AshScriptPlugin)
 enablePlugins(UniversalPlugin)
 enablePlugins(DockerPlugin)
 enablePlugins(DockerComposePlugin)
+
+lazy val root = (project in file(".")).
+  enablePlugins(BuildInfoPlugin).
+  settings(
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoOptions += BuildInfoOption.BuildTime,
+    buildInfoOptions += BuildInfoOption.ToJson,
+    buildInfoPackage := "com.getjenny.starchat.autogen.utils"
+  )
 
 git.useGitDescribe := true
 
