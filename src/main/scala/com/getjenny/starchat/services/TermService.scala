@@ -114,14 +114,8 @@ object TermService extends AbstractDataService {
 
     val inputTerms = terms.terms.map(x => x.term -> x)
 
-    val listOfDocRes = indexLanguageCrud.bulkUpdate(inputTerms, upsert = true, new TermEntityManager)
+    val listOfDocRes = indexLanguageCrud.bulkUpdate(inputTerms, upsert = true, new TermEntityManager, refresh)
 
-    if (refresh =/= 0) {
-      val refreshIndex = indexLanguageCrud.refresh()
-      if (refreshIndex.failedShardsN > 0) {
-        throw TermServiceException("Term : index refresh failed: (" + indexName + ")")
-      }
-    }
 
     UpdateDocumentsResult(listOfDocRes)
   }
@@ -293,14 +287,8 @@ object TermService extends AbstractDataService {
   override def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
-    val response = indexLanguageCrud.delete(ids, new TermEntityManager)
+    val response = indexLanguageCrud.delete(ids, refresh, new TermEntityManager)
 
-    if (refresh =/= 0) {
-      val refreshIndex = indexLanguageCrud.refresh()
-      if (refreshIndex.failedShardsN > 0) {
-        throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
-      }
-    }
     DeleteDocumentsResult(data = response)
   }
 

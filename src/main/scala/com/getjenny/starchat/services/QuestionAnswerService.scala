@@ -13,7 +13,6 @@ import com.getjenny.starchat.entities._
 import com.getjenny.starchat.entities.es.{QaDocumentEntityManager, TermCountEntityManager, _}
 import com.getjenny.starchat.services.esclient.QuestionAnswerElasticClient
 import com.getjenny.starchat.services.esclient.crud.IndexLanguageCrud
-import com.getjenny.starchat.utils.Index
 import org.apache.lucene.search.join._
 import org.elasticsearch.action.search.SearchType
 import org.elasticsearch.index.query.functionscore._
@@ -22,7 +21,6 @@ import org.elasticsearch.script._
 import org.elasticsearch.search.aggregations.bucket.histogram.DateHistogramInterval
 import org.elasticsearch.search.aggregations.{AggregationBuilder, AggregationBuilders}
 import org.elasticsearch.search.sort.{FieldSortBuilder, ScoreSortBuilder, SortOrder}
-import scalaz.Scalaz._
 
 import scala.collection.immutable.{List, Map}
 import scala.collection.mutable
@@ -32,17 +30,25 @@ case class QuestionAnswerServiceException(message: String = "", cause: Throwable
   extends Exception(message, cause)
 
 trait QuestionAnswerService extends AbstractDataService {
-  override val elasticClient: QuestionAnswerElasticClient
-
-  val manausTermsExtractionService: ManausTermsExtractionService.type = ManausTermsExtractionService
   val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
+
+  override val elasticClient: QuestionAnswerElasticClient
+  val manausTermsExtractionService: ManausTermsExtractionService.type = ManausTermsExtractionService
 
   val nested_score_mode: Map[String, ScoreMode] = Map[String, ScoreMode]("min" -> ScoreMode.Min,
     "max" -> ScoreMode.Max, "avg" -> ScoreMode.Avg, "total" -> ScoreMode.Total)
 
   private[this] val intervalRe = """(?:([1-9][0-9]*)([ms|m|h|d|w|M|q|y]{1}))""".r
 
-  var cacheStealTimeMillis: Int
+  protected var cacheStealTimeMillis: Int
+  protected var dictSizeCacheMaxSize: Int
+  protected var totalTermsCacheMaxSize: Int
+
+  private[this] val dictSizeCache: mutable.LinkedHashMap[String, (Long, DictSize)] =
+    mutable.LinkedHashMap[String, (Long, DictSize)]()
+
+  private[this] val totalTermsCache: mutable.LinkedHashMap[String, (Long, TotalTerms)] =
+    mutable.LinkedHashMap[String, (Long, TotalTerms)]()
 
   /** Calculate the dictionary size for one index i.e. the number of unique terms
     * in the fields question, answer and in the union of both the fields
@@ -68,10 +74,6 @@ trait QuestionAnswerService extends AbstractDataService {
       requestCache = Option(true), entityManager = DictSizeEntityManager).head
   }
 
-  var dictSizeCacheMaxSize: Int
-  private[this] val dictSizeCache: mutable.LinkedHashMap[String, (Long, DictSize)] =
-    mutable.LinkedHashMap[String, (Long, DictSize)]()
-
   /** Return the the dictionary size for one index i.e. the number of unique terms
     * in the fields question, answer and in the union of both the fields
     * The function returns cached results.
@@ -82,6 +84,15 @@ trait QuestionAnswerService extends AbstractDataService {
     */
   def dictSize(indexName: String, stale: Long = cacheStealTimeMillis): DictSize = {
     val key = indexName
+
+    def removeOldest(): Unit = {
+      if (dictSizeCache.size >= dictSizeCacheMaxSize) {
+        dictSizeCache.head match {
+          case (oldestTerm, (_, _)) => dictSizeCache -= oldestTerm
+        }
+      }
+    }
+
     dictSizeCache.get(key) match {
       case Some((lastUpdateTs, dictSize)) =>
         val cacheStaleTime = math.abs(Time.timestampMillis - lastUpdateTs)
@@ -89,22 +100,14 @@ trait QuestionAnswerService extends AbstractDataService {
           dictSize
         } else {
           val result = calcDictSize(indexName = indexName)
-          if (dictSizeCache.size >= dictSizeCacheMaxSize) {
-            dictSizeCache.head match {
-              case (oldestTerm, (_, _)) => dictSizeCache -= oldestTerm
-            }
-          }
+          removeOldest()
           dictSizeCache.remove(key)
           dictSizeCache.update(key, (Time.timestampMillis, result))
           result
         }
       case _ =>
         val result = calcDictSize(indexName = indexName)
-        if (dictSizeCache.size >= dictSizeCacheMaxSize) {
-          dictSizeCache.head match {
-            case (oldestTerm, (_, _)) => dictSizeCache -= oldestTerm
-          }
-        }
+        removeOldest()
         dictSizeCache.update(key, (Time.timestampMillis, result))
         result
     }
@@ -129,10 +132,6 @@ trait QuestionAnswerService extends AbstractDataService {
       requestCache = Option(true), entityManager = TotalTermsEntityManager).head
   }
 
-  var totalTermsCacheMaxSize: Int
-  private[this] val totalTermsCache: mutable.LinkedHashMap[String, (Long, TotalTerms)] =
-    mutable.LinkedHashMap[String, (Long, TotalTerms)]()
-
   /** Returns the total number of terms in the fields question and answer, including duplicates.
     *
     * @param indexName the index name
@@ -141,6 +140,15 @@ trait QuestionAnswerService extends AbstractDataService {
     */
   def totalTerms(indexName: String, stale: Long = cacheStealTimeMillis): TotalTerms = {
     val key = indexName
+
+    def removeOldest(): Unit = {
+      if (totalTermsCache.size >= totalTermsCacheMaxSize) {
+        totalTermsCache.head match {
+          case (oldestTerm, (_, _)) => totalTermsCache -= oldestTerm
+        }
+      }
+    }
+
     totalTermsCache.get(key) match {
       case Some((lastUpdateTs, dictSize)) =>
         val cacheStaleTime = math.abs(Time.timestampMillis - lastUpdateTs)
@@ -148,22 +156,14 @@ trait QuestionAnswerService extends AbstractDataService {
           dictSize
         } else {
           val result = calcTotalTerms(indexName = indexName)
-          if (totalTermsCache.size >= totalTermsCacheMaxSize) {
-            totalTermsCache.head match {
-              case (oldestTerm, (_, _)) => totalTermsCache -= oldestTerm
-            }
-          }
+          removeOldest()
           totalTermsCache.remove(key)
           totalTermsCache.update(key, (Time.timestampMillis, result))
           result
         }
       case _ =>
         val result = calcTotalTerms(indexName = indexName)
-        if (totalTermsCache.size >= totalTermsCacheMaxSize) {
-          totalTermsCache.head match {
-            case (oldestTerm, (_, _)) => totalTermsCache -= oldestTerm
-          }
-        }
+        removeOldest()
         totalTermsCache.update(key, (Time.timestampMillis, result))
         result
     }
@@ -895,31 +895,21 @@ trait QuestionAnswerService extends AbstractDataService {
 
   def create(indexName: String, document: QADocument, refresh: Int): Option[IndexDocumentResult] = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
-    val response = indexLanguageCrud.create(document, new QaDocumentEntityManager(indexName))
+    val response = indexLanguageCrud.create(document, new QaDocumentEntityManager(indexName), refresh)
 
-    refreshIndex(indexName, refresh, indexLanguageCrud)
-
-    Option {response}
+    Option {
+      response
+    }
   }
 
   def update(indexName: String, document: QADocumentUpdate, refresh: Int): UpdateDocumentsResult = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
     val qaDocumentList = QADocumentUpdateEntity.fromQADocumentUpdate(document)
     val bulkResponse = indexLanguageCrud.bulkUpdate(qaDocumentList.map(x => x.id -> x),
-      entityManager = new QaDocumentEntityManager(indexName))
-
-    refreshIndex(indexName, refresh, indexLanguageCrud)
+      entityManager = new QaDocumentEntityManager(indexName),
+      refresh = 1)
 
     UpdateDocumentsResult(data = bulkResponse)
-  }
-
-  private[this] def refreshIndex(indexName: String, refresh: Int, indexLanguageCrud: IndexLanguageCrud): Unit = {
-    if (refresh =/= 0) {
-      val refresh_index = indexLanguageCrud.refresh()
-      if (refresh_index.failedShardsN > 0) {
-        throw QuestionAnswerServiceException("index refresh failed: (" + indexName + ")")
-      }
-    }
   }
 
   def updateByQuery(indexName: String, updateReq: UpdateQAByQueryReq, refresh: Int): UpdateDocumentsResult = {
@@ -1032,14 +1022,7 @@ trait QuestionAnswerService extends AbstractDataService {
 
   override def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
-    val response = indexLanguageCrud.delete(ids, new QaDocumentEntityManager(indexName))
-
-    if (refresh =/= 0) {
-      val refreshIndex = indexLanguageCrud.refresh()
-      if(refreshIndex.failedShardsN > 0) {
-        throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
-      }
-    }
+    val response = indexLanguageCrud.delete(ids, refresh, new QaDocumentEntityManager(indexName))
 
     DeleteDocumentsResult(data = response)
   }

@@ -14,15 +14,12 @@ import com.getjenny.starchat.entities.es._
 import com.getjenny.starchat.entities.{SearchAlgorithm, _}
 import com.getjenny.starchat.services.esclient.DecisionTableElasticClient
 import com.getjenny.starchat.services.esclient.crud.IndexLanguageCrud
-import com.getjenny.starchat.utils.Index
 import org.apache.lucene.search.join._
 import org.elasticsearch.action.search.SearchType
-import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.index.query.{BoolQueryBuilder, InnerHitBuilder, QueryBuilder, QueryBuilders}
 import org.elasticsearch.script.Script
 import org.elasticsearch.search.SearchHits
 import org.elasticsearch.search.aggregations.AggregationBuilders
-import scalaz.Scalaz._
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.{List, Map}
@@ -331,9 +328,8 @@ object DecisionTableService extends AbstractDataService {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
     val response = indexLanguageCrud.update(document, upsert = true,
-      new SearchDTDocumentEntityManager(simpleQueryExtractor))
-
-    refreshIndex(indexName, refresh, indexLanguageCrud)
+      new SearchDTDocumentEntityManager(simpleQueryExtractor),
+      refresh = refresh)
 
     val docResult: IndexDocumentResult = IndexDocumentResult(index = response.index,
       id = response.id,
@@ -347,14 +343,9 @@ object DecisionTableService extends AbstractDataService {
   def update(indexName: String, document: DTDocumentUpdate, refresh: Int): UpdateDocumentResult = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
 
-    val response = indexLanguageCrud.update(document, entityManager = new SearchDTDocumentEntityManager(simpleQueryExtractor))
-
-    if (refresh =/= 0) {
-      val refreshIndex = indexLanguageCrud.refresh()
-      if (refreshIndex.failedShardsN > 0) {
-        throw new Exception("DecisionTable : index refresh failed: (" + indexName + ")")
-      }
-    }
+    val response = indexLanguageCrud.update(document,
+      refresh = refresh,
+      entityManager = new SearchDTDocumentEntityManager(simpleQueryExtractor))
 
     response
   }
@@ -369,9 +360,8 @@ object DecisionTableService extends AbstractDataService {
       .map(_.documents)
       .sortBy(_.document.state)
 
-    val maxScore: Float = .0f
     val total: Int = decisionTableContent.length
-    SearchDTDocumentsResults(total = total, maxScore = maxScore, hits = decisionTableContent)
+    SearchDTDocumentsResults(total = total, maxScore = .0f, hits = decisionTableContent)
   }
 
   def read(indexName: String, ids: List[String]): SearchDTDocumentsResults = {
@@ -424,27 +414,29 @@ object DecisionTableService extends AbstractDataService {
     }
   }
 
-  def indexCSVFileIntoDecisionTable(indexName: String, file: File, skipLines: Int = 1, separator: Char = ','):
-  IndexDocumentListResult = {
+
+  def indexCSVFileIntoDecisionTable(indexName: String, file: File,
+                                    skipLines: Int = 1, separator: Char = ','): IndexDocumentListResult = {
     val documents: IndexedSeq[DTDocumentCreate] = FileToDocuments.getDTDocumentsFromCSV(log = log, file = file,
       skipLines = skipLines, separator = separator)
 
-    val indexDocumentListResult = documents.map(dtDocument => {
-      create(indexName, dtDocument, 0)
-    }).toList
-
-    IndexDocumentListResult(data = indexDocumentListResult)
+    createAll(indexName, documents)
   }
 
   def indexJSONFileIntoDecisionTable(indexName: String, file: File): IndexDocumentListResult = {
     val documents: IndexedSeq[DTDocumentCreate] = FileToDocuments.getDTDocumentsFromJSON(log = log, file = file)
 
+   createAll(indexName, documents)
+  }
+
+  private[this] def createAll(indexName: String, documents: IndexedSeq[DTDocumentCreate]): IndexDocumentListResult = {
     val indexDocumentListResult = documents.map(dtDocument => {
       create(indexName, dtDocument, 0)
     }).toList
 
     IndexDocumentListResult(data = indexDocumentListResult)
   }
+
 
 
   def wordFrequenciesInQueries(indexName: String): Map[String, Double] = {
@@ -651,23 +643,9 @@ object DecisionTableService extends AbstractDataService {
 
   override def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
     val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
-    val response = indexLanguageCrud.delete(ids, new WriteEntityManager[DTDocument] {
-      override protected def toXContentBuilder(entity: DTDocument, instance: String): (String, XContentBuilder) = ???
-    })
-
-    refreshIndex(indexName, refresh, indexLanguageCrud)
+    val response = indexLanguageCrud.delete(ids, refresh, EmptyWriteEntityManager)
 
     DeleteDocumentsResult(data = response)
-  }
-
-
-  private[this] def refreshIndex(indexName: String, refresh: Int, indexLanguageCrud: IndexLanguageCrud): Unit = {
-    if (refresh =/= 0) {
-      val refreshIndex = indexLanguageCrud.refresh()
-      if (refreshIndex.failedShardsN > 0) {
-        throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
-      }
-    }
   }
 
   override def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {

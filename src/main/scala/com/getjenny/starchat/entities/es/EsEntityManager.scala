@@ -6,6 +6,7 @@ import com.getjenny.starchat.utils.Index
 import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.action.search.SearchResponse
 import org.elasticsearch.common.xcontent.XContentBuilder
+import sun.reflect.generics.reflectiveObjects.NotImplementedException
 
 import scala.util.{Failure, Success, Try}
 
@@ -61,6 +62,12 @@ trait WriteEntityManager[T] extends EntityManager {
     case Success(value) => value
     case Failure(e) => log.error(e, "Error while creating XcontentBuilder")
       throw e
+  }
+}
+
+object EmptyWriteEntityManager extends WriteEntityManager[Any]{
+  override protected def toXContentBuilder(entity: Any, instance: String): (String, XContentBuilder) = {
+    throw new NotImplementedException()
   }
 }
 

@@ -79,7 +79,7 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
     val res2 = indexLanguageCrud.create(TestDocument("2", "aaaa"), TestEntityManager)
     val res3 = indexLanguageCrud2.create(TestDocument("3", "bbbb"), TestEntityManager)
 
-    indexLanguageCrud.refresh()
+    indexLanguageCrud.refresh(1)
 
     assert(res.created === true)
     assert(res2.created === true)
@@ -150,7 +150,7 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
     val boolQueryBuilder = QueryBuilders.matchAllQuery()
 
     val delete = indexLanguageCrud.delete(boolQueryBuilder)
-    indexLanguageCrud.refresh()
+    indexLanguageCrud.refresh(1)
 
     assert(delete.getDeleted === 2L)
   }
