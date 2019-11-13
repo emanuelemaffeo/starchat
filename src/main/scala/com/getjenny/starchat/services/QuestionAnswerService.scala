@@ -40,9 +40,9 @@ trait QuestionAnswerService extends AbstractDataService {
 
   private[this] val intervalRe = """(?:([1-9][0-9]*)([ms|m|h|d|w|M|q|y]{1}))""".r
 
-  protected var cacheStealTimeMillis: Int
-  protected var dictSizeCacheMaxSize: Int
-  protected var totalTermsCacheMaxSize: Int
+  var cacheStealTimeMillis: Int
+  var dictSizeCacheMaxSize: Int
+  var totalTermsCacheMaxSize: Int
 
   private[this] val dictSizeCache: mutable.LinkedHashMap[String, (Long, DictSize)] =
     mutable.LinkedHashMap[String, (Long, DictSize)]()
