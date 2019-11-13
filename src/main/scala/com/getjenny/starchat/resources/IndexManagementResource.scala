@@ -17,12 +17,12 @@ import scala.util.{Failure, Success}
 trait IndexManagementResource extends StarChatResource {
 
   private[this] val dtReloadService = InstanceRegistryService
-  private[this] val CreateOperation = "create"
-  private[this] val DisableOperation = "disable"
-  private[this] val DeleteOperation = "delete"
+  private[this] val createOperation = "create"
+  private[this] val disableOperation = "disable"
+  private[this] val deleteOperation = "delete"
 
   def postIndexManagementCreateRoutes: Route = handleExceptions(routesExceptionHandler) {
-    pathPrefix(indexRegex ~ Slash ~ "index_management" ~ Slash ~ s"^($CreateOperation|$DisableOperation|$DeleteOperation)".r) {
+    pathPrefix(indexRegex ~ Slash ~ "index_management" ~ Slash ~ s"^($createOperation|$disableOperation|$deleteOperation)".r) {
       (indexName, operation) =>
         post {
           authenticateBasicAsync(realm = authRealm,
@@ -33,9 +33,9 @@ trait IndexManagementResource extends StarChatResource {
                 .getCircuitBreaker(maxFailure = 10, callTimeout = 30.seconds)
               onCompleteWithBreakerFuture(breaker)(
                 operation match {
-                  case CreateOperation => dtReloadService.addInstance(indexName)
-                  case DisableOperation => dtReloadService.disableInstance(indexName)
-                  case DeleteOperation => dtReloadService.markDeleteInstance(indexName)
+                  case createOperation => dtReloadService.addInstance(indexName)
+                  case disableOperation => dtReloadService.disableInstance(indexName)
+                  case deleteOperation => dtReloadService.markDeleteInstance(indexName)
                 }
 
               ) {

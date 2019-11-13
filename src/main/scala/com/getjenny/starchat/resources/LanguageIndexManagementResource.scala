@@ -11,11 +11,11 @@ import scala.util.{Failure, Success}
 
 trait LanguageIndexManagementResource extends StarChatResource {
   private[this] val languageIndexManagementService: LangaugeIndexManagementService.type = LangaugeIndexManagementService
-  private[this] val LanguageIndexManagement = "language_index_management"
+  private[this] val languageIndexManagement = "language_index_management"
 
   def languageIndexManagement: Route = handleExceptions(routesExceptionHandler) {
     concat(
-      path(LanguageIndexManagement) {
+      path(languageIndexManagement) {
         pathEnd {
           post {
             authenticateBasicAsync(realm = authRealm, authenticator = authenticator.authenticator) { user =>
@@ -77,7 +77,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
             }
         }
       },
-      pathPrefix(LanguageIndexManagement ~ Slash ~ """(open|close)""".r) { operation =>
+      pathPrefix(languageIndexManagement ~ Slash ~ """(open|close)""".r) { operation =>
         pathEnd {
           post {
             parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
@@ -103,7 +103,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
           }
         }
       },
-      pathPrefix(LanguageIndexManagement ~ Slash ~ """(mappings|settings)""".r) { mappingOrSettings =>
+      pathPrefix(languageIndexManagement ~ Slash ~ """(mappings|settings)""".r) { mappingOrSettings =>
         pathEnd {
           put {
             parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
@@ -131,7 +131,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
           }
         }
       },
-      pathPrefix(LanguageIndexManagement ~ Slash ~ "refresh") {
+      pathPrefix(languageIndexManagement ~ Slash ~ "refresh") {
         pathEnd {
           post {
             parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>
@@ -155,7 +155,7 @@ trait LanguageIndexManagementResource extends StarChatResource {
           }
         }
       },
-      pathPrefix(LanguageIndexManagement ~ Slash ~ "check") {
+      pathPrefix(languageIndexManagement ~ Slash ~ "check") {
         pathEnd {
           get {
             parameters('index_name, 'indexSuffix.as[String].?) { (languageIndex, indexSuffix) =>

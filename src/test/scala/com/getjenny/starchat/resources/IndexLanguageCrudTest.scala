@@ -16,7 +16,7 @@ import org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder
 import org.elasticsearch.common.xcontent.{XContentBuilder, XContentType}
 import org.elasticsearch.index.query.QueryBuilders
 import org.scalatest.{BeforeAndAfterAll, FunSuite, Matchers}
-
+import org.elasticsearch.client.RequestOptions
 import scala.collection.JavaConverters._
 
 case class TestDocument(id: String, message: String)
@@ -70,7 +70,7 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
             }
       }""",
       XContentType.JSON)
-    import org.elasticsearch.client.RequestOptions
+
     client.httpClient.indices.create(request, RequestOptions.DEFAULT)
   }
 

@@ -17,12 +17,12 @@ import scala.language.postfixOps
 
 class CronDeleteInstancesTest extends TestEnglishBase with TestKitBase with ImplicitSender {
 
-  private val instanceRegistryService = InstanceRegistryService
-  private val indexName = "index_getjenny_english_0"
-  private val client = IndexManagementElasticClient
+  private[this] val instanceRegistryService = InstanceRegistryService
+  private[this] val indexName = "index_getjenny_english_0"
+  private[this] val client = IndexManagementElasticClient
 
-  private val instance = Index.instanceName(indexName)
-  private val deleteInstanceActor = system.actorOf(DeleteInstanceActor.props)
+  private[this] val instance = Index.instanceName(indexName)
+  private[this] val deleteInstanceActor = system.actorOf(DeleteInstanceActor.props)
 
   "StarChat" should {
 
