@@ -54,7 +54,7 @@ object AnalyzerService extends AbstractDataService {
   val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
   private[this] val termService: TermService.type = TermService
   private[this] val decisionTableService: DecisionTableService.type = DecisionTableService
-  private[this] val dtReloadService: InstanceRegistryService.type = InstanceRegistryService
+  private[this] val instanceRegistryService: InstanceRegistryService.type = InstanceRegistryService
   private[this] val nodeDtLoadingStatusService: NodeDtLoadingStatusService.type = NodeDtLoadingStatusService
   val dtMaxTables: Long = elasticClient.config.getLong("es.dt_max_tables")
 
@@ -183,7 +183,7 @@ object AnalyzerService extends AbstractDataService {
 
     val nodeDtLoadingTimestamp = System.currentTimeMillis()
     if (propagate) {
-      Try(dtReloadService.updateTimestamp(indexName, nodeDtLoadingTimestamp, refresh = 1)) match {
+      Try(instanceRegistryService.updateTimestamp(indexName, nodeDtLoadingTimestamp, refresh = 1)) match {
         case Success(dtReloadTimestamp) =>
           val ts = dtReloadTimestamp
             .getOrElse(DtReloadTimestamp(indexName, InstanceRegistryDocument.InstanceRegistryTimestampDefault))

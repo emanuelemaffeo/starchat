@@ -1,4 +1,4 @@
-package com.getjenny.analyzer.operators
+package com.getjenny.starchat.analyzer.operators
 
 /**
   * Created by Andrea Collamati <andrea@getjenny.com> on 20/09/2019.
@@ -6,6 +6,7 @@ package com.getjenny.analyzer.operators
 
 import com.getjenny.analyzer.expressions.Expression
 import com.getjenny.analyzer.interfaces._
+import com.getjenny.analyzer.operators._
 
 class StarchatFactoryOperator extends OperatorFactoryTrait[List[Expression], AbstractOperator] {
 
