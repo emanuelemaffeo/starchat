@@ -1,17 +1,17 @@
-package com.getjenny.analyzer.operators
+package com.getjenny.starchat.analyzer.operators
 
-import com.getjenny.analyzer.expressions._
-import scalaz._
-import Scalaz._
 import com.getjenny.analyzer.atoms.ExceptionAtomic
+import com.getjenny.analyzer.expressions._
+import com.getjenny.analyzer.operators.{AbstractOperator, OperatorException}
 import com.getjenny.starchat.services.{AnalyzerService, DecisionTableRuntimeItem}
+import scalaz.Scalaz._
 
 /**
   * Created by Andrea Collamati <andrea@getjenny.com> on 20/09/2019.
   */
 
 
-case class BayesCounters(val nQueriesOfStateTriggered: Int = 0, val nTotalQueriesTriggered: Int = 0)
+case class BayesCounters(nQueriesOfStateTriggered: Int = 0, nTotalQueriesTriggered: Int = 0)
 
 /* Bayes Operator evaluate the P(S|Expr) = probability that a state S should be triggered
    if the Expr is true. This is done using the Whisperer Queries data set.
@@ -81,7 +81,7 @@ class BayesOperator(children: List[Expression]) extends AbstractOperator(childre
 
       if (nQueries > 0) {
         val counters = activeAnalyzeMap.foldLeft(BayesCounters()) {
-          case (cnt, (stateName, decisionTable)) => {
+          case (cnt, (stateName, decisionTable)) =>
             val queries = decisionTable.queries
             queries.foldLeft(cnt) {
               (cnt2, whispererQuery) => {
@@ -103,7 +103,6 @@ class BayesOperator(children: List[Expression]) extends AbstractOperator(childre
                   cnt2
               }
             }
-          }
         }
 
         val bayesScore = counters.nTotalQueriesTriggered.toDouble match {

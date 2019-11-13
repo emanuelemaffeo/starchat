@@ -2,13 +2,13 @@ package com.getjenny.starchat.services
 
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.starchat.SCActorSystem
+import com.getjenny.starchat.services.esclient.crud.EsCrudBase
 import com.getjenny.starchat.services.esclient.{BayesOperatorCacheElasticClient, ElasticClient}
 import com.getjenny.starchat.utils.Index
-import org.elasticsearch.action.get.{GetRequest, GetResponse}
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.client.RequestOptions
+import org.elasticsearch.action.get.GetResponse
 import org.elasticsearch.common.xcontent.XContentBuilder
 import org.elasticsearch.common.xcontent.XContentFactory._
+import org.elasticsearch.index.query.QueryBuilders
 
 import scala.collection.JavaConverters._
 
@@ -34,24 +34,16 @@ object BayesOperatorCacheService extends AbstractDataService {
   override protected[this] val elasticClient: ElasticClient = BayesOperatorCacheElasticClient
   private[this] val indexName = Index.indexName(elasticClient.indexName, elasticClient.indexSuffix)
   private[this] val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
+  private[this] val esCrudBase = new EsCrudBase(elasticClient, indexName)
 
   def put(key: String, value: Double): Unit = {
     val document = BayesOperatorCacheDocument(key, Some(value))
-    val request = new IndexRequest()
-      .index(indexName)
-      .source(document.toBuilder)
-      .id(document.key)
-
-    val response = elasticClient.httpClient.index(request, RequestOptions.DEFAULT)
+    val response = esCrudBase.update(document.key, document.toBuilder, upsert = true)
     log.info("BayesOperatorCache put - key: {}, value: {}, operation status: {}", key, value, response.status())
   }
 
   def get(key: String): Option[Double] = {
-    val request = new GetRequest()
-      .index(indexName)
-      .id(key)
-
-    val response = elasticClient.httpClient.get(request, RequestOptions.DEFAULT)
+    val response = esCrudBase.read(key)
 
     if (response.isExists) {
       BayesOperatorCacheDocument(response).value
@@ -61,12 +53,12 @@ object BayesOperatorCacheService extends AbstractDataService {
   }
 
   def refresh(): Unit = {
-    elasticClient.refresh(indexName)
+    esCrudBase.refresh()
   }
 
   def clear(): Unit = {
-    val response = deleteAll(elasticClient.indexName)
-    log.info("BayesOperatorCache cleared {} entries", response.deleted)
+    val response = esCrudBase.delete(QueryBuilders.matchAllQuery())
+    log.info("BayesOperatorCache cleared {} entries", response.getDeleted)
   }
 
 }

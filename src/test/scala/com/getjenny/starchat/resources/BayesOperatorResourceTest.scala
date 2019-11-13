@@ -1,8 +1,9 @@
 package com.getjenny.starchat.resources
 
-import akka.http.scaladsl.model.{StatusCodes}
-import com.getjenny.analyzer.expressions.{AnalyzersData}
+import akka.http.scaladsl.model.StatusCodes
+import com.getjenny.analyzer.expressions.AnalyzersData
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.es._
 
 class BayesOperatorResourceTest extends TestEnglishBase {
 
@@ -66,7 +67,7 @@ class BayesOperatorResourceTest extends TestEnglishBase {
 
   it should {
     "return an HTTP code 201 when creating a new document" in {
-      val decisionTableRequest = DTDocument(
+      val decisionTableRequest = DTDocumentCreate(
         state = "S1",
         executionOrder = 0,
         maxStateCount = 0,
@@ -82,7 +83,7 @@ class BayesOperatorResourceTest extends TestEnglishBase {
         version = None
       )
 
-      val decisionTableRequest2 = DTDocument(
+      val decisionTableRequest2 = DTDocumentCreate(
         state = "S2",
         executionOrder = 0,
         maxStateCount = 0,
@@ -98,7 +99,7 @@ class BayesOperatorResourceTest extends TestEnglishBase {
         version = None
       )
 
-      val decisionTableRequest3 = DTDocument(
+      val decisionTableRequest3 = DTDocumentCreate(
         state = "S3",
         executionOrder = 0,
         maxStateCount = 0,
@@ -119,7 +120,7 @@ class BayesOperatorResourceTest extends TestEnglishBase {
         val response = responseAs[IndexDocumentResult]
         response.created should be(true)
         response.id should be("S1")
-        response.index should be("index_getjenny_english_0.state")
+        response.index should be("index_english.state")
         response.version should be(1)
       }
       Post(s"/index_getjenny_english_0/decisiontable?refresh=1", decisionTableRequest2) ~> addCredentials(testUserCredentials) ~> routes ~> check {
@@ -127,7 +128,7 @@ class BayesOperatorResourceTest extends TestEnglishBase {
         val response = responseAs[IndexDocumentResult]
         response.created should be(true)
         response.id should be("S2")
-        response.index should be("index_getjenny_english_0.state")
+        response.index should be("index_english.state")
         response.version should be(1)
       }
       Post(s"/index_getjenny_english_0/decisiontable?refresh=1", decisionTableRequest3) ~> addCredentials(testUserCredentials) ~> routes ~> check {
@@ -135,7 +136,7 @@ class BayesOperatorResourceTest extends TestEnglishBase {
         val response = responseAs[IndexDocumentResult]
         response.created should be(true)
         response.id should be("S3")
-        response.index should be("index_getjenny_english_0.state")
+        response.index should be("index_english.state")
         response.version should be(1)
       }
     }
