@@ -16,6 +16,8 @@
 #
 cluster.name: starchat
 #
+action.auto_create_index: false
+#
 # ------------------------------------ Node ------------------------------------
 #
 # Use a descriptive name for the node:

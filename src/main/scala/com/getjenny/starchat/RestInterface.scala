@@ -1,8 +1,8 @@
 package com.getjenny.starchat
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
+ */
 
 import akka.http.scaladsl.server.Route
 import com.getjenny.starchat.resources._
@@ -17,12 +17,12 @@ trait RestInterface extends RootAPIResource
   with DecisionTableResource with AnalyzersPlaygroundResource with TermsExtractionResource
   with SpellcheckResource
   with KnowledgeBaseResource with ConversationLogsResource with PriorDataResource
-  with UserResource with NodeDtLoadingStatusResource with ClusterNodesResource {
+  with UserResource with NodeDtLoadingStatusResource with ClusterNodesResource with LanguageIndexManagementResource {
 
   implicit def executionContext: ExecutionContext
 
   lazy val decisionTableService: DecisionTableService.type = DecisionTableService
-  lazy val indexManagementService: IndexManagementService.type = IndexManagementService
+  lazy val indexManagementService: LangaugeIndexManagementService.type = LangaugeIndexManagementService
   lazy val systemIndexManagementService: SystemIndexManagementService.type = SystemIndexManagementService
   lazy val languageGuesserService: LanguageGuesserService.type = LanguageGuesserService
   lazy val termService: TermService.type = TermService
@@ -33,12 +33,12 @@ trait RestInterface extends RootAPIResource
   lazy val clusterNodesServices: ClusterNodesService.type = ClusterNodesService
   lazy val nodeDtLoadingStatusService: NodeDtLoadingStatusService.type = NodeDtLoadingStatusService
   lazy val cronReloadDTService: CronReloadDTService.type = CronReloadDTService
-  lazy val cronCleanDTService: CronCleanDTService.type = CronCleanDTService
+  lazy val cronCleanDTService: CronCleanInMemoryDTService.type = CronCleanInMemoryDTService
   lazy val cronCleanDeadNodesService: CronCleanDeadNodesService.type = CronCleanDeadNodesService
   lazy val cronNodeAliveSignalService: CronNodeAliveSignalService.type = CronNodeAliveSignalService
   lazy val cronCleanDtLoadingRecordsService: CronCleanDtLoadingRecordsService.type = CronCleanDtLoadingRecordsService
   lazy val cronInitializeSystemIndicesService: CronInitializeSystemIndicesService.type = CronInitializeSystemIndicesService
-  lazy val systemService: DtReloadService.type = DtReloadService
+  lazy val systemService: InstanceRegistryService.type = InstanceRegistryService
   lazy val knowledgeBaseService: KnowledgeBaseService.type = KnowledgeBaseService
   lazy val conversationLogsService: ConversationLogsService.type = ConversationLogsService
   lazy val priorDataService: PriorDataService.type = PriorDataService
@@ -85,10 +85,6 @@ trait RestInterface extends RootAPIResource
     LoggingEntities.logRequestAndResult(decisionTableResponseRequestRoutes) ~
     LoggingEntities.logRequestAndResult(decisionTableAnalyzerRoutes) ~
     LoggingEntities.logRequestAndResult(postIndexManagementCreateRoutes) ~
-    LoggingEntities.logRequestAndResult(postIndexManagementRefreshRoutes) ~
-    LoggingEntities.logRequestAndResult(putIndexManagementRoutes) ~
-    LoggingEntities.logRequestAndResult(indexManagementRoutes) ~
-    LoggingEntities.logRequestAndResult(postIndexManagementOpenCloseRoutes) ~
     LoggingEntities.logRequestAndResult(systemIndexManagementRoutes) ~
     LoggingEntities.logRequestAndResult(systemGetIndexesRoutes) ~
     LoggingEntities.logRequestAndResult(languageGuesserRoutes) ~
@@ -103,5 +99,7 @@ trait RestInterface extends RootAPIResource
     LoggingEntities.logRequestAndResult(delUserRoutes) ~
     LoggingEntities.logRequestAndResult(genUserRoutes) ~
     LoggingEntities.logRequestAndResultReduced(clusterNodesRoutes) ~
-    LoggingEntities.logRequestAndResultReduced(nodeDtLoadingStatusRoutes)
+    LoggingEntities.logRequestAndResultReduced(nodeDtLoadingStatusRoutes) ~
+    LoggingEntities.logRequestAndResultReduced(languageIndexManagement)
+
 }

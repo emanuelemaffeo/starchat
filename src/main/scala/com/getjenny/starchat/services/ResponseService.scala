@@ -1,20 +1,20 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
+ */
 
 import akka.event.{Logging, LoggingAdapter}
 import com.getjenny.analyzer.analyzers._
 import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Context, Result}
 import com.getjenny.starchat.SCActorSystem
+import com.getjenny.starchat.entities.es.DTDocumentCreate
 import com.getjenny.starchat.entities.{ResponseRequestOut, _}
+import com.getjenny.starchat.services.actions._
 import com.getjenny.starchat.services.esclient.DecisionTableElasticClient
 import scalaz.Scalaz._
-import com.getjenny.starchat.services.actions._
+
 import scala.collection.immutable.Map
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future}
 import scala.util.{Failure, Success, Try}
 
 case class ResponseServiceException(message: String = "", cause: Throwable = None.orNull)
@@ -30,8 +30,8 @@ case class ResponseServiceDTNotLoadedException(message: String = "", cause: Thro
   extends Exception(message, cause)
 
 /**
-  * Implements response functionalities
-  */
+ * Implements response functionalities
+ */
 object ResponseService extends AbstractDataService {
   override val elasticClient: DecisionTableElasticClient.type = DecisionTableElasticClient
   private[this] val log: LoggingAdapter = Logging(SCActorSystem.system, this.getClass.getCanonicalName)
@@ -160,7 +160,7 @@ object ResponseService extends AbstractDataService {
 
     val docResults = decisionTableService.read(indexName, analyzersEvalData.keys.toList)
     val dtDocumentsList = docResults.hits.par.map { item =>
-      val doc: DTDocument = item.document
+      val doc: DTDocumentCreate = item.document
       val state = doc.state
       val evaluationRes: Result = analyzersEvalData(state)
       val maxStateCount: Int = doc.maxStateCount

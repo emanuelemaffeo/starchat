@@ -1,6 +1,10 @@
 {
   "mappings": {
     "properties": {
+      "instance": {
+        "type": "keyword",
+        "store": true
+      },
       "term": {
         "type": "text",
         "store": true,

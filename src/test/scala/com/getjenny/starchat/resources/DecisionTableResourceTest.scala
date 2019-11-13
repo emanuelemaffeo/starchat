@@ -2,6 +2,7 @@ package com.getjenny.starchat.resources
 
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.es.{DTDocumentCreate, DTDocumentUpdate, SearchDTDocumentsResults}
 import com.getjenny.starchat.utils.Index
 
 class DecisionTableResourceTest extends TestEnglishBase {
@@ -42,7 +43,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
 
   it should {
     "return an HTTP code 201 when creating a new document" in {
-      val decisionTableRequest = DTDocument(
+      val decisionTableRequest = DTDocumentCreate(
         state = "forgot_password",
         executionOrder = 0,
         maxStateCount = 0,
@@ -58,7 +59,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         version = None
       )
 
-      val decisionTableRequest2 = DTDocument(
+      val decisionTableRequest2 = DTDocumentCreate(
         state = "dont_tell_password",
         executionOrder = 0,
         maxStateCount = 0,
@@ -79,7 +80,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         val response = responseAs[IndexDocumentResult]
         response.created should be (true)
         response.id should be ("forgot_password")
-        response.index should be ("index_getjenny_english_0.state")
+        response.index should be ("index_english.state")
         response.version should be (1)
       }
       Post(s"/index_getjenny_english_0/decisiontable?refresh=1", decisionTableRequest2) ~> addCredentials(testUserCredentials) ~> routes ~> check {
@@ -87,7 +88,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         val response = responseAs[IndexDocumentResult]
         response.created should be (true)
         response.id should be ("dont_tell_password")
-        response.index should be ("index_getjenny_english_0.state")
+        response.index should be ("index_english.state")
         response.version should be (1)
       }
     }
@@ -95,7 +96,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
 
   it should {
     "return an HTTP code 201 when creating a new document with state that already exist" in {
-      val decisionTableRequest = DTDocument(
+      val decisionTableRequest = DTDocumentCreate(
         state = "forgot_password",
         executionOrder = 0,
         maxStateCount = 0,
@@ -118,7 +119,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         val response = responseAs[IndexDocumentResult]
         response.created should be (false)
         response.id should be ("forgot_password")
-        response.index should be ("index_getjenny_english_0.state")
+        response.index should be ("index_english.state")
         response.version should be (2)
       }
     }
@@ -150,7 +151,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         val response = responseAs[UpdateDocumentResult]
         response.created should be (false)
         response.id should be ("forgot_password")
-        response.index should be ("index_getjenny_english_0.state")
+        response.index should be ("index_english.state")
         response.version should be (3)
       }
     }
@@ -252,27 +253,6 @@ class DecisionTableResourceTest extends TestEnglishBase {
         status shouldEqual StatusCodes.OK
         val response = responseAs[SearchDTDocumentsResults]
         response.total should be (0)
-      }
-    }
-  }
-
-  it should {
-    "return an HTTP code 205 getting next response and decisiontable is not updated" in {
-      val request = ResponseRequestIn(conversationId = "conv_12131",
-          traversedStates = None,
-          userInput = Some(ResponseRequestInUserInput(text = Some("It doesn't matter what I say here when state is defined"), img = None
-          )),
-          state = None,
-          data = Some(Map("name" -> "Donald Duck", "job" -> "idle")),
-          threshold = Some(0),
-          evaluationClass = None,
-          maxResults = Some(1),
-          searchAlgorithm = Some(SearchAlgorithm.NGRAM3)
-        )
-
-      Post("/index_getjenny_english_0/get_next_response", request) ~> addCredentials(testUserCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.ResetContent
-        val response = responseAs[ResponseRequestOutOperationResult]
       }
     }
   }
@@ -452,7 +432,7 @@ class DecisionTableResourceTest extends TestEnglishBase {
         status shouldEqual StatusCodes.OK
         val response = responseAs[DeleteDocumentsResult]
         val headDeleteDocumentResult = response.data.headOption.getOrElse(fail)
-        headDeleteDocumentResult.index should be ("index_getjenny_english_0.state")
+        headDeleteDocumentResult.index should be ("index_english.state")
         headDeleteDocumentResult.id should be ("forgot_password")
         headDeleteDocumentResult.found should be (true)
         headDeleteDocumentResult.version should be (4)
@@ -481,23 +461,6 @@ class DecisionTableResourceTest extends TestEnglishBase {
     }
   }
 
-  it should {
-    "return an HTTP code 200 when deleting an index" in {
-      Delete(s"/index_getjenny_english_0/index_management") ~>  addCredentials(testAdminCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.OK
-        val response = responseAs[IndexManagementResponse]
-      }
-    }
-  }
-
-  it should {
-    "return an HTTP code 200 when deleting an existing system index" in {
-      Delete(s"/system_index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.OK
-        val response = responseAs[IndexManagementResponse]
-      }
-    }
-  }
 }
 
 

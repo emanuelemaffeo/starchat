@@ -6,7 +6,7 @@ import akka.http.scaladsl.marshalling.Marshal
 import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.stream.ActorMaterializer
-import com.getjenny.starchat.entities.{Term, Terms}
+import com.getjenny.starchat.entities.es.{Term, Terms}
 import com.getjenny.starchat.serializers.JsonSupport
 import scalaz.Scalaz._
 import scopt.OptionParser

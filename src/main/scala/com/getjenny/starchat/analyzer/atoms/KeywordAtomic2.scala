@@ -6,7 +6,6 @@ package com.getjenny.starchat.analyzer.atoms
 
 import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
 import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
-import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services._
 import scalaz.Scalaz._
 
@@ -248,8 +247,16 @@ class KeywordAtomic2(arguments: List[String], restrictedArgs: Map[String, String
         Result(score = 0.0)
       else
         Result(score = 1.0)
+
     }
 
-
   }
+
+  override def matches(userQuery: String, data: AnalyzersDataInternal = AnalyzersDataInternal()): Result = {
+    if (rxToBeMatched.findFirstMatchIn(userQuery).isEmpty)
+      Result(score = 0.0)
+    else
+      Result(score = 1.0)
+  }
+
 }

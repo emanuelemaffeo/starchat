@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 23/01/19.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 23/01/19.
+ */
 
 import akka.actor.{Actor, Props}
 import com.getjenny.starchat.SCActorSystem
@@ -10,6 +10,8 @@ import com.getjenny.starchat.SCActorSystem
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
+/** Update an alive record
+ */
 object CronNodeAliveSignalService extends CronService {
 
   class NodeAliveSignalTickActor extends Actor {

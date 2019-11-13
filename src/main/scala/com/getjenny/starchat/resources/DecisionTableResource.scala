@@ -1,8 +1,8 @@
 package com.getjenny.starchat.resources
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
+ */
 
 
 import akka.http.javadsl.server.CircuitBreakerOpenRejection
@@ -11,11 +11,11 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.CircuitBreaker
 import com.getjenny.analyzer.analyzers.AnalyzerEvaluationException
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.es.{DTDocumentCreate, DTDocumentUpdate}
 import com.getjenny.starchat.routing._
 import com.getjenny.starchat.services._
 import scalaz.Scalaz._
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.control.NonFatal
 import scala.util.matching.Regex
@@ -26,7 +26,7 @@ trait DecisionTableResource extends StarChatResource {
   private[this] val decisionTableService: DecisionTableService.type = DecisionTableService
   private[this] val analyzerService: AnalyzerService.type = AnalyzerService
   private[this] val responseService: ResponseService.type = ResponseService
-  private[this] val dtReloadService: DtReloadService.type = DtReloadService
+  private[this] val dtReloadService: InstanceRegistryService.type = InstanceRegistryService
   private[this] val fileTypeRegex: Regex = "^(csv|json)$".r
 
   def decisionTableRoutesAllRoutes: Route = handleExceptions(routesExceptionHandler) {
@@ -71,9 +71,9 @@ trait DecisionTableResource extends StarChatResource {
                   case (_, file) =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker(callTimeout = 60.seconds)
                     onCompleteWithBreakerFuture(breaker)(
-                      if (fileType == "csv") {
+                      if (fileType === "csv") {
                         decisionTableService.indexCSVFileIntoDecisionTable(indexName, file, 0)
-                      } else if (fileType == "json") {
+                      } else if (fileType === "json") {
                         decisionTableService.indexJSONFileIntoDecisionTable(indexName, file)
                       } else {
                         throw DecisionTableServiceException("Bad or unsupported file format: " + fileType)
@@ -113,7 +113,7 @@ trait DecisionTableResource extends StarChatResource {
               authenticator.hasPermissions(user, indexName, Permissions.write)) {
               extractRequest { request =>
                 val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
-                onCompleteWithBreakerFuture(breaker)(dtReloadService.updateDTReloadTimestamp(indexName, refresh = 1)) {
+                onCompleteWithBreakerFuture(breaker)(dtReloadService.updateTimestamp(indexName, refresh = 1)) {
                   case Success(t) =>
                     completeResponse(StatusCodes.Accepted, StatusCodes.BadRequest, Option {
                       t
@@ -330,7 +330,7 @@ trait DecisionTableResource extends StarChatResource {
               authenticator.hasPermissions(user, indexName, Permissions.write)) {
               extractRequest { request =>
                 parameters("refresh".as[Int] ? 0) { refresh =>
-                  entity(as[DTDocument]) { document =>
+                  entity(as[DTDocumentCreate]) { document =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
                     onCompleteWithBreakerFuture(breaker)(decisionTableService.create(indexName, document, refresh)) {
                       case Success(t) =>

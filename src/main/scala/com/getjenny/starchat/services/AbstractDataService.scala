@@ -13,7 +13,7 @@ import org.elasticsearch.rest.RestStatus
 import scalaz.Scalaz._
 
 import scala.collection.immutable.List
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 
 case class DeleteDataServiceException(message: String = "", cause: Throwable = None.orNull)
   extends Exception(message, cause)
@@ -24,15 +24,15 @@ trait AbstractDataService {
   protected[this] val elasticClient: ElasticClient
 
   /** delete all the terms in a table
-    *
-    * @param indexName index name
-    * @return a DeleteDocumentsResult with the status of the delete operation
-    */
+   *
+   * @param indexName index name
+   * @return a DeleteDocumentsResult with the status of the delete operation
+   */
   def deleteAll(indexName: String): DeleteDocumentsSummaryResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
-
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
     val request: DeleteByQueryRequest =
-      new DeleteByQueryRequest(Index.indexName(indexName, elasticClient.indexSuffix))
+      new DeleteByQueryRequest(esLanguageSpecificIndexName)
     request.setConflicts("proceed")
     request.setQuery(QueryBuilders.matchAllQuery)
 
@@ -42,20 +42,19 @@ trait AbstractDataService {
   }
 
   /** delete one or more terms
-    *
-    * @param indexName index name
-    * @param ids the list of term ids to delete
-    * @param refresh whether to call an index update on ElasticSearch or not
-    * @return DeleteDocumentListResult with the result of term delete operations
-    */
+   *
+   * @param indexName index name
+   * @param ids the list of term ids to delete
+   * @param refresh whether to call an index update on ElasticSearch or not
+   * @return DeleteDocumentListResult with the result of term delete operations
+   */
   def delete(indexName: String, ids: List[String], refresh: Int): DeleteDocumentsResult = {
     val client: RestHighLevelClient = elasticClient.httpClient
-
-    val bulkReq : BulkRequest = new BulkRequest()
+    val bulkReq: BulkRequest = new BulkRequest()
 
     ids.foreach( id => {
       val deleteReq = new DeleteRequest()
-        .index(Index.indexName(indexName, elasticClient.indexSuffix))
+        .index(indexName)
         .id(id)
       bulkReq.add(deleteReq)
     })
@@ -64,7 +63,7 @@ trait AbstractDataService {
 
     if (refresh =/= 0) {
       val refreshIndex = elasticClient
-        .refresh(Index.indexName(indexName, elasticClient.indexSuffix))
+        .refresh(indexName)
       if(refreshIndex.failedShardsN > 0) {
         throw DeleteDataServiceException("index refresh failed: (" + indexName + ")")
       }

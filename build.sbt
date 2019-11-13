@@ -5,25 +5,25 @@ name := "StarChat"
 organization := "com.getjenny"
 maintainer := "angelo@getjenny.com"
 
-crossScalaVersions := Seq("2.12.8")
+crossScalaVersions := Seq("2.12.10")
 
 resolvers += Resolver.bintrayRepo("hseeberger", "maven")
 
 libraryDependencies ++= {
   val AkkaHttpVersion	= "10.1.9"
   val AkkaVersion	= "2.5.25"
+  val AnalyzerVersion = "2.0.1"
   val BreezeVersion	= "0.13.2"
-  val ESClientVersion	= "7.2.0"
+  val CourierVersion = "1.0.0"
+  val ESClientVersion	= "7.4.1"
   val LogbackVersion	= "1.2.3"
+  val ManausLibVersion = "1.0.2"
   val RoundeightsHasherVersion	= "1.2.0"
   val ScalatestVersion	= "3.0.5"
   val ScalazVersion	= "7.2.24"
   val ScoptVersion	= "3.7.0"
-  val TikaVersion	= "1.18"
-  val ManausLibVersion = "1.0.2"
   val StanfordCoreNLP = "3.9.2"
-  val AnalyzerVersion = "2.0.1"
-  val CourierVersion = "1.0.0"
+  val TikaVersion	= "1.18"
   Seq(
     "com.getjenny" %% "manaus-lib" % ManausLibVersion,
     "com.getjenny" %% "analyzer" % AnalyzerVersion,

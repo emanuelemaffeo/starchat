@@ -1,8 +1,8 @@
 package com.getjenny.starchat.resources
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 14/11/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 14/11/16.
+ */
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route
@@ -16,6 +16,7 @@ import scala.util.{Failure, Success}
 trait SystemIndexManagementResource extends StarChatResource {
 
   private[this] val systemIndexManagementService: SystemIndexManagementService.type = SystemIndexManagementService
+  private[this] val SystemIndexManagement = "system_index_management"
 
   def systemGetIndexesRoutes: Route = handleExceptions(routesExceptionHandler) {
     pathPrefix("system_indices") {
@@ -44,14 +45,14 @@ trait SystemIndexManagementResource extends StarChatResource {
   }
 
   def systemIndexManagementRoutes: Route = handleExceptions(routesExceptionHandler) {
-    pathPrefix("system_index_management") {
+    pathPrefix(SystemIndexManagement) {
       path(Segment) { operation: String =>
         post {
           authenticateBasicAsync(realm = authRealm,
             authenticator = authenticator.authenticator) { user =>
             authorizeAsync(_ =>
               authenticator.hasPermissions(user, "admin", Permissions.write)) {
-              parameters("indexSuffix".as[Option[String]] ? Option.empty[String]) { indexSuffix =>
+              parameters('indexSuffix.as[String].?) { indexSuffix =>
                 operation match {
                   case "refresh" =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
@@ -109,7 +110,7 @@ trait SystemIndexManagementResource extends StarChatResource {
                 authenticator = authenticator.authenticator) { user =>
                 authorizeAsync(_ =>
                   authenticator.hasPermissions(user, "admin", Permissions.write)) {
-                  parameters("indexSuffix".as[Option[String]] ? Option.empty[String]) { indexSuffix =>
+                  parameters('indexSuffix.as[String].?) { indexSuffix =>
                     val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker()
                     onCompleteWithBreakerFuture(breaker)(systemIndexManagementService.remove(indexSuffix)) {
                       case Success(t) => completeResponse(StatusCodes.OK, StatusCodes.BadRequest, Option {
@@ -145,6 +146,7 @@ trait SystemIndexManagementResource extends StarChatResource {
         }
     }
   }
+
 }
 
 

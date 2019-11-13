@@ -1,8 +1,8 @@
 package com.getjenny.starchat.serializers
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
+ */
 
 import akka.http.scaladsl.common.{EntityStreamingSupport, JsonEntityStreamingSupport}
 import akka.http.scaladsl.marshallers.sprayjson.SprayJsonSupport
@@ -10,6 +10,7 @@ import akka.http.scaladsl.unmarshalling.Unmarshaller
 import akka.stream.scaladsl.Flow
 import akka.util.ByteString
 import com.getjenny.analyzer.expressions.AnalyzersData
+import com.getjenny.starchat.entities.es._
 import com.getjenny.starchat.entities.{QAAggregatedAnalyticsRequest, _}
 import scalaz.Scalaz._
 import spray.json._
@@ -182,7 +183,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val responseRequestUserInputFormat = jsonFormat3(ResponseRequestInUserInput)
   implicit val responseRequestInputFormat = jsonFormat9(ResponseRequestIn)
   implicit val responseRequestOutputFormat = jsonFormat14(ResponseRequestOut)
-  implicit val dtDocumentFormat = jsonFormat13(DTDocument)
+  implicit val dtDocumentFormat = jsonFormat13(DTDocumentCreate)
   implicit val dtDocumentUpdateFormat = jsonFormat12(DTDocumentUpdate)
   implicit val qaDocumentAnnotationsSearchFormat = jsonFormat20(QADocumentAnnotationsSearch)
   implicit val qaDocumentCoreFormat = jsonFormat8(QADocumentCore)
@@ -341,4 +342,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val conversationFormat = jsonFormat2(Conversation)
   implicit val conversationsFormat = jsonFormat2(Conversations)
   implicit val updateQAByQueryReqFormat = jsonFormat2(UpdateQAByQueryReq)
+
+  implicit val createLanguageIndexRequestFromat = jsonFormat1(CreateLanguageIndexRequest)
+
 }

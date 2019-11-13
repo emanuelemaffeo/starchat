@@ -2,7 +2,7 @@ package com.getjenny.starchat.resources
 
 import akka.http.scaladsl.model.StatusCodes
 import com.getjenny.starchat.entities._
-import com.getjenny.starchat.utils.Index
+import com.getjenny.starchat.entities.es._
 
 class TermExtractionResourceTest extends TestEnglishBase {
 
@@ -78,7 +78,7 @@ class TermExtractionResourceTest extends TestEnglishBase {
         status shouldEqual StatusCodes.Created
         val response = responseAs[IndexDocumentResult]
       }
-      Post(s"/index_getjenny_english_common_0/prior_data?refresh=1", document) ~> addCredentials(testUserCredentials) ~> routes ~> check {
+      Post(s"/index_getjenny_english_common_0/prior_data?refresh=1", document.copy(id = "id4")) ~> addCredentials(testUserCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.Created
         val response = responseAs[IndexDocumentResult]
       }

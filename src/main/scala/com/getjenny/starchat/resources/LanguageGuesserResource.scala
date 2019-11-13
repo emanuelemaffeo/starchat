@@ -1,8 +1,8 @@
 package com.getjenny.starchat.resources
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 19/12/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 19/12/16.
+ */
 
 import akka.http.scaladsl.model.StatusCodes
 import akka.http.scaladsl.server.Route

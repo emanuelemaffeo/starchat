@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services
 
 /**
-  * Created by angelo on 21/04/17.
-  */
+ * Created by angelo on 21/04/17.
+ */
 
 import com.getjenny.starchat.entities._
 import com.getjenny.starchat.services.esclient.KnowledgeBaseElasticClient
@@ -15,12 +15,13 @@ import org.elasticsearch.search.suggest.term.{TermSuggestion, TermSuggestionBuil
 
 import scala.collection.JavaConverters._
 import scala.collection.immutable.List
-import scala.concurrent.Future
 
 object SpellcheckService extends AbstractDataService {
   override val elasticClient: KnowledgeBaseElasticClient.type = KnowledgeBaseElasticClient
 
+  //TODO refactor with new dedicated index
   def termsSuggester(indexName: String, request: SpellcheckTermsRequest) : SpellcheckTermsResponse = {
+    val esLanguageSpecificIndexName = Index.esLanguageFromIndexName(indexName, elasticClient.indexSuffix)
     val client: RestHighLevelClient = elasticClient.httpClient
 
     val suggestionBuilder: TermSuggestionBuilder = new TermSuggestionBuilder("question.base")
@@ -35,7 +36,7 @@ object SpellcheckService extends AbstractDataService {
     val sourceReq: SearchSourceBuilder = new SearchSourceBuilder()
       .suggest(suggestBuilder)
 
-    val searchReq = new SearchRequest(Index.indexName(indexName, elasticClient.indexSuffix))
+    val searchReq = new SearchRequest(esLanguageSpecificIndexName)
       .source(sourceReq)
 
     val searchResponse : SearchResponse = client.search(searchReq, RequestOptions.DEFAULT)

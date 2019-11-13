@@ -1,8 +1,8 @@
 package com.getjenny.starchat
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 27/06/16.
+ */
 
 import akka.actor.ActorSystem
 import akka.http.scaladsl.server.Route

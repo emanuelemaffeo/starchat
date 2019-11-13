@@ -8,7 +8,8 @@ import com.getjenny.analyzer.atoms.{AbstractAtomic, ExceptionAtomic}
 import com.getjenny.analyzer.expressions.{AnalyzersDataInternal, Result}
 import com.getjenny.analyzer.util.VectorUtils._
 import com.getjenny.starchat.analyzer.utils.TextToVectorsTools
-import com.getjenny.starchat.entities.{CommonOrSpecificSearch, _}
+import com.getjenny.starchat.entities.CommonOrSpecificSearch
+import com.getjenny.starchat.entities.es.TextTerms
 import com.getjenny.starchat.services._
 import com.getjenny.starchat.utils.Index
 

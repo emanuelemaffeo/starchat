@@ -1,8 +1,8 @@
 package com.getjenny.starchat
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 15/03/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 15/03/17.
+ */
 
 import akka.actor.ActorSystem
 

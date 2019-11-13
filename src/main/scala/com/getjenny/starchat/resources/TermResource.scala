@@ -10,10 +10,10 @@ import akka.http.scaladsl.server.Route
 import akka.pattern.CircuitBreaker
 import akka.stream.scaladsl.Source
 import com.getjenny.starchat.entities._
+import com.getjenny.starchat.entities.es.{SearchTerm, Term, Terms}
 import com.getjenny.starchat.routing._
 import com.getjenny.starchat.services.TermService
 
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
 

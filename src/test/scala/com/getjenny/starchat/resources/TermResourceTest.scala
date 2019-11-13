@@ -3,7 +3,7 @@ package com.getjenny.starchat.resources
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity, Multipart, StatusCodes}
 import akka.http.scaladsl.server.Route
 import com.getjenny.starchat.entities._
-import com.getjenny.starchat.utils.Index
+import com.getjenny.starchat.entities.es.{SearchTerm, Term, Terms, TermsResults}
 
 import scala.io.Source.fromResource
 

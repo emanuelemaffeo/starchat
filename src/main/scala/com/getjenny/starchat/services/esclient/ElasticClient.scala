@@ -1,8 +1,8 @@
 package com.getjenny.starchat.services.esclient
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 01/07/16.
+ */
 
 import java.net.InetAddress
 
@@ -10,9 +10,9 @@ import com.getjenny.starchat.entities._
 import com.getjenny.starchat.utils.SslContext
 import com.typesafe.config.{Config, ConfigFactory}
 import javax.net.ssl._
-import org.apache.http.{Header, HttpHost}
 import org.apache.http.impl.nio.client.HttpAsyncClientBuilder
 import org.apache.http.message.BasicHeader
+import org.apache.http.{Header, HttpHost}
 import org.elasticsearch.action.admin.indices.refresh.{RefreshRequest, RefreshResponse}
 import org.elasticsearch.client.indices._
 import org.elasticsearch.client.{RequestOptions, RestClient, RestClientBuilder, RestHighLevelClient}
@@ -72,7 +72,7 @@ trait ElasticClient {
     } else {
       RestClient.builder(inetAddresses: _*)
         .setHttpClientConfigCallback(HttpClientConfigCallback)
-    }.setDefaultHeaders(defaultHeaders)
+      }.setDefaultHeaders(defaultHeaders)
   }
 
   private[this] var esHttpClient: RestHighLevelClient = openHttp()
@@ -137,9 +137,10 @@ trait ElasticClient {
   val termIndexSuffix: String = config.getString("es.term_index_suffix")
 
   val userIndexSuffix: String = config.getString("es.user_index_suffix")
-  val systemRefreshDtIndexSuffix: String = config.getString("es.system_refresh_dt_index_suffix")
+  val systemInstanceRegistrySuffix: String = config.getString("es.system_instance_registry_suffix")
   val systemClusterNodesIndexSuffix: String = "cluster_nodes"
   val systemDtNodesStatusIndexSuffix: String = "decision_table_node_status"
+  val systemBayesOperatorCacheIndexSuffix: String = "bayes_operator_cache"
 
   val enableDeleteIndex: Boolean = config.getBoolean("es.enable_delete_application_index")
   val enableDeleteSystemIndex: Boolean = config.getBoolean("es.enable_delete_system_index")

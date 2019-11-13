@@ -1,8 +1,8 @@
 package com.getjenny.starchat.entities
 
 /**
-  * Created by Angelo Leto <angelo@getjenny.com> on 20/11/17.
-  */
+ * Created by Angelo Leto <angelo@getjenny.com> on 20/11/17.
+ */
 
 case class UserUpdate(
                        id: String, /** user id */
@@ -12,6 +12,6 @@ case class UserUpdate(
                          Map[
                            String, /** index name */
                            Set[Permissions.Value] /** permissions granted for the index */
-                           ]
                          ]
+                       ]
                      )

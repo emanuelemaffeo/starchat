@@ -6,7 +6,9 @@
         "format": "epoch_millis",
         "store": true,
         "index": true
-      }
+      },
+      "enabled": {"type":  "boolean"},
+      "delete": {"type":  "boolean"}
     }
   }
 }

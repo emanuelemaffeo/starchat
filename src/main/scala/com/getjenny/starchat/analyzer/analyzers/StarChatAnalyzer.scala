@@ -5,11 +5,11 @@ package com.getjenny.starchat.analyzer.analyzers
   */
 
 import com.getjenny.analyzer.analyzers._
-import com.getjenny.analyzer.operators._
 import com.getjenny.starchat.analyzer.atoms._
+import com.getjenny.starchat.analyzer.operators.StarchatFactoryOperator
 
 class StarChatAnalyzer(command: String, restrictedArgs: Map[String, String])
   extends {
     override val atomicFactory = new StarchatFactoryAtomic
-    override val operatorFactory = new DefaultFactoryOperator
+    override val operatorFactory = new StarchatFactoryOperator
   } with DefaultParser(command: String, restrictedArgs: Map[String, String])
