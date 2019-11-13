@@ -199,6 +199,7 @@ class QaDocumentEntityManager(indexName: String) extends EsEntityManager[QADocum
   override def toXContentBuilder(entity: QADocumentBase, instance: String): (String, XContentBuilder) = entity match {
     case d: QADocument => createBuilder(d, instance)
     case d: QADocumentUpdateEntity => updateBuilder(d, instance)
+    case d => throw new IllegalArgumentException(s"No match case for class $d")
   }
 
   private[this] def updateBuilder(document: QADocumentUpdateEntity, instance: String): (String, XContentBuilder) = {

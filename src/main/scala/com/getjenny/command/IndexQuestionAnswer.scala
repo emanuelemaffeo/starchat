@@ -14,7 +14,6 @@ import akka.http.scaladsl.model.headers.RawHeader
 import akka.http.scaladsl.model.{HttpRequest, _}
 import akka.stream.ActorMaterializer
 import breeze.io.CSVReader
-import com.getjenny.starchat.entities.{es, _}
 import com.getjenny.starchat.entities.es.{Doctypes, QADocument, QADocumentAnnotations, QADocumentCore}
 import com.getjenny.starchat.serializers.JsonSupport
 import com.roundeights.hasher.Implicits._

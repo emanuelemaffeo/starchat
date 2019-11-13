@@ -34,7 +34,6 @@ case class LangResourceException(message: String = "", cause: Throwable = None.o
  */
 object LangaugeIndexManagementService extends AbstractDataService {
   override val elasticClient: IndexManagementElasticClient.type = IndexManagementElasticClient
-  private[this] val dtReloadService = InstanceRegistryService
   private[this] val languageSpecificIndexPrefix = "index_"
 
   private[this] def analyzerFiles(language: String): JsonMappingAnalyzersIndexFiles =

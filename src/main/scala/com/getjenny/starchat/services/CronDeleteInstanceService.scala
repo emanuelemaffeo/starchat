@@ -39,7 +39,7 @@ object CronDeleteInstanceService extends CronService {
         instanceRegistryService.deleteEntry(List(registryEntryId))
         DeleteInstanceResponse(indexName, instance, delete.getDeleted)
       }.toEither
-        .left.map{ x =>
+        .left.map{ _ =>
         log.error("Error during delete registry entry {} for in index {}", registryEntryId, indexName)
           s"Error during delete registry entry $registryEntryId for in index $indexName"
       }

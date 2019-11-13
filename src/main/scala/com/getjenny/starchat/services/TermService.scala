@@ -95,7 +95,9 @@ object TermService extends AbstractDataService {
   def termsById(indexName: String, termsRequest: DocsIds): Terms = {
     if (termsRequest.ids.nonEmpty) {
       val indexLanguageCrud = IndexLanguageCrud(elasticClient, indexName)
-      val terms = indexLanguageCrud.readAll(termsRequest.ids, new TermEntityManager).head.terms
+      val terms = indexLanguageCrud
+        .readAll(termsRequest.ids, new TermEntityManager)
+        .headOption.map(_.terms).getOrElse(List.empty)
       Terms(terms)
     } else {
       Terms(terms = List.empty)
@@ -190,13 +192,14 @@ object TermService extends AbstractDataService {
         throw TermServiceException("Unexpected query type for terms search")
     }
 
-    val termsInfo = indexLanguageCrud.read(boolQueryBuilder,
+    val termsInfo: Option[TermsInfo] = indexLanguageCrud.read(boolQueryBuilder,
       searchType = SearchType.DFS_QUERY_THEN_FETCH,
       version = Option(true),
-      entityManager = new TermEntityManager).head
+      entityManager = new TermEntityManager).headOption
 
-    val terms = termsInfo.terms
-    TermsResults(total = terms.length, maxScore = termsInfo.maxScore.getOrElse(0f), hits = Terms(terms))
+    val terms = termsInfo.map(_.terms).getOrElse(List.empty)
+    val maxScore = termsInfo.flatMap(_.maxScore).getOrElse(0f)
+    TermsResults(total = terms.length, maxScore = maxScore, hits = Terms(terms))
   }
 
   /** tokenize a text

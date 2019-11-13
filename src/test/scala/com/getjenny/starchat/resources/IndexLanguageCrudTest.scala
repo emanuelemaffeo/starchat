@@ -123,8 +123,8 @@ class IndexLanguageCrudTest extends FunSuite with Matchers with ScalatestRouteTe
     val message = findResponse.filter(x => x.message === "ciao")
 
     assert(message.nonEmpty)
-    assert(message.length == 1)
-    assert(message.head.message === "ciao")
+    assert(message.length === 1)
+    assert(message.headOption.map(_.message).getOrElse("") === "ciao")
   }
 
   test("find with match all test") {

@@ -18,8 +18,7 @@ import org.elasticsearch.index.reindex.{BulkByScrollResponse, DeleteByQueryReque
 import org.elasticsearch.search.aggregations.AggregationBuilder
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortBuilder
-
-import scala.collection.immutable.Map
+import scalaz.Scalaz._
 
 class EsCrudBase(val client: ElasticClient, val index: String) {
 
@@ -93,7 +92,7 @@ class EsCrudBase(val client: ElasticClient, val index: String) {
       response = client.httpClient.scroll(request, RequestOptions.DEFAULT)
       val r = response
       r
-    }.takeWhile(x => x.getHits.getHits.length != 0)
+    }.takeWhile(x => x.getHits.getHits.length =/= 0)
   }
 
   def readAll(ids: List[String]): MultiGetResponse = {
