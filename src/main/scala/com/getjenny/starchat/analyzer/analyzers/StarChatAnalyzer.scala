@@ -11,5 +11,5 @@ import com.getjenny.starchat.analyzer.atoms._
 class StarChatAnalyzer(command: String, restrictedArgs: Map[String, String])
   extends {
     override val atomicFactory = new StarchatFactoryAtomic
-    override val operatorFactory = new DefaultFactoryOperator
+    override val operatorFactory = new StarchatFactoryOperator
   } with DefaultParser(command: String, restrictedArgs: Map[String, String])

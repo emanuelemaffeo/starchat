@@ -22,7 +22,7 @@ class SystemIndexManagementResourceTest extends WordSpec with Matchers with Scal
   val testAdminCredentials = BasicHttpCredentials("admin", "adminp4ssw0rd")
   val testUserCredentials = BasicHttpCredentials("test_user", "p4ssw0rd")
 
-  val suffixes = Seq("user", "instance_registry", "cluster_nodes", "decision_table_node_status")
+  val suffixes = Seq("user", "instance_registry", "cluster_nodes", "decision_table_node_status", "bayes_operator_cache")
 
   override protected def afterAll(): Unit = {
     Delete(s"/system_index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
@@ -74,7 +74,7 @@ class SystemIndexManagementResourceTest extends WordSpec with Matchers with Scal
         status shouldEqual StatusCodes.OK
         val response = responseAs[List[String]]
         response.foreach(println)
-        response.length should be (4)
+        response.length should be (5)
       }
     }
   }

@@ -258,27 +258,6 @@ class DecisionTableResourceTest extends TestEnglishBase {
   }
 
   it should {
-    "return an HTTP code 205 getting next response and decisiontable is not updated" in {
-      val request = ResponseRequestIn(conversationId = "conv_12131",
-          traversedStates = None,
-          userInput = Some(ResponseRequestInUserInput(text = Some("It doesn't matter what I say here when state is defined"), img = None
-          )),
-          state = None,
-          data = Some(Map("name" -> "Donald Duck", "job" -> "idle")),
-          threshold = Some(0),
-          evaluationClass = None,
-          maxResults = Some(1),
-          searchAlgorithm = Some(SearchAlgorithm.NGRAM3)
-        )
-
-      Post("/index_getjenny_english_0/get_next_response", request) ~> addCredentials(testUserCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.ResetContent
-        val response = responseAs[ResponseRequestOutOperationResult]
-      }
-    }
-  }
-
-  it should {
     "return an HTTP code 200 when triggering an update of the DecisionTable" in {
       Post("/index_getjenny_english_0/decisiontable/analyzer") ~> addCredentials(testUserCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
