@@ -22,6 +22,7 @@ import scala.util.matching.Regex
 import scala.util.{Failure, Success}
 
 trait DecisionTableResource extends StarChatResource {
+  
 
   private[this] val decisionTableService: DecisionTableService.type = DecisionTableService
   private[this] val analyzerService: AnalyzerService.type = AnalyzerService
