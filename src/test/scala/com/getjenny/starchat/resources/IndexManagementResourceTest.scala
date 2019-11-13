@@ -15,11 +15,28 @@ class IndexManagementResourceTest extends TestBase {
   }
 
   "StarChat" should {
+    "check is false when instance is not yet in the registry" in {
+      Get(s"/index_getjenny_english_0/index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+        status shouldEqual StatusCodes.OK
+        val response = responseAs[IndexManagementResponse]
+        response.check shouldEqual false
+      }
+    }
+
+
     "return an HTTP code 200 when add instance" in {
       Post(s"/index_getjenny_english_0/index_management/create") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[IndexManagementResponse]
         response.message shouldEqual "Created instance index_getjenny_english_0, operation status: CREATED"
+      }
+    }
+
+    "check is true when instance is in the registry" in {
+      Get(s"/index_getjenny_english_0/index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+        status shouldEqual StatusCodes.OK
+        val response = responseAs[IndexManagementResponse]
+        response.check shouldEqual true
       }
     }
 
@@ -32,7 +49,7 @@ class IndexManagementResourceTest extends TestBase {
     }
 
     "return an HTTP code 200 when mark delete instance" in {
-      Post(s"/index_getjenny_english_0/index_management/delete") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+      Delete(s"/index_getjenny_english_0/index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[IndexManagementResponse]
         response.message shouldEqual "Mark Delete instance index_getjenny_english_0, operation status: OK"

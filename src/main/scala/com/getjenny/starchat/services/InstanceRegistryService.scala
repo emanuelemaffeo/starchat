@@ -16,12 +16,11 @@ import org.elasticsearch.common.xcontent.XContentFactory._
 import org.elasticsearch.index.query.{BoolQueryBuilder, QueryBuilders}
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.sort.{FieldSortBuilder, SortOrder}
-import scalaz.Scalaz._
-
 import scala.collection.JavaConverters._
 import scala.collection.concurrent.TrieMap
 import scala.collection.immutable.Map
 import scala.util.{Failure, Success, Try}
+import scalaz.Scalaz._
 
 case class InstanceRegistryDocument(timestamp: Option[Long] = None, enabled: Option[Boolean] = None,
                                     delete: Option[Boolean] = None) {
@@ -99,6 +98,12 @@ object InstanceRegistryService extends AbstractDataService {
       throw new IllegalArgumentException(s"Index name $indexName is not a valid index to be used with instanceRegistry")
 
     cache.getOrElseUpdate(indexName, findEsLanguageIndex(indexName))
+  }
+
+  def checkInstance(indexName: String): IndexManagementResponse = {
+    val document: InstanceRegistryDocument = this.getInstance(indexName)
+    val check = !document.equals(InstanceRegistryDocument.empty)
+    IndexManagementResponse(message = s"IndexCheck for entry: $indexName", check)
   }
 
   def disableInstance(indexName: String): IndexManagementResponse = {
