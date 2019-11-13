@@ -31,6 +31,8 @@ case class InstanceRegistryDocument(timestamp: Option[Long] = None, enabled: Opt
     delete.foreach(d => builder.field("delete", d))
     builder.endObject()
   }
+
+  def isEmpty: Boolean = timestamp.isEmpty && enabled.isEmpty && delete.isEmpty
 }
 
 object InstanceRegistryDocument {
@@ -101,9 +103,9 @@ object InstanceRegistryService extends AbstractDataService {
   }
 
   def checkInstance(indexName: String): IndexManagementResponse = {
-    val document: InstanceRegistryDocument = this.getInstance(indexName)
-    val check = !document.equals(InstanceRegistryDocument.empty)
-    IndexManagementResponse(message = s"IndexCheck for entry: $indexName", check)
+    esCrudBase.refresh()
+    val document = findEsLanguageIndex(indexName)
+    IndexManagementResponse(message = s"IndexCheck for entry: $indexName", !document.isEmpty)
   }
 
   def disableInstance(indexName: String): IndexManagementResponse = {

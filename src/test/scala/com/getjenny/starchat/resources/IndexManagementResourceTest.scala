@@ -2,6 +2,7 @@ package com.getjenny.starchat.resources
 
 import akka.http.scaladsl.model.StatusCodes
 import com.getjenny.starchat.entities.{CreateLanguageIndexRequest, IndexManagementResponse}
+import com.getjenny.starchat.services.InstanceRegistryService
 
 class IndexManagementResourceTest extends TestBase {
 
@@ -15,15 +16,6 @@ class IndexManagementResourceTest extends TestBase {
   }
 
   "StarChat" should {
-    "check is false when instance is not yet in the registry" in {
-      Get(s"/index_getjenny_english_0/index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
-        status shouldEqual StatusCodes.OK
-        val response = responseAs[IndexManagementResponse]
-        response.check shouldEqual false
-      }
-    }
-
-
     "return an HTTP code 200 when add instance" in {
       Post(s"/index_getjenny_english_0/index_management/create") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
@@ -32,7 +24,7 @@ class IndexManagementResourceTest extends TestBase {
       }
     }
 
-    "check is true when instance is in the registry" in {
+    "return an HTTP 200 and a check is true when instance is in the registry" in {
       Get(s"/index_getjenny_english_0/index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
         status shouldEqual StatusCodes.OK
         val response = responseAs[IndexManagementResponse]
@@ -62,11 +54,21 @@ class IndexManagementResourceTest extends TestBase {
       }
     }
 
+    "return an HTTP 200 and a false check if instance is not yet in the registry" in {
+      InstanceRegistryService.deleteEntry(List("index_getjenny_english_0"))
+
+      Get(s"/index_getjenny_english_0/index_management") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
+        status shouldEqual StatusCodes.OK
+        val response = responseAs[IndexManagementResponse]
+        response.check shouldEqual false
+      }
+    }
+
   }
 
   override protected def afterAll(): Unit = {
     super.afterAll()
-    Delete("/language_index_management?index=index_english") ~>  addCredentials(testAdminCredentials) ~> routes ~> check {
+    Delete("/language_index_management?index=index_english") ~> addCredentials(testAdminCredentials) ~> routes ~> check {
       true
     }
   }
