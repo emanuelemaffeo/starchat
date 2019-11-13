@@ -31,18 +31,24 @@ trait RootAPIResource extends StarChatResource {
                   })
             }
           } ~ post {
-            val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker(maxFailure = 5,
-              callTimeout = 2.second)
-            onCompleteWithBreakerFuture(breaker)(None) {
-              case Success(_) =>
-                val buildInfo = com.getjenny.starchat.autogen.utils.BuildInfo.toJson
-                completeResponse(StatusCodes.OK, buildInfo)
-              case Failure(e) =>
-                log.error(logTemplate("", "indexName", "RootRoutes", request.method, request.uri), e)
-                completeResponse(StatusCodes.BadRequest,
-                  Option {
-                    ReturnMessageData(code = 100, message = e.getMessage)
-                  })
+            authenticateBasicAsync(realm = authRealm,
+              authenticator = authenticator.authenticator) { user =>
+              authorizeAsync(_ =>
+                authenticator.hasPermissions(user, "admin", Permissions.read)) {
+                val breaker: CircuitBreaker = StarChatCircuitBreaker.getCircuitBreaker(maxFailure = 5,
+                  callTimeout = 2.second)
+                onCompleteWithBreakerFuture(breaker)(None) {
+                  case Success(_) =>
+                    val buildInfo = com.getjenny.starchat.autogen.utils.BuildInfo.toJson
+                    completeResponse(StatusCodes.OK, buildInfo)
+                  case Failure(e) =>
+                    log.error(logTemplate("", "indexName", "RootRoutes", request.method, request.uri), e)
+                    completeResponse(StatusCodes.BadRequest,
+                      Option {
+                        ReturnMessageData(code = 100, message = e.getMessage)
+                      })
+                }
+              }
             }
           }
         }
